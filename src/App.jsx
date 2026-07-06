@@ -1,16 +1,19 @@
 import { useState } from 'react';
+import { AuthGate, SignOutButton } from './components/AuthGate.jsx';
 import { useStore } from './lib/store.js';
-import { Mark, IcDash, IcClock, IcBuilding, IcUsers } from './components/ui.jsx';
+import { Mark, IcDash, IcClock, IcBuilding, IcUsers, IcImport } from './components/ui.jsx';
 import Dashboard from './views/Dashboard.jsx';
 import Field from './views/Field.jsx';
 import Properties from './views/Properties.jsx';
 import Team from './views/Team.jsx';
+import Import from './views/Import.jsx';
 
 const TABS = [
   { id: 'dash', label: 'Dashboard', Icon: IcDash, View: Dashboard },
   { id: 'field', label: 'Field', Icon: IcClock, View: Field },
   { id: 'props', label: 'Properties', Icon: IcBuilding, View: Properties },
   { id: 'team', label: 'Team', Icon: IcUsers, View: Team },
+  { id: 'import', label: 'Import', Icon: IcImport, View: Import },
 ];
 
 export default function App() {
@@ -19,6 +22,7 @@ export default function App() {
   const Active = TABS.find((t) => t.id === tab).View;
 
   return (
+    <AuthGate>
     <div className="app desk">
       {/* desktop side rail brand (hidden on mobile) */}
       <nav className="tabbar">
@@ -35,9 +39,11 @@ export default function App() {
           <div className="brand"><Mark /> Caliper <span className="sub">beta</span></div>
           <div className="spacer" />
           <div className="org-pill">{store.meta.org}</div>
+          <SignOutButton />
         </header>
         <main className="content"><Active store={store} /></main>
       </div>
     </div>
+    </AuthGate>
   );
 }

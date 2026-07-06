@@ -26,6 +26,7 @@ export const IcClock = P(<><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/
 export const IcBuilding = P(<><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 8h.01M15 8h.01M9 12h.01M15 12h.01M9 16h6"/></>);
 export const IcUsers = P(<><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M16 6a3 3 0 0 1 0 6M21 20a6 6 0 0 0-5-5.9"/></>);
 export const IcPlay = P(<><path d="M6 4l14 8-14 8z"/></>);
+export const IcImport = P(<><path d="M12 3v12M8 11l4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></>);
 
 const PALS = ['#ff7a18', '#ff3d81', '#4ade80', '#38bdf8', '#a855f7', '#ffd21a', '#ff5a5a', '#22d3ee'];
 export function Avatar({ name, i = 0 }) {
