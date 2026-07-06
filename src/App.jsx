@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AuthGate, SignOutButton } from './components/AuthGate.jsx';
+import { AuthGate, SignOutButton, AccountButton } from './components/AuthGate.jsx';
 import { useStore } from './lib/store.js';
 import { Mark, IcDash, IcClock, IcBuilding, IcUsers, IcImport } from './components/ui.jsx';
 import Dashboard from './views/Dashboard.jsx';
@@ -39,6 +39,7 @@ export default function App() {
           <div className="brand"><Mark /> Caliper <span className="sub">beta</span></div>
           <div className="spacer" />
           <div className="org-pill">{store.meta.org}</div>
+          <AccountButton />
           <SignOutButton />
         </header>
         <main className="content"><Active store={store} /></main>
