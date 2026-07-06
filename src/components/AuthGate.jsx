@@ -1,6 +1,12 @@
-import { useState, useEffect } from 'react';
-import { supabase, isConfigured, signIn, signOut, getSession, onAuthChange, updatePassword } from '../lib/backend/supabase.js';
+import { useState, useEffect, createContext, useContext } from 'react';
+import { supabase, isConfigured, signIn, signOut, getSession, onAuthChange, updatePassword, fetchMembership } from '../lib/backend/supabase.js';
 import { Mark } from './ui.jsx';
+
+// role drives which tools are visible: admin/manager see the full suite
+// incl. financials; tech (contractors) get field tools only; viewer is
+// read-only. RLS + getdek enforce the same boundary server-side.
+const AuthCtx = createContext({ session: null, role: 'admin', orgId: null });
+export const useAuth = () => useContext(AuthCtx);
 
 // Wraps the app. Three states:
 //  - not configured  → demo mode (seed data), small banner, no gate
@@ -9,6 +15,8 @@ import { Mark } from './ui.jsx';
 export function AuthGate({ children }) {
   const [session, setSession] = useState(null);
   const [ready, setReady] = useState(false);
+  const [mem, setMem] = useState(null);       // { org_id, role }
+  const [memReady, setMemReady] = useState(false);
 
   useEffect(() => {
     if (!isConfigured()) { setReady(true); return; }
@@ -17,23 +25,46 @@ export function AuthGate({ children }) {
     return () => data?.subscription?.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!isConfigured() || !session) { setMem(null); setMemReady(false); return; }
+    let on = true;
+    fetchMembership()
+      .then((m) => { if (on) { setMem(m); setMemReady(true); } })
+      .catch(() => { if (on) { setMem(null); setMemReady(true); } }); // least privilege on failure
+    return () => { on = false; };
+  }, [session]);
+
   if (!ready) return null;
 
-  // demo mode — backend not wired yet, app runs on seed data
+  // demo mode — backend not wired yet, app runs on seed data with full suite
   if (!isConfigured()) {
     return (
-      <>
+      <AuthCtx.Provider value={{ session: null, role: 'admin', orgId: null }}>
         <div style={{ background: '#38bdf812', borderBottom: '1px solid #38bdf833', color: 'var(--info)',
           fontSize: 12, fontWeight: 700, textAlign: 'center', padding: '7px 12px', fontFamily: 'var(--font)' }}>
           ◑ Demo mode · sample data · connect Supabase to enable secure login &amp; real data
         </div>
         {children}
-      </>
+      </AuthCtx.Provider>
     );
   }
 
   if (!session) return <Login />;
-  return children;
+  if (!memReady) {
+    // don't flash the wrong toolset while the role loads
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', color: 'var(--text-faint)', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Mark /> loading your workspace…</div>
+      </div>
+    );
+  }
+
+  // no membership row = not yet onboarded to an org → treat as tech (least privilege)
+  return (
+    <AuthCtx.Provider value={{ session, role: mem?.role || 'tech', orgId: mem?.org_id || null }}>
+      {children}
+    </AuthCtx.Provider>
+  );
 }
 
 function Login() {

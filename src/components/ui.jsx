@@ -27,6 +27,8 @@ export const IcBuilding = P(<><rect x="4" y="3" width="16" height="18" rx="1"/><
 export const IcUsers = P(<><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M16 6a3 3 0 0 1 0 6M21 20a6 6 0 0 0-5-5.9"/></>);
 export const IcPlay = P(<><path d="M6 4l14 8-14 8z"/></>);
 export const IcImport = P(<><path d="M12 3v12M8 11l4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></>);
+export const IcCal = P(<><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></>);
+export const IcWrench = P(<><path d="M20.3 5.1a5 5 0 0 1-6.6 6.6L7 18.4a2.1 2.1 0 0 1-3-3l6.7-6.7a5 5 0 0 1 6.6-6.6l-3.2 3.2 2.1 2.1 3.2-3.2z"/></>);
 
 const PALS = ['#ff7a18', '#ff3d81', '#4ade80', '#38bdf8', '#a855f7', '#ffd21a', '#ff5a5a', '#22d3ee'];
 export function Avatar({ name, i = 0 }) {

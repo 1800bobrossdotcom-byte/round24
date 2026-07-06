@@ -62,8 +62,8 @@ export default function Properties({ store }) {
             {rows.map((r) => (
               <tr key={r.key} onClick={() => setSel(r.key)} style={{ cursor: 'pointer' }}>
                 <td className="barcell"><div className="bar" style={{ width: `${(r.cost / max) * 100}%` }} />
-                  <span className="bar-label" style={{ fontWeight: 700 }}>{propById[r.key]?.name}</span>
-                  <div className="bar-label" style={{ fontSize: 11, color: 'var(--text-dim)' }}>{propById[r.key]?.city}</div></td>
+                  <span className="bar-label" style={{ fontWeight: 700 }}>{propById[r.key]?.name || 'Unallocated (imported)'}</span>
+                  <div className="bar-label" style={{ fontSize: 11, color: 'var(--text-dim)' }}>{propById[r.key]?.city || 'needs property tagging'}</div></td>
                 <td className="num">{r.count}</td>
                 <td className="num">{fmtHrs(r.hrs)}</td>
                 <td className="num money" style={{ fontWeight: 700 }}>{fmtMoney(r.cost)}</td>

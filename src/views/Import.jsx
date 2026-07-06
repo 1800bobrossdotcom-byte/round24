@@ -67,6 +67,7 @@ export default function Import({ store }) {
     const cost = withRate.reduce((a, t) => a + t.durationHrs * t.rate, 0);
     const techCount = new Set(timers.map((t) => t.techName)).size;
     const unalloc = timers.length; // all imported are property-unallocated initially
+    store.addImported(timers);     // land it on the chart spine — Dashboard/Calendar/Team pick it up
     setResult({ count: timers.length, hrs, cost, techCount, unalloc });
     setStep(3);
   };
@@ -194,6 +195,9 @@ export default function Import({ store }) {
           </div>
           <div className="offline" style={{ marginTop: 'var(--gap)', color: 'var(--info)', borderColor: '#38bdf833', background: '#38bdf812' }}>
             ◑ {result.unalloc} entries are property-unallocated — the next step is tagging which building each belongs to (exactly the split Gianni does by hand). That unlocks true cost per property.
+          </div>
+          <div className="offline" style={{ color: 'var(--money)', borderColor: '#4ade8033', background: '#4ade8012' }}>
+            ✓ Live in your charts — check the Dashboard, Calendar, and Team views. The date range has been widened to cover the imported period.
           </div>
           <div className="wizard-actions">
             <button className="btn ghost" onClick={() => { setStep(0); setSheets([]); setSelected([]); setResult(null); }}>Import another file</button>

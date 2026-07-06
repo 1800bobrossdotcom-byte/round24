@@ -46,6 +46,48 @@ export function onAuthChange(cb) {
   return supabase.auth.onAuthStateChange((_e, session) => cb(session));
 }
 
+// the caller's org + role — drives which tools they can see.
+// RLS enforces the same boundary server-side; this is for the UI.
+export async function fetchMembership() {
+  const { data, error } = await supabase
+    .from('memberships').select('org_id, role').limit(1).maybeSingle();
+  if (error) throw error;
+  return data; // { org_id, role } or null
+}
+
+// ---- work orders ----
+const woFromDb = (r) => ({
+  id: r.id, propLabel: r.property_label, unit: r.unit, task: r.task,
+  detail: r.detail, category: r.category, assigneeLabel: r.assignee_label,
+  due: r.due_date, status: r.status, source: r.source,
+  transcript: r.voice_transcript, createdAt: r.created_at,
+});
+
+export async function listWorkOrders(orgId) {
+  const { data, error } = await supabase
+    .from('work_orders').select('*').eq('org_id', orgId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data.map(woFromDb);
+}
+
+export async function insertWorkOrder(orgId, wo) {
+  const { data, error } = await supabase.from('work_orders').insert({
+    org_id: orgId, property_label: wo.propLabel || null, unit: wo.unit || null,
+    task: wo.task, detail: wo.detail || null, category: wo.category || 'general',
+    assignee_label: wo.assigneeLabel || null, due_date: wo.due || null,
+    status: wo.status || 'open', source: wo.source || 'manual',
+    voice_transcript: wo.transcript || null,
+  }).select().single();
+  if (error) throw error;
+  return woFromDb(data);
+}
+
+export async function updateWorkOrderStatus(id, status) {
+  const { error } = await supabase.from('work_orders').update({ status }).eq('id', id);
+  if (error) throw error;
+}
+
 // ---- fetch the session DEK from the server (Edge Function unwraps via KMS) ----
 // returns a 32-byte Uint8Array. NEVER hardcode or cache to disk.
 export async function fetchDEK() {

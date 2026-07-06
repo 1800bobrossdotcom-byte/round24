@@ -5,15 +5,28 @@ import { categoryMedian } from '../lib/rollups.js';
 const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'turn', 'general', 'inspection'];
 
 export default function Field({ store }) {
-  const { properties, allTimers } = store;
+  const { properties, allTimers, workOrders, setWoStatus } = store;
   const me = store.techs.find((t) => t.id === 't_gianni');
-  const [running, setRunning] = useState(null); // {propId, unit, category, start}
+  const [running, setRunning] = useState(null); // {propId, unit, category, start, woId}
   const [elapsed, setElapsed] = useState(0);
   const [prop, setProp] = useState(properties[0].id);
   const [unit, setUnit] = useState('');
   const [cat, setCat] = useState('plumbing');
   const [log, setLog] = useState([]);
   const tick = useRef();
+
+  const myWos = workOrders.filter((w) => w.status === 'open' || w.status === 'in_progress');
+
+  // start the timer straight from a work order — property/unit/category prefilled
+  const startFromWo = (w) => {
+    const p = properties.find((x) => x.name === w.propLabel);
+    setWoStatus(w.id, 'in_progress');
+    setRunning({
+      propId: p?.id || properties[0].id, unit: w.unit || '—',
+      category: w.category || 'general', start: Date.now(), woId: w.id, woTask: w.task,
+    });
+    setElapsed(0);
+  };
 
   useEffect(() => {
     if (running) {
@@ -45,12 +58,32 @@ export default function Field({ store }) {
 
       <div className="offline">◐ Offline-safe — timers and photos queue on-device, sync when signal returns.</div>
 
+      {!running && myWos.length > 0 && (
+        <div className="card" style={{ marginBottom: 'var(--gap)' }}>
+          <span className="field-label">Work orders ({myWos.length})</span>
+          {myWos.map((w) => (
+            <div className="row" key={w.id}>
+              <div className="lead">
+                <div className="t">{w.task}</div>
+                <div className="s">{[w.propLabel, w.unit && `Unit ${w.unit}`, w.category, w.due && `due ${w.due}`].filter(Boolean).join(' · ')}</div>
+              </div>
+              <button className="btn ghost sm" onClick={() => startFromWo(w)}>▶ Start</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {running ? (
         <div className="timer-live">
           <div className="clock grad-text settle">{hh}:{mm}:{ss}</div>
-          <div className="meta">{properties.find((p) => p.id === running.propId)?.name} · Unit {running.unit} · {running.category}</div>
+          <div className="meta">{running.woTask ? `${running.woTask} · ` : ''}{properties.find((p) => p.id === running.propId)?.name} · Unit {running.unit} · {running.category}</div>
           <div style={{ height: 18 }} />
           <button className="btn stop" onClick={stop}>Stop &amp; log to this job</button>
+          {running.woId && (
+            <button className="btn ghost" style={{ marginTop: 10 }} onClick={() => { setWoStatus(running.woId, 'done'); stop(); }}>
+              ✓ Stop &amp; mark work order done
+            </button>
+          )}
         </div>
       ) : (
         <div className="card">

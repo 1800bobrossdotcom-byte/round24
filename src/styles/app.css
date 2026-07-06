@@ -183,3 +183,28 @@
 
 .note { color: var(--text-faint); font-size:12px; margin-top:10px; line-height:1.5; }
 .hr { height:1px; background:var(--line-soft); margin:16px 0; border:0; }
+
+/* ---- calendar ---- */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-dow { text-align: center; font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--text-faint); padding: 4px 0 8px; }
+.cal-cell {
+  aspect-ratio: 1; min-height: 44px; border-radius: 9px; border: 1px solid var(--line-soft);
+  background: var(--surface); color: var(--text-dim); cursor: pointer;
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between;
+  padding: 6px 7px; font-family: var(--font); transition: border-color .15s;
+}
+.cal-cell .d { font-size: 11px; font-weight: 700; }
+.cal-cell .h { font-size: 11px; font-weight: 700; color: var(--text); align-self: flex-end; }
+.cal-cell.has { background: color-mix(in srgb, #a855f7 calc(var(--heat) * 42%), var(--surface)); border-color: color-mix(in srgb, #a855f7 calc(var(--heat) * 55%), var(--line-soft)); }
+.cal-cell.sel { border-color: var(--accent); }
+.cal-cell:hover { border-color: var(--text-faint); }
+@media (max-width: 560px) {
+  .cal-cell { min-height: 38px; padding: 4px 5px; }
+  .cal-cell .h { font-size: 9px; }
+}
+
+/* topbar on small screens: keep login/logout reachable */
+@media (max-width: 620px) {
+  .org-pill { display: none; }
+}

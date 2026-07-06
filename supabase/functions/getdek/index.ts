@@ -38,9 +38,14 @@ Deno.serve(async (req) => {
     const { data: { user }, error: uErr } = await supabase.auth.getUser();
     if (uErr || !user) return json({ error: 'unauthorized' }, 401);
 
-    // ---- resolve caller's org ----
-    const { data: mem } = await supabase.from('memberships').select('org_id').limit(1).single();
+    // ---- resolve caller's org + role ----
+    const { data: mem } = await supabase.from('memberships').select('org_id, role').limit(1).single();
     if (!mem) return json({ error: 'no org' }, 403);
+    // pay data is staff-only: techs/viewers never receive the DEK,
+    // so encrypted rates are cryptographically out of reach for contractors
+    if (!['admin', 'manager'].includes(mem.role)) {
+      return json({ error: 'forbidden: financial decryption requires an admin or manager role' }, 403);
+    }
     const orgId = mem.org_id;
 
     // ---- obtain the DEK ----
