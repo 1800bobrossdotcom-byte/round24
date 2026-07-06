@@ -1,0 +1,102 @@
+/* ============================================================
+   CALIPER — design tokens
+   whitelabel theming = swap this token block per tenant.
+   nothing else in the app hardcodes a color.
+   brand language carried from cbuy: black surface, rainbow
+   accent, Space Mono for data, VHS scanline, glitch-settle.
+   ============================================================ */
+
+:root {
+  /* surfaces */
+  --bg: #08080a;
+  --surface: #101014;
+  --surface-2: #16161c;
+  --surface-3: #1d1d25;
+  --line: #26262f;
+  --line-soft: #1c1c23;
+
+  /* text */
+  --text: #f4f4f6;
+  --text-dim: #a0a0ad;
+  --text-faint: #63636f;
+
+  /* brand accent — the "caliper" rainbow measurement gradient */
+  --accent: #ff7a18;
+  --accent-2: #ff3d81;
+  --grad: linear-gradient(100deg,#ff3d3d 0%,#ff7a18 22%,#ffd21a 42%,#4ade80 62%,#38bdf8 80%,#a855f7 100%);
+  --grad-soft: linear-gradient(100deg,#ff7a1833,#a855f733);
+
+  /* semantic */
+  --money: #4ade80;
+  --money-dim: #4ade8022;
+  --warn: #ffb020;
+  --danger: #ff5a5a;
+  --info: #38bdf8;
+
+  /* type */
+  --font: 'Raleway', system-ui, sans-serif;
+  --mono: 'Space Mono', ui-monospace, monospace;
+
+  /* geometry */
+  --r-sm: 8px;
+  --r: 14px;
+  --r-lg: 20px;
+  --gap: 16px;
+  --pad: 18px;
+
+  /* motion */
+  --ease: cubic-bezier(.2,.7,.2,1);
+
+  /* safe areas (mobile notch) */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body, #root { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* VHS scanline texture overlay — the cbuy signature, dialed subtle */
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px);
+  mix-blend-mode: overlay;
+  opacity: .5;
+}
+
+/* data / numbers always mono */
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+
+/* the rainbow gradient text — reserved for hero figures */
+.grad-text {
+  background: var(--grad);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+
+/* glitch-settle: figures resolve on mount */
+@keyframes settle {
+  0%   { clip-path: inset(0 0 0 0); transform: translateX(-2px); opacity:.4; filter: blur(.4px); }
+  20%  { transform: translateX(2px); }
+  40%  { transform: translateX(-1px); }
+  100% { transform: translateX(0); opacity:1; filter: blur(0); }
+}
+.settle { animation: settle .5s var(--ease) both; }
+
+/* focus ring */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* scrollbars */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 8px; }
