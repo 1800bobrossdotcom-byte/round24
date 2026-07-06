@@ -65,12 +65,13 @@
   }
   .tabbar button { flex: none; flex-direction: row; justify-content: flex-start; gap: 12px; font-size: 14px; padding: 11px 14px; width: 100%; }
   .tabbar button.active { background: var(--surface-2); }
-  .desk { display: flex; }
+  .desk { display: flex; flex-direction: row; }
   .desk .content { padding-bottom: 40px; }
 }
 .desk-brand { display: none; }
 @media (min-width: 900px) {
   .desk-brand { display: flex; align-items:center; gap: 9px; padding: 6px 14px 18px; font-weight:800; font-size:18px; }
+  .desk-brand .mark { width: 26px; height: 26px; flex: none; }
 }
 
 /* ---- cards ---- */
