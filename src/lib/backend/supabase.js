@@ -109,6 +109,62 @@ export function subscribeWorkOrders(orgId, cb) {
   return () => supabase.removeChannel(ch);
 }
 
+// ---- team comms: messages + voice notes ----
+const msgFromDb = (r) => ({
+  id: r.id, channel: r.channel, workOrderId: r.work_order_id,
+  body: r.body, voicePath: r.voice_path, voiceSecs: r.voice_secs,
+  senderId: r.sender_id, sender: r.sender_label, senderRole: r.sender_role,
+  createdAt: r.created_at,
+});
+
+export async function listMessages(orgId) {
+  const { data, error } = await supabase
+    .from('messages').select('*').eq('org_id', orgId)
+    .order('created_at', { ascending: true }).limit(500);
+  if (error) throw error;
+  return data.map(msgFromDb);
+}
+
+export async function insertMessage(orgId, m) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase.from('messages').insert({
+    org_id: orgId, channel: m.channel || 'all', work_order_id: m.workOrderId || null,
+    body: m.body || null, voice_path: m.voicePath || null, voice_secs: m.voiceSecs || null,
+    sender_id: user?.id, sender_label: m.sender || null, sender_role: m.senderRole || null,
+  }).select().single();
+  if (error) throw error;
+  return msgFromDb(data);
+}
+
+export function subscribeMessages(orgId, cb) {
+  const ch = supabase.channel('msg-live-' + orgId)
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'messages', filter: `org_id=eq.${orgId}` },
+      (payload) => cb(msgFromDb(payload.new)))
+    .subscribe();
+  return () => supabase.removeChannel(ch);
+}
+
+// upload a recorded voice note (Blob) → returns the storage object path
+export async function uploadVoiceNote(orgId, blob) {
+  const ext = (blob.type.split('/')[1] || 'webm').split(';')[0];
+  const path = `${orgId}/${Date.now()}_note.${ext}`;
+  const { error } = await supabase.storage.from('voicenotes').upload(path, blob, { contentType: blob.type });
+  if (error) throw error;
+  return path;
+}
+
+// AI: summarize a chat thread into a work-order update (server-side, Claude)
+export async function summarizeThread(messages, workOrder) {
+  const { data, error } = await supabase.functions.invoke('chat-summary', { body: { messages, workOrder } });
+  if (error) {
+    let detail = error.message;
+    try { detail = (await error.context.json()).error || detail; } catch { /* keep */ }
+    throw new Error(detail);
+  }
+  return data.summary;
+}
+
 // ---- cloud timers: crew hours land where management can see them ----
 // RLS: a tech can only insert timers for their own operator record.
 export async function fetchMyOperatorId() {

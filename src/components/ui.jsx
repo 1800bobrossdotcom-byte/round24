@@ -47,6 +47,10 @@ export const IcChart = P(<><path d="M3 3v18h18"/><path d="M8 14v4M13 9v9M18 5v13
 export const IcBell = P(<><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></>);
 export const IcActivity = P(<><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></>);
 export const IcChevron = P(<><path d="M9 18l6-6-6-6"/></>);
+export const IcChat = P(<><path d="M21 12a8 8 0 0 1-11.5 7.2L3 21l1.8-6.5A8 8 0 1 1 21 12z"/><path d="M8 11h.01M12 11h.01M16 11h.01"/></>);
+export const IcSend = P(<><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></>);
+export const IcTrash = P(<><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></>);
+export const IcSparkle = P(<><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 3v4M21 5h-4"/></>);
 
 const PALS = ['#ff7a18', '#ff3d81', '#4ade80', '#38bdf8', '#a855f7', '#ffd21a', '#ff5a5a', '#22d3ee'];
 export function Avatar({ name, i = 0 }) {

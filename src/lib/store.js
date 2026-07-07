@@ -7,6 +7,7 @@ import {
   updateWorkOrderPriority, updateWorkOrderAssignee, subscribeWorkOrders,
   listPurchases, insertPurchase, setPurchaseStatus as dbSetPurchaseStatus, uploadReceipt,
   listDocuments, uploadDocument,
+  listMessages, insertMessage, subscribeMessages, uploadVoiceNote, summarizeThread,
   fetchMyOperatorId, insertTimer, insertProperties,
 } from './backend/supabase.js';
 
@@ -16,6 +17,7 @@ const PUR_KEY = 'caliper_purchases_v1';
 const PROP_KEY = 'caliper_props_v1';       // buildings discovered from imports (non-integrated shops)
 const TQ_KEY = 'caliper_timerqueue_v1';   // offline queue for unsynced timer entries
 const SEEN_KEY = 'caliper_seen_v1';        // per-tab "last viewed" stamps → nav badges
+const MSG_KEY = 'caliper_messages_v1';     // team comms fallback when unmigrated
 
 function loadLS(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -35,12 +37,22 @@ try {
   }
 } catch { /* private mode / no storage — nothing to purge */ }
 
+const blobToDataUrl = (blob) => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => res(r.result);
+  r.onerror = rej;
+  r.readAsDataURL(blob);
+});
+
 const slugTech = (name) =>
   't_imp_' + name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 const normName = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 export function useStore() {
-  const { orgId, role } = useAuth();
+  const { orgId, role, session } = useAuth();
+  const myId = session?.user?.id || null;
+  const myName = session?.user?.email?.split('@')[0] || (role === 'tech' ? 'Crew' : 'Office');
+  const myCommsRole = role === 'admin' || role === 'manager' ? 'office' : 'crew';
 
   // ---- imported pay-log data (merged into the same spine the charts read) ----
   const [imported, setImported] = useState(() => loadLS(IMP_KEY, { timers: [], techs: [] }));
@@ -49,10 +61,10 @@ export function useStore() {
   // ---- nav notification badges: count items newer than the last time the
   // user opened that tab. Seed stamps to "now" on first run so pre-existing
   // items don't all badge. markSeen(tab) clears a tab's badge on open.
-  const [seen, setSeen] = useState(() => loadLS(SEEN_KEY, null) || { wo: Date.now(), pur: Date.now(), docs: Date.now() });
+  const [seen, setSeen] = useState(() => loadLS(SEEN_KEY, null) || { wo: Date.now(), pur: Date.now(), docs: Date.now(), chat: Date.now() });
   useEffect(() => { localStorage.setItem(SEEN_KEY, JSON.stringify(seen)); }, [seen]);
   const markSeen = useCallback((tab) => {
-    if (!['wo', 'pur', 'docs'].includes(tab)) return;
+    if (!['wo', 'pur', 'docs', 'chat'].includes(tab)) return;
     setSeen((s) => ({ ...s, [tab]: Date.now() }));
   }, []);
 
@@ -359,6 +371,58 @@ export function useStore() {
     return doc;
   }, [orgId]);
 
+  // ---- team comms: Slack-style messages + voice notes ----
+  const [messages, setMessages] = useState(() => loadLS(MSG_KEY, []));
+  const [msgBackend, setMsgBackend] = useState('local'); // 'db' | 'local'
+  useEffect(() => { if (msgBackend === 'local') localStorage.setItem(MSG_KEY, JSON.stringify(messages.slice(-300))); }, [messages, msgBackend]);
+
+  useEffect(() => {
+    if (!isConfigured() || !orgId) return;
+    listMessages(orgId)
+      .then((rows) => { setMessages(rows); setMsgBackend('db'); })
+      .catch(() => setMsgBackend('local')); // table not migrated yet → keep local
+  }, [orgId]);
+
+  // realtime: new messages stream in live (dedupe against optimistic copies)
+  useEffect(() => {
+    if (!isConfigured() || !orgId || msgBackend !== 'db') return;
+    return subscribeMessages(orgId, (m) => {
+      setMessages((l) => (l.some((x) => x.id === m.id) ? l : [...l, m]));
+    });
+  }, [orgId, msgBackend]);
+
+  // post a message: typed body and/or a recorded voice note (Blob).
+  const addMessage = useCallback(async ({ channel = 'all', body, voiceBlob, voiceSecs, workOrderId } = {}) => {
+    const base = {
+      channel, body: body?.trim() || null, workOrderId: workOrderId || null,
+      sender: myName, senderRole: myCommsRole, voiceSecs: voiceSecs || null,
+    };
+    // local/demo: keep the voice inline as a data URL so it plays back + persists
+    if (!isConfigured() || !orgId || msgBackend !== 'db') {
+      let voiceData = null;
+      if (voiceBlob) voiceData = await blobToDataUrl(voiceBlob);
+      const local = { ...base, id: 'msg_' + Math.random().toString(36).slice(2, 10), senderId: myId, voiceData, createdAt: new Date().toISOString() };
+      setMessages((l) => [...l, local]);
+      return local;
+    }
+    // cloud: upload the voice note, then insert the row
+    let voicePath = null;
+    if (voiceBlob) { try { voicePath = await uploadVoiceNote(orgId, voiceBlob); } catch { /* text still sends */ } }
+    const local = { ...base, id: 'msg_' + Math.random().toString(36).slice(2, 10), senderId: myId, voicePath, createdAt: new Date().toISOString() };
+    setMessages((l) => [...l, local]);
+    try {
+      const saved = await insertMessage(orgId, { ...base, voicePath });
+      if (saved?.id) setMessages((l) => l.map((x) => (x.id === local.id ? saved : x)));
+      return saved;
+    } catch { return local; }
+  }, [orgId, msgBackend, myId, myName, myCommsRole]);
+
+  // AI: turn a thread into a work-order summary/update (server-side Claude)
+  const summarizeMessages = useCallback(async (msgs, workOrder) => {
+    if (!isConfigured()) throw new Error('Connect to the cloud to use AI summaries.');
+    return summarizeThread(msgs.map((m) => ({ sender: m.sender, role: m.senderRole, body: m.body })), workOrder);
+  }, []);
+
   // ---- one-tap demo fill: labor spine (local) + work orders/purchases (DB) ----
   // Flows through the same write paths as real data, so what you see is exactly
   // what the app produces. Additive-safe: labor is replaced (no compounding),
@@ -385,12 +449,15 @@ export function useStore() {
   // notification badges: items created since the tab was last opened
   const badges = useMemo(() => {
     const newer = (items, key) => items.filter((it) => it.createdAt && new Date(it.createdAt).getTime() > (seen[key] || 0)).length;
+    // chat: unread messages from others (never badge your own)
+    const chatUnread = messages.filter((m) => m.createdAt && new Date(m.createdAt).getTime() > (seen.chat || 0) && m.senderId !== myId).length;
     return {
       wo: newer(workOrders, 'wo'),
       pur: newer(purchases.filter((p) => p.status === 'pending'), 'pur'),
       docs: newer(documents, 'docs'),
+      chat: chatUnread,
     };
-  }, [workOrders, purchases, documents, seen]);
+  }, [workOrders, purchases, documents, messages, seen, myId]);
 
   return {
     meta: seed.meta,
@@ -414,6 +481,8 @@ export function useStore() {
     purchases, addPurchase, setPurchaseStatus, purBackend,
     // documents
     documents, addDocument, docBackend,
+    // team comms
+    messages, addMessage, msgBackend, summarizeMessages, myName, myId,
     // nav notification badges
     badges, markSeen,
   };
