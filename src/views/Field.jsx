@@ -11,23 +11,42 @@ const BREAK_AFTER_S = 3 * 3600;
 const foodUrl = (p) =>
   'https://www.google.com/maps/search/' + encodeURIComponent(`food near ${p ? p.name + ' ' + (p.city || '') : 'me'}`);
 
+// the running timer survives reloads/crashes: start timestamps live in
+// localStorage, elapsed is recomputed from them, so the clock stays
+// accurate even if the phone died mid-job.
+const TIMER_KEY = 'caliper_field_timer_v1';
+function loadTimer() {
+  try { return JSON.parse(localStorage.getItem(TIMER_KEY)) || {}; }
+  catch { return {}; }
+}
+
 export default function Field({ store }) {
   const { properties, allTimers, workOrders, setWoStatus } = store;
   const me = store.techs.find((t) => t.id === 't_gianni');
-  const [running, setRunning] = useState(null); // {propId, unit, category, start, woId}
-  const [elapsed, setElapsed] = useState(0);
+  const [running, setRunning] = useState(() => loadTimer().running ?? null); // {propId, unit, category, start, woId}
+  const [elapsed, setElapsed] = useState(() => {
+    const s = loadTimer();
+    if (!s.running) return 0;
+    const end = s.onBreak ? s.onBreak.start : Date.now();
+    return Math.max(0, (end - s.running.start - (s.breakMs || 0)) / 1000);
+  });
   const [prop, setProp] = useState(properties[0].id);
   const [unit, setUnit] = useState('');
   const [cat, setCat] = useState('plumbing');
-  const [log, setLog] = useState([]);
+  const [log, setLog] = useState(() => loadTimer().log ?? []);
   const tick = useRef();
 
   // break machinery: while on break the work clock freezes
-  const [onBreak, setOnBreak] = useState(null);   // { start }
-  const [breakMs, setBreakMs] = useState(0);
+  const [onBreak, setOnBreak] = useState(() => loadTimer().onBreak ?? null); // { start }
+  const [breakMs, setBreakMs] = useState(() => loadTimer().breakMs ?? 0);
   const [breakNow, setBreakNow] = useState(0);    // live seconds of current break
-  const [lastNudge, setLastNudge] = useState(0);  // work-seconds when last nudged
-  const [lunchNudged, setLunchNudged] = useState(false);
+  const [lastNudge, setLastNudge] = useState(() => loadTimer().lastNudge ?? 0); // work-seconds when last nudged
+  const [lunchNudged, setLunchNudged] = useState(() => loadTimer().lunchNudged ?? false);
+
+  // persist everything the clock needs to reconstruct itself
+  useEffect(() => {
+    localStorage.setItem(TIMER_KEY, JSON.stringify({ running, log, onBreak, breakMs, lastNudge, lunchNudged }));
+  }, [running, log, onBreak, breakMs, lastNudge, lunchNudged]);
 
   const myWos = workOrders.filter((w) => w.status === 'open' || w.status === 'in_progress').sort(byPriority);
 
