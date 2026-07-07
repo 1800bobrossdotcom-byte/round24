@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AuthGate, SignOutButton, AccountButton, useAuth } from './components/AuthGate.jsx';
 import { useStore } from './lib/store.js';
-import { Mark, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc } from './components/ui.jsx';
+import { Mark, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug } from './components/ui.jsx';
 import Dashboard from './views/Dashboard.jsx';
 import Field from './views/Field.jsx';
 import Properties from './views/Properties.jsx';
@@ -11,6 +11,7 @@ import WorkOrders from './views/WorkOrders.jsx';
 import Calendar from './views/Calendar.jsx';
 import Purchases from './views/Purchases.jsx';
 import Documents from './views/Documents.jsx';
+import Integrations from './views/Integrations.jsx';
 
 // which roles see which tools: the Crew portal (tech) gets field work —
 // orders, timer, receipts, shared docs. The Office portal (admin/manager)
@@ -25,6 +26,7 @@ const TABS = [
   { id: 'props', label: 'Properties', Icon: IcBuilding, View: Properties, roles: ['admin', 'manager', 'viewer'] },
   { id: 'team', label: 'Team', Icon: IcUsers, View: Team, roles: ['admin', 'manager'] },
   { id: 'import', label: 'Import', Icon: IcImport, View: Import, roles: ['admin', 'manager'] },
+  { id: 'integrations', label: 'Integrations', Icon: IcPlug, View: Integrations, roles: ['admin', 'manager'] },
 ];
 
 function Shell() {

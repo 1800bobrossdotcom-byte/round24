@@ -31,6 +31,7 @@ export const IcCal = P(<><rect x="3" y="5" width="18" height="16" rx="2"/><path 
 export const IcWrench = P(<><path d="M20.3 5.1a5 5 0 0 1-6.6 6.6L7 18.4a2.1 2.1 0 0 1-3-3l6.7-6.7a5 5 0 0 1 6.6-6.6l-3.2 3.2 2.1 2.1 3.2-3.2z"/></>);
 export const IcReceipt = P(<><path d="M5 3h14v18l-2.3-1.5L14.4 21l-2.4-1.5L9.6 21l-2.3-1.5L5 21zM9 8h6M9 12h6"/></>);
 export const IcDoc = P(<><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></>);
+export const IcPlug = P(<><path d="M9 2v6M15 2v6M7 8h10v3a5 5 0 0 1-10 0zM12 16v6"/></>);
 
 const PALS = ['#ff7a18', '#ff3d81', '#4ade80', '#38bdf8', '#a855f7', '#ffd21a', '#ff5a5a', '#22d3ee'];
 export function Avatar({ name, i = 0 }) {

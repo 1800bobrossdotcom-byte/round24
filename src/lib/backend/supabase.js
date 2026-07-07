@@ -197,6 +197,33 @@ export async function signedFileUrl(bucket, path) {
   return data.signedUrl;
 }
 
+// ---- Rent Manager sync ----
+export async function triggerRmSync({ mock = false } = {}) {
+  const { data, error } = await supabase.functions.invoke('rm-sync', { body: { mock } });
+  if (error) {
+    // surface the function's own error body (e.g. "not configured")
+    let detail = error.message;
+    try { detail = (await error.context.json()).error || detail; } catch { /* keep */ }
+    throw new Error(detail);
+  }
+  return data;
+}
+
+export async function getRmConnection(orgId) {
+  const { data, error } = await supabase
+    .from('rm_connections').select('*').eq('org_id', orgId).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function countExternal(table, orgId, src = 'rm') {
+  const { count, error } = await supabase
+    .from(table).select('id', { count: 'exact', head: true })
+    .eq('org_id', orgId).eq('external_src', src);
+  if (error) throw error;
+  return count || 0;
+}
+
 // ---- fetch the session DEK from the server (Edge Function unwraps via KMS) ----
 // returns a 32-byte Uint8Array. NEVER hardcode or cache to disk.
 export async function fetchDEK() {
