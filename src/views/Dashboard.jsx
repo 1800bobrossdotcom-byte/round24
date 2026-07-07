@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip, Cell } from 'recharts';
 import { totals, byPeriod, byProp, byTech, fmtMoney, fmtHrs } from '../lib/rollups.js';
 import { Stat, Avatar } from '../components/ui.jsx';
@@ -7,15 +7,24 @@ const GRAIN = ['week', 'month'];
 
 export default function Dashboard({ store }) {
   const [grain, setGrain] = useState('week');
+  const [showUnalloc, setShowUnalloc] = useState(false);
   const { timers, propById, techById, meta } = store;
-  const t = totals(timers);
-  const series = byPeriod(timers, grain, 6);
-  const props = byProp(timers).sort((a, b) => b.cost - a.cost).slice(0, 6);
-  const techs = byTech(timers).sort((a, b) => b.cost - a.cost).slice(0, 5);
+
+  // dominant pipeline = ALLOCATED work only. Unallocated stays distinct and
+  // out of the true-cost numbers unless the user toggles it in.
+  const allocated = useMemo(() => timers.filter((t) => t.propId), [timers]);
+  const unalloc = useMemo(() => timers.filter((t) => !t.propId), [timers]);
+  const un = totals(unalloc);
+  const view = showUnalloc ? timers : allocated;
+
+  const t = totals(view);
+  const series = byPeriod(view, grain, 6);
+  const props = byProp(allocated).sort((a, b) => b.cost - a.cost).slice(0, 6);
+  const techs = byTech(view).sort((a, b) => b.cost - a.cost).slice(0, 5);
   const maxP = Math.max(...props.map((p) => p.cost), 1);
   const blended = t.hrs > 0 ? '$' + (t.cost / t.hrs).toFixed(2) : '$0.00';
 
-  if (t.count === 0) {
+  if (timers.length === 0) {
     return (
       <div>
         <div className="view-head">
@@ -47,9 +56,24 @@ export default function Dashboard({ store }) {
         <div className="card"><Stat k="Blended rate" v={blended} d="per hour, loaded" /></div>
       </div>
 
+      {un.count > 0 && (
+        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: '#ffb02033', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span className="mono" style={{ fontSize: 22, fontWeight: 700, color: 'var(--warn)' }}>{fmtMoney(un.cost)}</span>
+              <span style={{ color: 'var(--text-dim)', fontSize: 12, fontWeight: 700 }}>unallocated · {fmtHrs(un.hrs)} hrs</span>
+            </div>
+            <div className="note" style={{ margin: '4px 0 0' }}>Not in your true-cost numbers. Assign these in <b>Properties → Unallocated</b>.</div>
+          </div>
+          <button className="btn ghost sm" onClick={() => setShowUnalloc((v) => !v)}>
+            {showUnalloc ? 'Hide from charts' : 'Show in charts'}
+          </button>
+        </div>
+      )}
+
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <span className="field-label" style={{ margin: 0 }}>Labor cost over time</span>
+          <span className="field-label" style={{ margin: 0 }}>Labor cost over time{showUnalloc && un.count > 0 ? ' · incl. unallocated' : ''}</span>
           <div className="seg">
             {GRAIN.map((g) => (
               <button key={g} className={grain === g ? 'on' : ''} onClick={() => setGrain(g)}>{g}</button>

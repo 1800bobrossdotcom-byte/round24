@@ -85,55 +85,48 @@ export default function Import({ store }) {
   const matcher = useMemo(() => buildMatcher(store.properties), [store.properties]);
   const [mode, setMode] = useState('replace'); // 'replace' | 'add'
 
-  // resolve a row's building: explicit sheet building (may be new), else a
-  // text match against existing buildings. Returns { id?, label? }.
-  const resolve = (e) => {
-    if (e.building) { const id = matcher([e.building]); return id ? { id } : { label: e.building }; }
-    const id = matcher(e.texts);
-    return id ? { id } : {};
-  };
-
-  // preview: allocated vs skipped, and which brand-new buildings we'd create
+  // every building named across the selected sheets, split into ones we
+  // already know vs brand-new labels the sheet introduces.
   const alloc = useMemo(() => {
-    let allocated = 0, skipped = 0; const known = new Set(); const newLabels = new Set();
+    let allocatedDays = 0, unallocatedDays = 0;
+    const knownLabels = new Set(), newLabels = new Set();
     for (const s of sheets) {
       if (!selected.includes(s.name)) continue;
       for (const e of s.entries) {
         if (e.hours <= 0) continue;
-        const r = resolve(e);
-        if (r.id) { allocated++; known.add(r.id); }
-        else if (r.label) { allocated++; newLabels.add(r.label); }
-        else skipped++;
+        const names = e.buildings || [];
+        if (!names.length) { unallocatedDays++; continue; }
+        allocatedDays++;
+        for (const n of names) { if (matcher([n])) knownLabels.add(n); else newLabels.add(n); }
       }
     }
-    return { allocated, skipped, buildingCount: known.size + newLabels.size, newBuildings: [...newLabels] };
+    return { allocatedDays, unallocatedDays, buildingCount: knownLabels.size + newLabels.size, newBuildings: [...newLabels] };
   }, [sheets, selected, matcher]);
 
   const runImport = () => {
-    // create any brand-new buildings named in the sheet, then resolve ids
+    // create any brand-new buildings named in the sheet, then resolve names→ids
     const labelMap = store.ensureProperties(alloc.newBuildings);
-    const resolveProp = (e) => {
-      const r = resolve(e);
-      return r.id || (r.label ? labelMap[r.label] : null) || null;
-    };
+    const resolveBuildings = (names) => [...new Set(
+      (names || []).map((n) => matcher([n]) || labelMap[n]).filter(Boolean)
+    )];
     const patched = sheets.map((s) => ({
       ...s,
       entries: s.entries.map((e) => ({ ...e, rate: e.rate || rates[e.tech] || 0 })),
     }));
-    const { timers, skipped } = toTimers(patched, selected, resolveProp);
+    const { timers, allocated, unallocated } = toTimers(patched, selected, resolveBuildings);
     const withRate = timers.filter((t) => t.rate > 0);
     const hrs = withRate.reduce((a, t) => a + t.durationHrs, 0);
     const cost = withRate.reduce((a, t) => a + t.durationHrs * t.rate, 0);
     const techCount = new Set(timers.map((t) => t.techName)).size;
-    const propCount = new Set(timers.map((t) => t.propId)).size;
+    const propCount = new Set(timers.filter((t) => t.propId).map((t) => t.propId)).size;
     store.addImported(timers, { replace: mode === 'replace' });
-    setResult({ count: timers.length, skipped, hrs, cost, techCount, propCount, newBuildings: alloc.newBuildings.length, mode });
+    setResult({ count: timers.length, allocated, unallocated, hrs, cost, techCount, propCount, newBuildings: alloc.newBuildings.length, mode });
     setStep(3);
   };
 
   const totalMissing = techsNeeding.reduce((a, t) => a + t.missing, 0);
   const rateSet = techsNeeding.every((t) => rates[t.name] > 0);
-  const canImport = rateSet && alloc.allocated > 0;
+  const canImport = rateSet && (alloc.allocatedDays + alloc.unallocatedDays) > 0;
 
   const reset = () => { setStep(0); setSheets([]); setSelected([]); setResult(null); };
 
@@ -219,18 +212,12 @@ export default function Import({ store }) {
       {step === 2 && (
         <>
           <div className="flagbar">
-            <div className="flag-pill ok"><IcCheck width={13} height={13} /> {alloc.allocated} allocated to {alloc.propCount} {alloc.propCount === 1 ? 'building' : 'buildings'}</div>
-            {alloc.skipped > 0
-              ? <div className="flag-pill warn">! {alloc.skipped} rows with no building — will be skipped</div>
-              : <div className="flag-pill ok"><IcCheck width={13} height={13} /> every row is allocated</div>}
+            <div className="flag-pill ok"><IcCheck width={13} height={13} /> {alloc.allocatedDays} days allocated to {alloc.buildingCount} {alloc.buildingCount === 1 ? 'building' : 'buildings'}</div>
+            {alloc.unallocatedDays > 0
+              ? <div className="flag-pill warn">! {alloc.unallocatedDays} days unallocated — you can assign them after</div>
+              : <div className="flag-pill ok"><IcCheck width={13} height={13} /> every day is allocated</div>}
             {totalMissing > 0 && <div className="flag-pill warn">! {totalMissing} missing a rate</div>}
           </div>
-
-          {alloc.allocated === 0 && (
-            <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>
-              No rows name a building. Caliper ingests allocated work only — add the property (name or street number) on each row in your sheet, then re-upload.
-            </div>
-          )}
 
           {alloc.newBuildings.length > 0 && (
             <div className="offline" style={{ color: 'var(--info)', borderColor: '#38bdf833', background: '#38bdf812' }}>
@@ -251,7 +238,7 @@ export default function Import({ store }) {
           <div className="card">
             <span className="field-label">Confirm hourly rate per operator</span>
             <p className="note" style={{ marginTop: 4, marginBottom: 12 }}>
-              Only rows allocated to a building are imported. Set each person's loaded rate so those hours become real cost.
+              Every day comes in — allocated hours land on their building; the rest go to an Unallocated bucket you can assign later. Set each person's loaded rate so hours become real cost.
             </p>
             {techsNeeding.map((t) => (
               <div className="assign-row" key={t.name}>
@@ -275,7 +262,7 @@ export default function Import({ store }) {
           <div className="wizard-actions">
             <button className="btn ghost" onClick={() => setStep(1)}>Back</button>
             <button className="btn grad" onClick={runImport} disabled={!canImport}>
-              {!rateSet ? 'Set all rates to continue' : alloc.allocated === 0 ? 'Nothing allocated to import' : `Import ${alloc.allocated} allocated`}
+              {!rateSet ? 'Set all rates to continue' : `Import ${(alloc.allocatedDays + alloc.unallocatedDays).toLocaleString()} days`}
             </button>
           </div>
         </>
@@ -298,13 +285,13 @@ export default function Import({ store }) {
           {result.newBuildings > 0 && (
             <p className="note" style={{ textAlign: 'center' }}>{result.newBuildings} new building{result.newBuildings > 1 ? 's' : ''} created from your sheet.</p>
           )}
-          {result.skipped > 0 && (
-            <div className="offline" style={{ marginTop: 'var(--gap)' }}>
-              ! {result.skipped} rows had no building and were skipped. Add a property to those rows in your sheet and re-upload to include them.
+          {result.unallocated > 0 && (
+            <div className="offline" style={{ marginTop: 'var(--gap)', color: 'var(--info)', borderColor: '#38bdf833', background: '#38bdf812' }}>
+              {result.unallocated.toLocaleString()} days couldn't be matched to a building — they're in the <b>Unallocated</b> bucket, kept out of your true-cost charts. Open <b>Properties → Unallocated</b> to assign them.
             </div>
           )}
           <div className="offline" style={{ marginTop: 'var(--gap)', color: 'var(--money)', borderColor: '#4ade8033', background: '#4ade8012' }}>
-            <IcCheck width={14} height={14} /> {result.mode === 'add' ? 'Added to your existing data' : 'Replaced your previous import'} — every imported hour lands on a building. Check Dashboard, Calendar, and Properties.
+            <IcCheck width={14} height={14} /> {result.mode === 'add' ? 'Added to your existing data' : 'Replaced your previous import'} — {result.allocated.toLocaleString()} allocated across {result.propCount} buildings. Check Dashboard, Calendar, and Properties.
           </div>
           <div className="wizard-actions">
             <button className="btn ghost" onClick={reset}>Import another file</button>

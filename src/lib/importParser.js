@@ -41,6 +41,23 @@ function detectRate(rows) {
 // This is what lets a shop with NO integration and NO buildings yet import
 // — the buildings are discovered from the sheet.
 const BUILDING_HDR = /\b(propert(?:y|ies)|building|bldg|location|site|address|complex|apt\b|apartments?)\b/i;
+
+// recognize a building name inside the allocation grid (Evolution24 logs write
+// building names as cells above their dollar columns: "379 S.Main", "Water St.",
+// "St.Paul", "121 Park", "440 Armstrong", "31 Genesee", "4940 Hillcrest"…).
+const STREET_WORD = /\b(st|street|ave|avenue|rd|road|dr|drive|blvd|ln|lane|park|square|sq|ct|court|place|pl|hill|hillcrest|way|circle|cir)\b/i;
+export function looksLikeBuilding(s) {
+  if (typeof s !== 'string') return false;
+  const t = s.trim();
+  if (t.length < 3 || t.length > 30) return false;
+  if (t.includes('/')) return false;                              // notes: "Water St.- 4 / St.Paul-1"
+  if (/^(total|off|paid by|hourly|pay period|monthly)/i.test(t)) return false;
+  const words = t.split(/\s+/).length;
+  if (/^\d{1,5}\s*[A-Za-z]/.test(t) && words <= 3) return true;    // 379 S.Main, 31 Genesee, 357Alexander
+  if (STREET_WORD.test(t) && words <= 3) return true;             // Water St., 121 Park, St.Paul
+  return false;
+}
+
 function detectBuilding(rows) {
   let buildingCol = -1, sheetBuilding = null;
   for (const row of rows.slice(0, 12)) {
@@ -79,6 +96,7 @@ export function parseSheet(ws, sheetName) {
 
   const entries = [];
   let periodTag = null;
+  let lastBuildings = [];   // building names from the most recent grid header row
 
   for (const row of rows) {
     if (!row || !row.length) continue;
@@ -125,14 +143,28 @@ export function parseSheet(ws, sheetName) {
     // pay present but wildly off implied (date-total leaked into a cell)
     if (pay != null && hours > 0 && pay / hours > RATE_MAX * 2) { pay = null; flag = flag || 'bad-pay'; }
 
-    // building this row is allocated to: explicit column value, else a
-    // sheet-level building header. null when the row names no building.
-    let building = null;
+    // building allocation for this row. Priority:
+    //   1. explicit Property/Building column
+    //   2. building names written in the grid cells on this row
+    //   3. the nearest grid header row above (dollar rows inherit the names)
+    //   4. a sheet-level "Property: X" header
+    let colBuilding = null;
     if (buildingCol >= 0 && typeof row[buildingCol] === 'string') {
       const v = row[buildingCol].trim();
-      if (v && !BUILDING_HDR.test(v) && !/total/i.test(v)) building = v;
+      if (v && !BUILDING_HDR.test(v) && !/total/i.test(v)) colBuilding = v;
     }
-    if (!building && sheetBuilding) building = sheetBuilding;
+    const gridBuildings = [];
+    for (let i = 1; i < row.length; i++) {
+      if (looksLikeBuilding(row[i])) gridBuildings.push(row[i].trim());
+    }
+    if (gridBuildings.length) lastBuildings = gridBuildings;
+
+    let buildings = [];
+    if (colBuilding) buildings = [colBuilding];
+    else if (gridBuildings.length) buildings = gridBuildings;
+    else if (lastBuildings.length) buildings = lastBuildings;
+    else if (sheetBuilding) buildings = [sheetBuilding];
+    buildings = [...new Set(buildings)];
 
     entries.push({
       tech: techName,
@@ -142,8 +174,9 @@ export function parseSheet(ws, sheetName) {
       rate,
       period: periodTag,
       note,
-      texts,          // all string cells — used to detect the allocated building
-      building,       // explicit building label from the sheet (may be new)
+      texts,          // all string cells
+      building: colBuilding || buildings[0] || null,
+      buildings,      // every building this row is allocated across
       flag,
     });
   }
@@ -174,33 +207,37 @@ export function parseWorkbook(arrayBuffer) {
 }
 
 // map imported entries → Caliper timer shape.
-// resolveProp(entry) → propId | null. We ingest ONLY rows allocated to a
-// building; unallocated rows are counted and skipped (the uploader adds a
-// building in their sheet and re-uploads to include them). Returns
-// { timers, skipped }.
-export function toTimers(sheets, selectedNames, resolveProp) {
+// resolveBuildings(names[]) → [propId] (already-created, deduped). A day's
+// hours are split evenly across the buildings it's allocated to (one timer
+// each). Rows that resolve to NO building are still ingested as a single
+// UNALLOCATED timer (propId null, unallocated:true) so nothing is lost — the
+// office allocates them later. Returns { timers, allocated, unallocated }.
+export function toTimers(sheets, selectedNames, resolveBuildings) {
   const timers = [];
-  let id = 0, skipped = 0;
+  let id = 0, allocated = 0, unallocated = 0;
   for (const s of sheets) {
     if (!selectedNames.includes(s.name)) continue;
     for (const e of s.entries) {
       if (e.hours <= 0) continue; // skip OFF days
-      const propId = resolveProp ? resolveProp(e) : null;
-      if (!propId) { skipped++; continue; } // allocated-only ingest
-      id++;
-      timers.push({
-        id: `imp_${id}`,
-        techName: e.tech,
-        date: e.date,
-        durationHrs: e.hours,
-        rate: e.rate || 0,
-        category: 'imported',
-        issue: e.note || 'imported from pay log',
-        propId,
-        unit: e.unit || '—',
-        period: e.period,
-      });
+      const ids = resolveBuildings ? resolveBuildings(e.buildings || []) : [];
+      const base = {
+        techName: e.tech, date: e.date, rate: e.rate || 0,
+        category: e.category || 'imported', issue: e.note || 'imported from pay log',
+        unit: e.unit || '—', period: e.period,
+      };
+      if (ids.length) {
+        const per = Math.round((e.hours / ids.length) * 100) / 100;
+        ids.forEach((propId, k) => {
+          id++; allocated++;
+          // give any rounding remainder to the last split so hours sum exactly
+          const hrs = k === ids.length - 1 ? Math.round((e.hours - per * (ids.length - 1)) * 100) / 100 : per;
+          timers.push({ id: `imp_${id}`, ...base, durationHrs: hrs, propId });
+        });
+      } else {
+        id++; unallocated++;
+        timers.push({ id: `imp_${id}`, ...base, durationHrs: e.hours, propId: null, unallocated: true });
+      }
     }
   }
-  return { timers, skipped };
+  return { timers, allocated, unallocated };
 }
