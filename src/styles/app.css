@@ -207,6 +207,10 @@
   padding: var(--pad);
 }
 .card + .card { margin-top: var(--gap); }
+/* ...but inside a grid, `gap` already spaces cards — the sibling margin would
+   shove the 2nd card down 16px and unbalance side-by-side pairs. Neutralize it
+   site-wide so every grid card pair stays top-aligned. */
+.grid > .card + .card { margin-top: 0; }
 .grid { display: grid; gap: var(--gap); }
 .grid.g2 { grid-template-columns: 1fr 1fr; }
 .grid.g3 { grid-template-columns: repeat(3,1fr); }
