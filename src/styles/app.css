@@ -251,8 +251,22 @@
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .btn svg { flex: none; }
 
-/* ---- text safety: no bleed past the row ---- */
-.row .lead .t, .row .lead .s { overflow-wrap: anywhere; }
+/* ---- text safety: wrap long tokens WITHOUT collapsing the flex column ----
+   `anywhere` drops the text's min-content width to a single character, which
+   lets a wide sibling (a control cluster) starve the title into 1-char-per-line
+   wrapping. `break-word` keeps the natural min width so the title holds its
+   share of the row. */
+.row .lead .t, .row .lead .s { overflow-wrap: break-word; word-break: break-word; }
+
+/* On phones, a row whose trailing element is a CONTROL cluster (not a money
+   `.val`) stacks: title on the first line, controls below it right-aligned —
+   never a width fight. Money rows (Dashboard/Team) keep their side-by-side
+   layout. */
+@media (max-width: 560px) {
+  .row:has(> .lead + div:not(.val)) { flex-wrap: wrap; }
+  .row:has(> .lead + div:not(.val)) .lead { flex: 1 1 100%; }
+  .row .lead + div:not(.val) { margin-left: auto; }
+}
 
 /* ---- grid: no lonely-cell hole for odd counts on mobile ---- */
 @media (max-width: 520px) {
