@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { fmtMoneyC } from '../lib/rollups.js';
-import { isConfigured, signedFileUrl, scanReceipt } from '../lib/backend/supabase.js';
-import { IcClip, IcCheck, IcX, IcReceipt } from '../components/ui.jsx';
+import { isConfigured, signedFileUrl, scanReceipt, checkStock } from '../lib/backend/supabase.js';
+import { IcClip, IcCheck, IcX, IcReceipt, IcSparkle, IcActivity } from '../components/ui.jsx';
 
 // read a File into a base64 data: URL for the OCR call
 function fileToDataUrl(f) {
@@ -31,6 +31,10 @@ export default function Purchases({ store }) {
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState(null);   // { kind:'err'|'ok', text }
   const [flags, setFlags] = useState([]);          // AI price-match flags
+  const [items, setItems] = useState([]);          // itemized line items from scan
+  const [stock, setStock] = useState(null);        // [{name, availability, source, eta, note}]
+  const [stockBusy, setStockBusy] = useState(false);
+  const [stockErr, setStockErr] = useState(null);
 
   const openWos = useMemo(() => workOrders.filter((w) => w.status === 'open' || w.status === 'in_progress'), [workOrders]);
   const pending = purchases.filter((p) => p.status === 'pending');
@@ -43,7 +47,14 @@ export default function Purchases({ store }) {
     finally { setBusy(false); }
   };
 
-  const reset = () => { setDraft(null); setFile(null); setScanMsg(null); setFlags([]); };
+  const reset = () => { setDraft(null); setFile(null); setScanMsg(null); setFlags([]); setItems([]); setStock(null); setStockErr(null); };
+
+  const runStock = async () => {
+    setStockErr(null); setStockBusy(true);
+    try { setStock(await checkStock(items.map((li) => ({ description: li.description, qty: li.qty })), draft?.propLabel || null)); }
+    catch (e) { setStockErr(e.message || 'Could not check stock'); }
+    finally { setStockBusy(false); }
+  };
 
   // pick a receipt photo, read it with Claude, prefill the form
   const onPickReceipt = async (f) => {
@@ -63,6 +74,8 @@ export default function Purchases({ store }) {
         date: r.date || d.date,
       }));
       setFlags(r.priceFlags || []);
+      setItems(r.lineItems || []);
+      setStock(null); setStockErr(null);
       setScanMsg({ kind: 'ok', text: `Read ${r.lineItems?.length || 0} line items${r.priceFlags?.length ? ` · ${r.priceFlags.length} price flag${r.priceFlags.length > 1 ? 's' : ''}` : ''}` });
     } catch (e) {
       setScanMsg({ kind: 'err', text: e.message || 'Could not read receipt' });
@@ -136,6 +149,39 @@ export default function Purchases({ store }) {
           {scanning && <p className="note" style={{ marginTop: 6 }}>◐ Reading receipt with AI…</p>}
           {scanMsg && <p className="note" style={{ marginTop: 6, color: scanMsg.kind === 'err' ? 'var(--danger)' : 'var(--money)' }}>{scanMsg.text}</p>}
           {!isConfigured() && <p className="note" style={{ marginTop: 6 }}>Photo uploads and AI receipt reading activate once connected to the cloud.</p>}
+
+          {items.length > 0 && (
+            <div className="itemize">
+              <div className="itemize-head">
+                <span className="field-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}><IcSparkle width={13} height={13} /> Itemized · {items.length} {items.length === 1 ? 'item' : 'items'}</span>
+                <span className="mono money" style={{ fontWeight: 700 }}>{fmtMoneyC(items.reduce((a, li) => a + (li.amount || 0), 0))}</span>
+              </div>
+              {items.map((li, i) => {
+                const flagged = flags.find((f) => f.item && li.description && f.item.toLowerCase().includes(li.description.toLowerCase().slice(0, 8)));
+                const s = stock?.[i];
+                return (
+                  <div className="item-row" key={i}>
+                    <div className="ir-main">
+                      <div className="ir-desc">{li.description}{flagged && <span className="chip warn sm" style={{ marginLeft: 6 }}>over</span>}</div>
+                      <div className="ir-sub">{li.qty || 1} × {fmtMoneyC(li.unitPrice || 0)}{s && <> · <span className={'avail ' + s.availability}>{s.availability === 'pickup' ? 'Pickup' : 'Order'} · {s.source}{s.eta ? ` · ${s.eta}` : ''}</span></>}</div>
+                    </div>
+                    <div className="ir-amt mono money">{fmtMoneyC(li.amount || 0)}</div>
+                  </div>
+                );
+              })}
+              <div className="itemize-foot">
+                {stock ? (
+                  <span className="note" style={{ margin: 0 }}>
+                    <b style={{ color: 'var(--money)' }}>{stock.filter((s) => s.availability === 'pickup').length} pickup</b> · <b style={{ color: 'var(--warn)' }}>{stock.filter((s) => s.availability === 'order').length} to order</b>
+                  </span>
+                ) : <span className="note" style={{ margin: 0 }}>Check what's in stock locally vs needs ordering</span>}
+                <button className="btn ghost sm" onClick={runStock} disabled={stockBusy || !isConfigured()}>
+                  <IcActivity width={13} height={13} /> {stockBusy ? 'Checking…' : stock ? 'Re-check stock' : 'Check local stock'}
+                </button>
+              </div>
+              {stockErr && <p className="note" style={{ color: 'var(--danger)', margin: '6px 0 0' }}>{stockErr}</p>}
+            </div>
+          )}
 
           {flags.length > 0 && (
             <div className="card" style={{ marginTop: 12, borderColor: '#ffb02033', background: 'var(--surface-2)' }}>

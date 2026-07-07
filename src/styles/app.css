@@ -93,6 +93,23 @@
   50%      { box-shadow: 0 0 6px 1px var(--warn); opacity: .65; }
 }
 
+/* ---- receipt itemizer ---- */
+.itemize {
+  margin-top: 12px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+}
+.itemize-head { display: flex; align-items: center; justify-content: space-between; padding: 11px 13px; border-bottom: 1px solid var(--line-soft); }
+.item-row { display: flex; align-items: center; gap: 10px; padding: 9px 13px; border-bottom: 1px solid var(--line-soft); }
+.item-row:last-of-type { border-bottom: 0; }
+.item-row .ir-main { flex: 1; min-width: 0; }
+.item-row .ir-desc { font-weight: 700; font-size: 13px; overflow-wrap: break-word; }
+.item-row .ir-sub { color: var(--text-dim); font-size: 11px; margin-top: 2px; }
+.item-row .ir-amt { font-weight: 700; font-size: 13px; flex: none; }
+.avail { font-weight: 700; }
+.avail.pickup { color: var(--money); }
+.avail.order { color: var(--warn); }
+.itemize-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 13px; border-top: 1px solid var(--line-soft); flex-wrap: wrap; }
+
 /* ---- team chat ---- */
 .chan-bar { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 8px; }
 .chan-bar .chan {

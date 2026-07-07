@@ -323,6 +323,17 @@ export async function scanReceipt(image, mimeType = 'image/jpeg') {
   return data.receipt;
 }
 
+// ---- AI local-stock check: pickup vs order per item (Claude, server-side) ----
+export async function checkStock(items, location) {
+  const { data, error } = await supabase.functions.invoke('stock-check', { body: { items, location } });
+  if (error) {
+    let detail = error.message;
+    try { detail = (await error.context.json()).error || detail; } catch { /* keep */ }
+    throw new Error(detail);
+  }
+  return data.items;
+}
+
 export async function getRmConnection(orgId) {
   const { data, error } = await supabase
     .from('rm_connections').select('*').eq('org_id', orgId).maybeSingle();
