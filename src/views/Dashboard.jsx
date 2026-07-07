@@ -63,8 +63,8 @@ export default function Dashboard({ store }) {
               {props.map((p) => (
                 <tr key={p.key}>
                   <td className="barcell"><div className="bar" style={{ width: `${(p.cost / maxP) * 100}%` }} />
-                    <span className="bar-label" style={{ fontWeight: 700 }}>{propById[p.key]?.name || 'Unallocated (imported)'}</span>
-                    <div className="bar-label" style={{ fontSize: 11, color: 'var(--text-dim)' }}>{propById[p.key]?.city || 'needs property tagging'}</div>
+                    <span className="bar-label" style={{ fontWeight: 700 }}>{propById[p.key]?.name || '—'}</span>
+                    <div className="bar-label" style={{ fontSize: 11, color: 'var(--text-dim)' }}>{propById[p.key]?.city || ''}</div>
                   </td>
                   <td className="num money" style={{ fontWeight: 700 }}>{fmtMoney(p.cost)}<div style={{ color: 'var(--text-dim)', fontWeight: 400, fontSize: 11 }}>{fmtHrs(p.hrs)}h</div></td>
                 </tr>

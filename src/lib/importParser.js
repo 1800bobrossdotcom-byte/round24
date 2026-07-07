@@ -74,14 +74,16 @@ export function parseSheet(ws, sheetName) {
     if (!iso) continue;
 
     // find hours: first numeric after the date that's a plausible hour value (0–24)
-    // and pay: a larger numeric if present
+    // and pay: a larger numeric if present. texts collects every string cell so
+    // the importer can detect the building this row was allocated to.
     let hours = null, pay = null, note = null, override = null;
+    const texts = [];
     for (let i = 1; i < row.length; i++) {
       const c = row[i];
       if (typeof c === 'string') {
         if (/off/i.test(c)) { hours = 0; }
         else if (/\*\s*(\d+(\.\d+)?)\s*\/?hr/i.test(c)) { override = parseFloat(c.match(/(\d+(\.\d+)?)/)[1]); }
-        else if (c.trim() && !/paid by/i.test(c)) { note = c.trim(); }
+        else if (c.trim() && !/paid by/i.test(c)) { note = c.trim(); texts.push(c.trim()); }
         continue;
       }
       if (isNum(c)) {
@@ -109,6 +111,7 @@ export function parseSheet(ws, sheetName) {
       rate,
       period: periodTag,
       note,
+      texts,          // all string cells — used to detect the allocated building
       flag,
     });
   }
@@ -138,14 +141,20 @@ export function parseWorkbook(arrayBuffer) {
   return sheets;
 }
 
-// map imported entries → Caliper timer shape
-export function toTimers(sheets, selectedNames) {
+// map imported entries → Caliper timer shape.
+// resolveProp(entry) → propId | null. We ingest ONLY rows allocated to a
+// building; unallocated rows are counted and skipped (the uploader adds a
+// building in their sheet and re-uploads to include them). Returns
+// { timers, skipped }.
+export function toTimers(sheets, selectedNames, resolveProp) {
   const timers = [];
-  let id = 0;
+  let id = 0, skipped = 0;
   for (const s of sheets) {
     if (!selectedNames.includes(s.name)) continue;
     for (const e of s.entries) {
       if (e.hours <= 0) continue; // skip OFF days
+      const propId = resolveProp ? resolveProp(e) : null;
+      if (!propId) { skipped++; continue; } // allocated-only ingest
       id++;
       timers.push({
         id: `imp_${id}`,
@@ -155,11 +164,11 @@ export function toTimers(sheets, selectedNames) {
         rate: e.rate || 0,
         category: 'imported',
         issue: e.note || 'imported from pay log',
-        propId: null, // unallocated — user assigns, mirrors the real gap
-        unit: '—',
+        propId,
+        unit: e.unit || '—',
         period: e.period,
       });
     }
   }
-  return timers;
+  return { timers, skipped };
 }
