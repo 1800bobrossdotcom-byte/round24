@@ -67,11 +67,62 @@ export function AuthGate({ children }) {
   );
 }
 
+// ---- two front doors, one secure backend ----
+// the portal choice themes the login; after sign-in the ROLE decides the
+// actual toolset (a contractor who picks Office still lands in Crew tools).
+const PORTALS = {
+  crew: {
+    title: 'Crew Portal',
+    tagline: 'Clock in. Get your orders. Snap your receipts.',
+    points: ['Your work orders', 'Job timer', 'Receipt reimbursement'],
+  },
+  office: {
+    title: 'Office Portal',
+    tagline: 'The whole operation, measured true.',
+    points: ['Dashboards & financials', 'Dispatch work orders', 'Documents & purchasing'],
+  },
+};
+
 function Login() {
+  const [portal, setPortal] = useState(() => localStorage.getItem('caliper_portal') || null);
+  const pick = (p) => { localStorage.setItem('caliper_portal', p); setPortal(p); };
+
+  if (!portal) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
+        <div style={{ width: '100%', maxWidth: 640 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginBottom: 6 }}>
+            <Mark /> <span style={{ fontWeight: 800, fontSize: 22 }}>Caliper</span>
+          </div>
+          <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 26 }}>Labor, measured true. Pick your door.</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+            {Object.entries(PORTALS).map(([key, p]) => (
+              <button key={key} onClick={() => pick(key)} className="card" style={{
+                cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)', color: 'var(--text)',
+                border: '1px solid var(--line)', padding: 22,
+              }}>
+                <div style={{ fontSize: 26, marginBottom: 8 }}>{key === 'crew' ? '🔧' : '📊'}</div>
+                <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 4 }}>{p.title}</div>
+                <div style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 12 }}>{p.tagline}</div>
+                {p.points.map((pt) => (
+                  <div key={pt} style={{ fontSize: 12, color: 'var(--text-faint)', fontWeight: 600, padding: '2px 0' }}>· {pt}</div>
+                ))}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return <LoginForm portal={portal} onSwitch={() => { localStorage.removeItem('caliper_portal'); setPortal(null); }} />;
+}
+
+function LoginForm({ portal, onSwitch }) {
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const p = PORTALS[portal];
 
   const submit = async () => {
     setErr(null); setBusy(true);
@@ -85,8 +136,9 @@ function Login() {
       <div style={{ width: '100%', maxWidth: 360 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginBottom: 8 }}>
           <Mark /> <span style={{ fontWeight: 800, fontSize: 22 }}>Caliper</span>
+          <span className="chip" style={{ marginLeft: 2 }}>{portal === 'crew' ? '🔧 crew' : '📊 office'}</span>
         </div>
-        <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 24 }}>Sign in to continue</p>
+        <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 24 }}>{p.tagline}</p>
 
         {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{err}</div>}
 
@@ -101,10 +153,15 @@ function Login() {
           style={inputStyle} />
         <div style={{ height: 20 }} />
         <button className="btn grad" onClick={submit} disabled={busy || !email || !pw}>
-          {busy ? 'Signing in…' : 'Sign in'}
+          {busy ? 'Signing in…' : `Sign in to ${p.title}`}
         </button>
         <p className="note" style={{ textAlign: 'center', marginTop: 16 }}>
           Protected by row-level security. Sensitive data is AES-256 encrypted at rest.
+        </p>
+        <p className="note" style={{ textAlign: 'center', marginTop: 6 }}>
+          <a onClick={onSwitch} style={{ color: 'var(--info)', cursor: 'pointer' }}>
+            {portal === 'crew' ? 'Office staff? Switch portal →' : 'On the crew? Switch portal →'}
+          </a>
         </p>
       </div>
     </div>

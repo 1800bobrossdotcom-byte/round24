@@ -2,7 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { fmtHrs } from '../lib/rollups.js';
 import { categoryMedian } from '../lib/rollups.js';
 
-const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'turn', 'general', 'inspection'];
+const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'painting', 'turn', 'general', 'inspection'];
+
+// contractor-friendly pacing: nudge a break after 3h straight, and around
+// lunch. breaks pause the clock — break time never bills to the job.
+const BREAK_AFTER_S = 3 * 3600;
+const foodUrl = (p) =>
+  'https://www.google.com/maps/search/' + encodeURIComponent(`food near ${p ? p.name + ' ' + (p.city || '') : 'me'}`);
 
 export default function Field({ store }) {
   const { properties, allTimers, workOrders, setWoStatus } = store;
@@ -14,6 +20,13 @@ export default function Field({ store }) {
   const [cat, setCat] = useState('plumbing');
   const [log, setLog] = useState([]);
   const tick = useRef();
+
+  // break machinery: while on break the work clock freezes
+  const [onBreak, setOnBreak] = useState(null);   // { start }
+  const [breakMs, setBreakMs] = useState(0);
+  const [breakNow, setBreakNow] = useState(0);    // live seconds of current break
+  const [lastNudge, setLastNudge] = useState(0);  // work-seconds when last nudged
+  const [lunchNudged, setLunchNudged] = useState(false);
 
   const myWos = workOrders.filter((w) => w.status === 'open' || w.status === 'in_progress');
 
@@ -30,21 +43,36 @@ export default function Field({ store }) {
 
   useEffect(() => {
     if (running) {
-      tick.current = setInterval(() => setElapsed((Date.now() - running.start) / 1000), 250);
+      tick.current = setInterval(() => {
+        const end = onBreak ? onBreak.start : Date.now();
+        setElapsed(Math.max(0, (end - running.start - breakMs) / 1000));
+        if (onBreak) setBreakNow((Date.now() - onBreak.start) / 1000);
+      }, 250);
       return () => clearInterval(tick.current);
     }
-  }, [running]);
+  }, [running, onBreak, breakMs]);
+
+  const startBreak = () => { setOnBreak({ start: Date.now() }); setBreakNow(0); };
+  const endBreak = () => { setBreakMs((b) => b + (Date.now() - onBreak.start)); setOnBreak(null); setLastNudge(elapsed); };
+
+  const hour = new Date().getHours();
+  const lunchTime = hour >= 11 && hour < 14;
+  const nudge = running && !onBreak && (
+    elapsed - lastNudge >= BREAK_AFTER_S ? 'stretch'
+    : (lunchTime && elapsed > 3600 && !lunchNudged ? 'lunch' : null)
+  );
 
   const hh = String(Math.floor(elapsed / 3600)).padStart(2, '0');
   const mm = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
   const ss = String(Math.floor(elapsed % 60)).padStart(2, '0');
 
-  const start = () => { setRunning({ propId: prop, unit: unit || '—', category: cat, start: Date.now() }); setElapsed(0); };
+  const resetBreaks = () => { setOnBreak(null); setBreakMs(0); setBreakNow(0); setLastNudge(0); setLunchNudged(false); };
+  const start = () => { setRunning({ propId: prop, unit: unit || '—', category: cat, start: Date.now() }); setElapsed(0); resetBreaks(); };
   const stop = () => {
     const hrs = Math.max(0.05, elapsed / 3600);
     const p = properties.find((x) => x.id === running.propId);
     setLog([{ id: Date.now(), prop: p.name, unit: running.unit, category: running.category, hrs, cost: hrs * me.rate }, ...log]);
-    setRunning(null); setElapsed(0);
+    setRunning(null); setElapsed(0); resetBreaks();
   };
 
   const median = categoryMedian(allTimers, cat);
@@ -73,12 +101,39 @@ export default function Field({ store }) {
         </div>
       )}
 
-      {running ? (
+      {running && onBreak ? (
+        <div className="timer-live" style={{ borderColor: '#4ade8044' }}>
+          <div style={{ fontSize: 30 }}>☕</div>
+          <div className="clock mono" style={{ color: 'var(--money)' }}>
+            {String(Math.floor(breakNow / 60)).padStart(2, '0')}:{String(Math.floor(breakNow % 60)).padStart(2, '0')}
+          </div>
+          <div className="meta">On break — the job clock is paused at {hh}:{mm}:{ss}. Break time never bills.</div>
+          <div style={{ height: 14 }} />
+          <a className="btn ghost" style={{ display: 'block', textDecoration: 'none', textAlign: 'center', marginBottom: 10 }}
+            href={foodUrl(properties.find((p) => p.id === running.propId))} target="_blank" rel="noreferrer">
+            🍔 Food near the job site
+          </a>
+          <button className="btn grad" onClick={endBreak}>▶ Back to work</button>
+        </div>
+      ) : running ? (
         <div className="timer-live">
+          {nudge && (
+            <div className="offline" style={{ textAlign: 'left', color: 'var(--money)', borderColor: '#4ade8033', background: '#4ade8012' }}>
+              {nudge === 'lunch' ? '🍔 Lunchtime — grab a bite?' : `💪 ${Math.floor(elapsed / 3600)}h straight — stretch those legs?`}
+              <span style={{ flex: 1 }} />
+              <button className="btn ghost sm" onClick={startBreak}>Take a break</button>
+              <button className="btn ghost sm" style={{ color: 'var(--text-faint)' }}
+                onClick={() => { setLastNudge(elapsed); if (nudge === 'lunch') setLunchNudged(true); }}>Later</button>
+            </div>
+          )}
           <div className="clock grad-text settle">{hh}:{mm}:{ss}</div>
-          <div className="meta">{running.woTask ? `${running.woTask} · ` : ''}{properties.find((p) => p.id === running.propId)?.name} · Unit {running.unit} · {running.category}</div>
+          <div className="meta">
+            {running.woTask ? `${running.woTask} · ` : ''}{properties.find((p) => p.id === running.propId)?.name} · Unit {running.unit} · {running.category}
+            {breakMs > 0 && <> · {Math.round(breakMs / 60000)}m of breaks (unbilled)</>}
+          </div>
           <div style={{ height: 18 }} />
           <button className="btn stop" onClick={stop}>Stop &amp; log to this job</button>
+          <button className="btn ghost" style={{ marginTop: 10 }} onClick={startBreak}>☕ Take a break</button>
           {running.woId && (
             <button className="btn ghost" style={{ marginTop: 10 }} onClick={() => { setWoStatus(running.woId, 'done'); stop(); }}>
               ✓ Stop &amp; mark work order done

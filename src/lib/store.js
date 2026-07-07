@@ -1,10 +1,15 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import seed from '../data/seed.json';
 import { useAuth } from '../components/AuthGate.jsx';
-import { isConfigured, listWorkOrders, insertWorkOrder, updateWorkOrderStatus } from './backend/supabase.js';
+import {
+  isConfigured, listWorkOrders, insertWorkOrder, updateWorkOrderStatus,
+  listPurchases, insertPurchase, setPurchaseStatus as dbSetPurchaseStatus, uploadReceipt,
+  listDocuments, uploadDocument,
+} from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
 const WO_KEY = 'caliper_workorders_v1';
+const PUR_KEY = 'caliper_purchases_v1';
 
 function loadLS(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -85,7 +90,7 @@ export function useStore() {
     if (isConfigured() && orgId && woBackend === 'db') {
       try {
         const saved = await insertWorkOrder(orgId, local);
-        setWorkOrders((l) => l.map((w) => (w.id === local.id ? saved : w)));
+        if (saved?.id) setWorkOrders((l) => l.map((w) => (w.id === local.id ? saved : w)));
       } catch { /* keep the local copy; it syncs on next migration */ }
     }
     return local;
@@ -97,6 +102,60 @@ export function useStore() {
       updateWorkOrderStatus(id, status).catch(() => {});
     }
   }, [woBackend]);
+
+  // ---- purchases: DB-backed when connected, localStorage otherwise ----
+  const [purchases, setPurchases] = useState(() => loadLS(PUR_KEY, []));
+  const [purBackend, setPurBackend] = useState('local');
+  useEffect(() => { localStorage.setItem(PUR_KEY, JSON.stringify(purchases)); }, [purchases]);
+
+  useEffect(() => {
+    if (!isConfigured() || !orgId) return;
+    listPurchases(orgId)
+      .then((rows) => { setPurchases(rows); setPurBackend('db'); })
+      .catch(() => setPurBackend('local'));
+  }, [orgId]);
+
+  const addPurchase = useCallback(async (p, receiptFile) => {
+    let receiptPath = null;
+    if (receiptFile && isConfigured() && orgId && purBackend === 'db') {
+      try { receiptPath = await uploadReceipt(orgId, receiptFile); } catch { /* keep going without the photo */ }
+    }
+    const local = { ...p, receiptPath, id: 'pur_' + Math.random().toString(36).slice(2, 10), status: 'pending', createdAt: new Date().toISOString() };
+    setPurchases((l) => [local, ...l]);
+    if (isConfigured() && orgId && purBackend === 'db') {
+      try {
+        const saved = await insertPurchase(orgId, local);
+        if (saved?.id) {
+          setPurchases((l) => l.map((x) => (x.id === local.id ? saved : x)));
+          return { ...saved, synced: true };
+        }
+      } catch { /* keep local copy */ }
+    }
+    return local;
+  }, [orgId, purBackend]);
+
+  const setPurchaseStatus = useCallback((id, status) => {
+    setPurchases((l) => l.map((x) => (x.id === id ? { ...x, status } : x)));
+    if (isConfigured() && purBackend === 'db' && !String(id).startsWith('pur_')) {
+      dbSetPurchaseStatus(id, status).catch(() => {});
+    }
+  }, [purBackend]);
+
+  // ---- documents: DB+storage only (no meaningful local fallback for files) ----
+  const [documents, setDocuments] = useState([]);
+  const [docBackend, setDocBackend] = useState('none'); // 'db' | 'none'
+  useEffect(() => {
+    if (!isConfigured() || !orgId) return;
+    listDocuments(orgId)
+      .then((rows) => { setDocuments(rows); setDocBackend('db'); })
+      .catch(() => setDocBackend('none'));
+  }, [orgId]);
+
+  const addDocument = useCallback(async (file, opts) => {
+    const doc = await uploadDocument(orgId, file, opts); // throws if storage not ready
+    setDocuments((l) => [doc, ...l]);
+    return doc;
+  }, [orgId]);
 
   return {
     meta: seed.meta,
@@ -113,5 +172,9 @@ export function useStore() {
     importedCount: imported.timers.length,
     // work orders
     workOrders, addWorkOrder, setWoStatus, woBackend,
+    // purchases
+    purchases, addPurchase, setPurchaseStatus, purBackend,
+    // documents
+    documents, addDocument, docBackend,
   };
 }

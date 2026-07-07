@@ -8,24 +8,36 @@ const CAT_HINTS = {
   electrical: /outlet|light|breaker|electric|wiring/i,
   hvac: /heat|furnace|\bac\b|hvac|thermostat|cooling/i,
   appliance: /fridge|refrigerator|stove|oven|washer|dryer|dishwasher|appliance/i,
+  painting: /paint/i,
   turn: /turnover|turn\b|vacant|make.?ready/i,
   inspection: /inspect/i,
 };
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+// street-type words don't identify a property ("st", "ave"…)
+const ADDR_STOP = new Set(['st', 'street', 'ave', 'avenue', 'rd', 'road', 'dr', 'drive', 'ln', 'lane', 's', 'n', 'e', 'w', 'south', 'north', 'east', 'west']);
 
 export function parseVoice(text, properties, techs) {
   const out = { task: text.trim(), category: 'general' };
-  const t = ' ' + text.toLowerCase() + ' ';
+  const t = ' ' + text.toLowerCase().replace(/\s+/g, ' ') + ' ';
 
-  const unitM = t.match(/\b(?:unit|apartment|apt\.?)\s*#?\s*([a-z]?\d+[a-z]?|\d+)/i);
+  // unit: "unit 4B" / "apt 12" — or a bare token like "3C"
+  const unitM = t.match(/\b(?:unit|apartment|apt\.?)\s*#?\s*([a-z]?\d+[a-z]?)\b/i)
+    || t.match(/\b(\d{1,3}[a-z])\b/i);
   if (unitM) out.unit = unitM[1].toUpperCase();
 
+  // property: score by distinctive words ("paul", "central"…) + street number
+  let best = null, bestScore = 0, bestWords = [];
   for (const p of properties) {
+    const words = p.name.toLowerCase().split(/[^a-z0-9]+/)
+      .filter((w) => w.length >= 3 && !ADDR_STOP.has(w) && !/^\d+$/.test(w));
+    const hit = words.filter((w) => t.includes(w));
+    let score = hit.length;
     const streetNum = p.name.match(/^\d+/)?.[0];
-    if (t.includes(p.name.toLowerCase()) || (streetNum && new RegExp(`\\b${streetNum}\\b`).test(t))) {
-      out.propLabel = p.name; break;
-    }
+    if (streetNum && new RegExp(`\\b${streetNum}\\b`).test(t)) score += 2;
+    if (score > bestScore) { bestScore = score; best = p; bestWords = words; }
   }
+  if (best && bestScore > 0) out.propLabel = best.name;
+
   for (const tech of techs) {
     if (new RegExp(`\\b${tech.name.split(' ')[0].toLowerCase()}\\b`).test(t)) {
       out.assigneeLabel = tech.name; break;
@@ -41,10 +53,31 @@ export function parseVoice(text, properties, techs) {
     out.due = iso(new Date(today.getTime() + diff * day));
   }
   for (const [c, re] of Object.entries(CAT_HINTS)) if (re.test(t)) { out.category = c; break; }
+
+  // distill the task: drop filler + everything we already extracted
+  let task = ' ' + text + ' ';
+  task = task
+    .replace(/\b(hey|hi|okay|ok|please|thanks|thank you)\b/gi, ' ')
+    .replace(/\b(can|could|would) you\b/gi, ' ')
+    .replace(/\bassign\b/gi, ' ')
+    .replace(/\bto do\b/gi, ' ');
+  if (out.assigneeLabel) task = task.replace(new RegExp(`\\b${out.assigneeLabel.split(' ')[0]}\\b`, 'gi'), ' ');
+  if (out.propLabel) {
+    for (const w of best.name.split(/[^a-zA-Z0-9]+/).filter(Boolean)) {
+      task = task.replace(new RegExp(`\\b${w}\\b`, 'gi'), ' ');
+    }
+  }
+  if (out.unit) task = task.replace(new RegExp(`\\b(unit\\s*)?${out.unit}\\b`, 'gi'), ' ');
+  task = task.replace(/\b(tomorrow|today)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+  // shed dangling connectors: "painting over at" → "painting"
+  const CONN = /^(and|or|over|at|in|on|for|to|the|a)\s+|\s+(and|or|over|at|in|on|for|to|the|a)$/i;
+  let prev;
+  do { prev = task; task = task.replace(CONN, ' ').trim(); } while (task !== prev && task);
+  out.task = task || text.trim();
   return out;
 }
 
-const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'turn', 'general', 'inspection'];
+const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'painting', 'turn', 'general', 'inspection'];
 const STATUS_COLORS = { open: 'var(--info)', in_progress: 'var(--warn)', done: 'var(--money)', cancelled: 'var(--text-faint)' };
 
 const inputStyle = {
@@ -70,21 +103,21 @@ export default function WorkOrders({ store }) {
     setVoiceErr(null); setLiveText(''); setListening(true);
     const rec = new SR();
     recRef.current = rec;
-    rec.lang = 'en-US'; rec.interimResults = true; rec.continuous = true;
-    let finalText = '';
+    // single utterance: Android Chrome re-delivers the whole result set on
+    // every event in continuous mode, so we rebuild the transcript from
+    // scratch each time instead of appending (appending = duplicate storm)
+    rec.lang = 'en-US'; rec.interimResults = true; rec.continuous = false;
+    let latest = '';
     rec.onresult = (e) => {
-      let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
-        else interim += e.results[i][0].transcript;
-      }
-      setLiveText((finalText + ' ' + interim).trim());
+      let text = '';
+      for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
+      latest = text.replace(/\s+/g, ' ').trim();
+      setLiveText(latest);
     };
     rec.onerror = (e) => { setVoiceErr(e.error === 'not-allowed' ? 'Microphone permission denied.' : 'Voice error: ' + e.error); setListening(false); };
     rec.onend = () => {
       setListening(false);
-      const text = finalText.trim();
-      if (text) setDraft({ ...parseVoice(text, properties, techs), transcript: text, source: 'voice' });
+      if (latest) setDraft({ ...parseVoice(latest, properties, techs), transcript: latest, source: 'voice' });
     };
     rec.start();
   };
@@ -130,7 +163,7 @@ export default function WorkOrders({ store }) {
         <div className="card" style={{ marginBottom: 'var(--gap)' }}>
           <span className="field-label">{draft.source === 'voice' ? 'Heard it — check the details' : 'New work order'}</span>
           {draft.transcript && (
-            <p className="note" style={{ marginTop: 2, marginBottom: 12, fontStyle: 'italic' }}>“{draft.transcript}”</p>
+            <p className="note" style={{ marginTop: 2, marginBottom: 12, fontStyle: 'italic', maxHeight: 72, overflowY: 'auto' }}>“{draft.transcript}”</p>
           )}
 
           <div className="field-label">Task</div>

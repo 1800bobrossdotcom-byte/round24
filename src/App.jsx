@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AuthGate, SignOutButton, AccountButton, useAuth } from './components/AuthGate.jsx';
 import { useStore } from './lib/store.js';
-import { Mark, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench } from './components/ui.jsx';
+import { Mark, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc } from './components/ui.jsx';
 import Dashboard from './views/Dashboard.jsx';
 import Field from './views/Field.jsx';
 import Properties from './views/Properties.jsx';
@@ -9,13 +9,18 @@ import Team from './views/Team.jsx';
 import Import from './views/Import.jsx';
 import WorkOrders from './views/WorkOrders.jsx';
 import Calendar from './views/Calendar.jsx';
+import Purchases from './views/Purchases.jsx';
+import Documents from './views/Documents.jsx';
 
-// which roles see which tools: contractors (tech) get field tools only —
-// no financials. RLS + getdek enforce the same split server-side.
+// which roles see which tools: the Crew portal (tech) gets field work —
+// orders, timer, receipts, shared docs. The Office portal (admin/manager)
+// runs the whole operation. RLS + getdek enforce the same split server-side.
 const TABS = [
   { id: 'dash', label: 'Dashboard', Icon: IcDash, View: Dashboard, roles: ['admin', 'manager', 'viewer'] },
   { id: 'field', label: 'Field', Icon: IcClock, View: Field, roles: ['admin', 'manager', 'tech'] },
   { id: 'wo', label: 'Work Orders', Icon: IcWrench, View: WorkOrders, roles: ['admin', 'manager', 'tech', 'viewer'] },
+  { id: 'pur', label: 'Purchases', Icon: IcReceipt, View: Purchases, roles: ['admin', 'manager', 'tech'] },
+  { id: 'docs', label: 'Docs', Icon: IcDoc, View: Documents, roles: ['admin', 'manager', 'tech', 'viewer'] },
   { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, roles: ['admin', 'manager', 'viewer'] },
   { id: 'props', label: 'Properties', Icon: IcBuilding, View: Properties, roles: ['admin', 'manager', 'viewer'] },
   { id: 'team', label: 'Team', Icon: IcUsers, View: Team, roles: ['admin', 'manager'] },
@@ -46,7 +51,7 @@ function Shell() {
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <header className="topbar">
-          <div className="brand"><Mark /> Caliper <span className="sub">beta</span></div>
+          <div className="brand"><Mark /> Caliper <span className="sub">{role === 'tech' ? 'crew' : role === 'viewer' ? 'viewer' : 'office'}</span></div>
           <div className="spacer" />
           <div className="org-pill">{store.meta.org}</div>
           <AccountButton />

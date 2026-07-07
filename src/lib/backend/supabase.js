@@ -88,6 +88,76 @@ export async function updateWorkOrderStatus(id, status) {
   if (error) throw error;
 }
 
+// ---- purchases (material receipts) ----
+const purFromDb = (r) => ({
+  id: r.id, workOrderId: r.work_order_id, propLabel: r.property_label,
+  vendor: r.vendor, amount: Number(r.amount), note: r.note,
+  receiptPath: r.receipt_path, status: r.status,
+  submittedBy: r.submitted_by_label, createdAt: r.created_at,
+});
+
+export async function listPurchases(orgId) {
+  const { data, error } = await supabase
+    .from('purchases').select('*').eq('org_id', orgId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data.map(purFromDb);
+}
+
+export async function insertPurchase(orgId, p) {
+  const { data, error } = await supabase.from('purchases').insert({
+    org_id: orgId, work_order_id: p.workOrderId || null,
+    property_label: p.propLabel || null, vendor: p.vendor || null,
+    amount: p.amount, note: p.note || null, receipt_path: p.receiptPath || null,
+    submitted_by_label: p.submittedBy || null,
+  }).select().single();
+  if (error) throw error;
+  return purFromDb(data);
+}
+
+export async function setPurchaseStatus(id, status) {
+  const { error } = await supabase.from('purchases').update({ status }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function uploadReceipt(orgId, file) {
+  const path = `${orgId}/${Date.now()}_${file.name.replace(/[^\w.-]+/g, '_')}`;
+  const { error } = await supabase.storage.from('receipts').upload(path, file);
+  if (error) throw error;
+  return path;
+}
+
+// ---- documents ----
+const docFromDb = (r) => ({
+  id: r.id, name: r.name, path: r.path, category: r.category,
+  visibility: r.visibility, createdAt: r.created_at,
+});
+
+export async function listDocuments(orgId) {
+  const { data, error } = await supabase
+    .from('documents').select('*').eq('org_id', orgId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data.map(docFromDb);
+}
+
+export async function uploadDocument(orgId, file, { category = 'general', visibility = 'org' } = {}) {
+  const path = `${orgId}/${Date.now()}_${file.name.replace(/[^\w.-]+/g, '_')}`;
+  const { error: upErr } = await supabase.storage.from('docs').upload(path, file);
+  if (upErr) throw upErr;
+  const { data, error } = await supabase.from('documents').insert({
+    org_id: orgId, name: file.name, path, category, visibility,
+  }).select().single();
+  if (error) throw error;
+  return docFromDb(data);
+}
+
+export async function signedFileUrl(bucket, path) {
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
 // ---- fetch the session DEK from the server (Edge Function unwraps via KMS) ----
 // returns a 32-byte Uint8Array. NEVER hardcode or cache to disk.
 export async function fetchDEK() {
