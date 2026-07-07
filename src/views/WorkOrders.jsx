@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { IcMic, IcX, IcPlay } from '../components/ui.jsx';
+import { fmtMoneyC } from '../lib/rollups.js';
+import { IcMic, IcX, IcPlay, IcReceipt } from '../components/ui.jsx';
 
 // ---- voice → structured work order ----------------------------------
 // "create work order unit 4B leaking faucet for Gianni tomorrow at 301 Central"
@@ -95,7 +96,12 @@ const inputStyle = {
 };
 
 export default function WorkOrders({ store }) {
-  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, properties, techs, role, woBackend } = store;
+  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, properties, techs, role, woBackend, purchases = [] } = store;
+  const receiptsByWo = useMemo(() => {
+    const m = {};
+    for (const p of purchases) if (p.workOrderId) (m[p.workOrderId] ||= []).push(p);
+    return m;
+  }, [purchases]);
   const [draft, setDraft] = useState(null);   // form state when creating
   const [listening, setListening] = useState(false);
   const [liveText, setLiveText] = useState('');
@@ -235,50 +241,66 @@ export default function WorkOrders({ store }) {
       <div className="card">
         <span className="field-label">Open ({open.length}) — sorted by priority</span>
         {open.length === 0 && <p className="note">Nothing open. {isStaff ? 'Create one above — or just say it out loud.' : 'Nothing assigned to you right now.'}</p>}
-        {open.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} isStaff={isStaff} canRun={canRun} />)}
+        {open.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} isStaff={isStaff} canRun={canRun} receipts={receiptsByWo[w.id]} />)}
       </div>
 
       {closed.length > 0 && (
         <div className="card" style={{ marginTop: 'var(--gap)' }}>
           <span className="field-label">Closed ({closed.length})</span>
-          {closed.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} isStaff={isStaff} canRun={canRun} done />)}
+          {closed.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} isStaff={isStaff} canRun={canRun} receipts={receiptsByWo[w.id]} done />)}
         </div>
       )}
     </div>
   );
 }
 
-function WoRow({ w, setWoStatus, setWoPriority, isStaff, canRun, done }) {
+function WoRow({ w, setWoStatus, setWoPriority, isStaff, canRun, done, receipts = [] }) {
   const pr = WO_PRIORITIES[w.priority ?? 3];
+  const [open, setOpen] = useState(false);
+  const matTotal = receipts.filter((r) => r.status === 'approved').reduce((a, r) => a + (r.amount || 0), 0);
   return (
-    <div className="row">
-      <div className="lead">
-        <div className="t" style={done ? { color: 'var(--text-dim)', textDecoration: w.status === 'cancelled' ? 'line-through' : 'none' } : undefined}>
-          {!done && <span style={{ color: pr.color, marginRight: 6 }}>●</span>}{w.task}
+    <div className="pur-item">
+      <div className="row">
+        <div className="lead">
+          <div className="t" style={done ? { color: 'var(--text-dim)', textDecoration: w.status === 'cancelled' ? 'line-through' : 'none' } : undefined}>
+            {!done && <span style={{ color: pr.color, marginRight: 6 }}>●</span>}{w.task}
+          </div>
+          <div className="s">
+            {[w.propLabel, w.unit && `Unit ${w.unit}`, w.category, w.assigneeLabel && `to ${w.assigneeLabel}`, w.due && `due ${w.due}`]
+              .filter(Boolean).join(' · ')}
+            {w.source === 'voice' && <IcMic width={11} height={11} style={{ marginLeft: 5, verticalAlign: '-1px' }} />}
+            {receipts.length > 0 && <> · <a onClick={() => setOpen((o) => !o)} style={{ color: 'var(--money)', cursor: 'pointer' }}><IcReceipt width={11} height={11} style={{ verticalAlign: -1 }} /> {fmtMoneyC(matTotal)} materials ({receipts.length})</a></>}
+          </div>
         </div>
-        <div className="s">
-          {[w.propLabel, w.unit && `Unit ${w.unit}`, w.category, w.assigneeLabel && `to ${w.assigneeLabel}`, w.due && `due ${w.due}`]
-            .filter(Boolean).join(' · ')}
-          {w.source === 'voice' && <IcMic width={11} height={11} style={{ marginLeft: 5, verticalAlign: '-1px' }} />}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {isStaff && !done ? (
+            <select
+              value={w.priority ?? 3}
+              onChange={(e) => setWoPriority(w.id, Number(e.target.value))}
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', color: pr.color,
+                fontFamily: 'var(--font)', fontWeight: 700, fontSize: 11, padding: '5px 6px', borderRadius: 8 }}>
+              {Object.entries(WO_PRIORITIES).map(([v, p]) => <option key={v} value={v}>{p.label}</option>)}
+            </select>
+          ) : !done && (
+            <span className="chip" style={{ color: pr.color }}>{pr.label}</span>
+          )}
+          <span className="chip" style={{ color: STATUS_COLORS[w.status] }}>{w.status.replace('_', ' ')}</span>
+          {canRun && w.status === 'open' && <button className="btn ghost sm" onClick={() => setWoStatus(w.id, 'in_progress')}>Start</button>}
+          {canRun && w.status === 'in_progress' && <button className="btn ghost sm" onClick={() => setWoStatus(w.id, 'done')}>Done</button>}
+          {isStaff && !done && <button className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)' }} onClick={() => setWoStatus(w.id, 'cancelled')} aria-label="Cancel"><IcX width={14} height={14} /></button>}
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-        {isStaff && !done ? (
-          <select
-            value={w.priority ?? 3}
-            onChange={(e) => setWoPriority(w.id, Number(e.target.value))}
-            style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', color: pr.color,
-              fontFamily: 'var(--font)', fontWeight: 700, fontSize: 11, padding: '5px 6px', borderRadius: 8 }}>
-            {Object.entries(WO_PRIORITIES).map(([v, p]) => <option key={v} value={v}>{p.label}</option>)}
-          </select>
-        ) : !done && (
-          <span className="chip" style={{ color: pr.color }}>{pr.label}</span>
-        )}
-        <span className="chip" style={{ color: STATUS_COLORS[w.status] }}>{w.status.replace('_', ' ')}</span>
-        {canRun && w.status === 'open' && <button className="btn ghost sm" onClick={() => setWoStatus(w.id, 'in_progress')}>Start</button>}
-        {canRun && w.status === 'in_progress' && <button className="btn ghost sm" onClick={() => setWoStatus(w.id, 'done')}>Done</button>}
-        {isStaff && !done && <button className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)' }} onClick={() => setWoStatus(w.id, 'cancelled')} aria-label="Cancel"><IcX width={14} height={14} /></button>}
-      </div>
+      {open && receipts.length > 0 && (
+        <div className="pur-items">
+          {receipts.map((r) => (
+            <div className="pur-item-row" key={r.id}>
+              <span className="pi-desc">{r.vendor || 'Purchase'}{r.note ? ` · ${r.note}` : ''}</span>
+              <span className="pi-qty mono" style={{ textTransform: 'capitalize' }}>{r.status}</span>
+              <span className="pi-amt mono money">{fmtMoneyC(r.amount || 0)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

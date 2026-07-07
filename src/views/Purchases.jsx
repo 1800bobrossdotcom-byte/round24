@@ -27,7 +27,8 @@ export default function Purchases({ store }) {
     cards, addCard, removeCard, matchCard } = store;
   const isStaff = role === 'admin' || role === 'manager';
   const [showCards, setShowCards] = useState(false);
-  const [matched, setMatched] = useState(null); // {card, via last4}
+  const [matched, setMatched] = useState(null);       // auto-filed via a known card
+  const [scannedCard, setScannedCard] = useState(null); // {last4, brand} unregistered
   const [draft, setDraft] = useState(null);
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -50,7 +51,15 @@ export default function Purchases({ store }) {
     finally { setBusy(false); }
   };
 
-  const reset = () => { setDraft(null); setFile(null); setScanMsg(null); setFlags([]); setItems([]); setStock(null); setStockErr(null); setMatched(null); };
+  const reset = () => { setDraft(null); setFile(null); setScanMsg(null); setFlags([]); setItems([]); setStock(null); setStockErr(null); setMatched(null); setScannedCard(null); };
+
+  // one-tap: remember this new card for the chosen building so it auto-files next time
+  const saveScannedCard = async () => {
+    if (!scannedCard || !draft?.propLabel) return;
+    await addCard({ last4: scannedCard.last4, brand: scannedCard.brand, propLabel: draft.propLabel });
+    setMatched({ propLabel: draft.propLabel, last4: scannedCard.last4 });
+    setScannedCard(null);
+  };
 
   const runStock = async () => {
     setStockErr(null); setStockBusy(true);
@@ -62,7 +71,7 @@ export default function Purchases({ store }) {
   // pick a receipt photo, read it with Claude, prefill the form
   const onPickReceipt = async (f) => {
     setFile(f || null);
-    setScanMsg(null); setFlags([]); setMatched(null);
+    setScanMsg(null); setFlags([]); setMatched(null); setScannedCard(null);
     if (!f || !isConfigured()) return;
     setScanning(true);
     try {
@@ -71,6 +80,7 @@ export default function Purchases({ store }) {
       // auto-file to a property by the card used, if we know that card
       const card = r.cardLast4 ? matchCard(r.cardLast4) : null;
       if (card) setMatched({ propLabel: card.propLabel, last4: r.cardLast4 });
+      else if (r.cardLast4) setScannedCard({ last4: r.cardLast4, brand: r.cardBrand || '' });
       setDraft((d) => ({
         ...d,
         vendor: r.vendor || d.vendor,
@@ -169,6 +179,16 @@ export default function Purchases({ store }) {
           {scanning && <p className="note" style={{ marginTop: 6 }}>◐ Reading receipt with AI…</p>}
           {scanMsg && <p className="note" style={{ marginTop: 6, color: scanMsg.kind === 'err' ? 'var(--danger)' : 'var(--money)' }}>{scanMsg.text}</p>}
           {!isConfigured() && <p className="note" style={{ marginTop: 6 }}>Photo uploads and AI receipt reading activate once connected to the cloud.</p>}
+
+          {scannedCard && isStaff && (
+            <div className="card" style={{ marginTop: 10, borderColor: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}><IcCreditCard width={13} height={13} /> New card {scannedCard.brand} ••{scannedCard.last4}</div>
+                <div className="note" style={{ margin: 0 }}>Save it to {draft.propLabel ? <b>{draft.propLabel}</b> : 'a building'} so future receipts auto-file.</div>
+              </div>
+              <button className="btn ghost sm" onClick={saveScannedCard} disabled={!draft.propLabel}>Save card</button>
+            </div>
+          )}
 
           {items.length > 0 && (
             <div className="itemize">
