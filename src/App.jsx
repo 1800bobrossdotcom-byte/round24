@@ -15,6 +15,7 @@ import Calendar from './views/Calendar.jsx';
 import Purchases from './views/Purchases.jsx';
 import Documents from './views/Documents.jsx';
 import Integrations from './views/Integrations.jsx';
+import Access from './views/Access.jsx';
 
 // which roles see which tools: the Crew portal (tech) gets field work —
 // orders, timer, receipts, shared docs. The Office portal (admin/manager)
@@ -35,6 +36,7 @@ const TABS = [
   { id: 'team', label: 'Team', Icon: IcUsers, View: Team, roles: ['admin', 'manager'] },
   { id: 'import', label: 'Import', Icon: IcImport, View: Import, roles: ['admin', 'manager'] },
   { id: 'integrations', label: 'Integrations', Icon: IcPlug, View: Integrations, roles: ['admin', 'manager'] },
+  { id: 'access', label: 'Access', Icon: IcUsers, View: Access, roles: ['admin', 'manager'] },
 ];
 
 const MAX_BAR = 5; // slots in the mobile bottom bar (incl. a possible "More")

@@ -46,6 +46,55 @@ export function onAuthChange(cb) {
   return supabase.auth.onAuthStateChange((_e, session) => cb(session));
 }
 
+// ---- invites & access management ----
+const inviteFromDb = (r) => ({
+  id: r.id, code: r.code, role: r.role, label: r.label, email: r.email,
+  usedAt: r.used_at, expiresAt: r.expires_at, createdAt: r.created_at,
+});
+
+// short human-friendly code
+function makeCode() {
+  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  const b = crypto.getRandomValues(new Uint8Array(8));
+  for (let i = 0; i < 8; i++) s += A[b[i] % A.length];
+  return s;
+}
+
+export async function createInvite(orgId, { role, label, email, expiresAt } = {}) {
+  const code = makeCode();
+  const { data, error } = await supabase.from('invites').insert({
+    org_id: orgId, code, role, label: label || null, email: email || null, expires_at: expiresAt || null,
+  }).select().single();
+  if (error) throw error;
+  return inviteFromDb(data);
+}
+
+export async function listInvites(orgId) {
+  const { data, error } = await supabase.from('invites').select('*').eq('org_id', orgId).order('created_at', { ascending: false });
+  if (error) throw error;
+  return data.map(inviteFromDb);
+}
+
+export async function revokeInvite(id) {
+  const { error } = await supabase.from('invites').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// invitee redeems a code → gets placed into the org with the invite's role
+export async function redeemInvite(code) {
+  const { data, error } = await supabase.rpc('redeem_invite', { invite_code: code });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ? { orgId: row.org_id, role: row.role } : null;
+}
+
+export async function listOrgMembers() {
+  const { data, error } = await supabase.rpc('org_members');
+  if (error) throw error;
+  return (data || []).map((r) => ({ userId: r.user_id, email: r.email, role: r.role, joined: r.joined }));
+}
+
 // the caller's org + role — drives which tools they can see.
 // RLS enforces the same boundary server-side; this is for the UI.
 export async function fetchMembership() {

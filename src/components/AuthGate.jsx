@@ -1,6 +1,24 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { supabase, isConfigured, signIn, signOut, getSession, onAuthChange, updatePassword, fetchMembership } from '../lib/backend/supabase.js';
+import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, fetchMembership, redeemInvite } from '../lib/backend/supabase.js';
 import { Mark, IcGear, IcLogout, IcWrench, IcChart, IcX, IcCheck, IcChevron } from './ui.jsx';
+
+// invite links land as ?invite=CODE. Capture it, stash it, strip it from the
+// URL, and it gets redeemed the moment the person is authenticated.
+const INVITE_KEY = 'caliper_pending_invite';
+function capturePendingInvite() {
+  try {
+    const u = new URL(window.location.href);
+    const code = u.searchParams.get('invite');
+    if (code) {
+      localStorage.setItem(INVITE_KEY, code.trim().toUpperCase());
+      u.searchParams.delete('invite');
+      window.history.replaceState({}, '', u.pathname + (u.search || '') + (u.hash || ''));
+    }
+    return localStorage.getItem(INVITE_KEY);
+  } catch { return null; }
+}
+const getPendingInvite = () => { try { return localStorage.getItem(INVITE_KEY); } catch { return null; } };
+const clearPendingInvite = () => { try { localStorage.removeItem(INVITE_KEY); } catch { /* no-op */ } };
 
 // role drives which tools are visible: admin/manager see the full suite
 // incl. financials; tech (contractors) get field tools only; viewer is
@@ -17,9 +35,11 @@ export function AuthGate({ children }) {
   const [ready, setReady] = useState(false);
   const [mem, setMem] = useState(null);       // { org_id, role }
   const [memReady, setMemReady] = useState(false);
+  const [invite, setInvite] = useState(null); // pending invite code
 
   useEffect(() => {
     if (!isConfigured()) { setReady(true); return; }
+    setInvite(capturePendingInvite());
     getSession().then((s) => { setSession(s); setReady(true); });
     const { data } = onAuthChange(setSession);
     return () => data?.subscription?.unsubscribe();
@@ -28,9 +48,15 @@ export function AuthGate({ children }) {
   useEffect(() => {
     if (!isConfigured() || !session) { setMem(null); setMemReady(false); return; }
     let on = true;
-    fetchMembership()
-      .then((m) => { if (on) { setMem(m); setMemReady(true); } })
-      .catch(() => { if (on) { setMem(null); setMemReady(true); } }); // least privilege on failure
+    (async () => {
+      let m = await fetchMembership().catch(() => null);
+      // brand-new user with an invite code → place them into the org now
+      if (!m && getPendingInvite()) {
+        try { await redeemInvite(getPendingInvite()); clearPendingInvite(); setInvite(null); m = await fetchMembership().catch(() => null); }
+        catch { /* bad/used/expired invite — stays unonboarded */ }
+      }
+      if (on) { setMem(m); setMemReady(true); }
+    })();
     return () => { on = false; };
   }, [session]);
 
@@ -49,7 +75,7 @@ export function AuthGate({ children }) {
     );
   }
 
-  if (!session) return <Login />;
+  if (!session) return <Login invite={invite} />;
   if (!memReady) {
     // don't flash the wrong toolset while the role loads
     return (
@@ -59,11 +85,40 @@ export function AuthGate({ children }) {
     );
   }
 
-  // no membership row = not yet onboarded to an org → treat as tech (least privilege)
+  // signed in but not part of any workspace yet → let them redeem an invite
+  if (!mem) return <NeedsAccess />;
+
   return (
-    <AuthCtx.Provider value={{ session, role: mem?.role || 'tech', orgId: mem?.org_id || null }}>
+    <AuthCtx.Provider value={{ session, role: mem.role, orgId: mem.org_id }}>
       {children}
     </AuthCtx.Provider>
+  );
+}
+
+// signed in, no org yet — enter an invite code or ask an admin
+function NeedsAccess() {
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const redeem = async () => {
+    setErr(null); setBusy(true);
+    try { await redeemInvite(code.trim().toUpperCase()); window.location.reload(); }
+    catch { setErr('That invite code isn’t valid or has been used. Ask your admin for a fresh link.'); setBusy(false); }
+  };
+  return (
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
+      <div style={{ width: '100%', maxWidth: 360, textAlign: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginBottom: 8 }}><Mark /> <span style={{ fontWeight: 800, fontSize: 22 }}>Caliper</span></div>
+        <div style={{ fontWeight: 800, fontSize: 17, marginTop: 12 }}>Almost there</div>
+        <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: '6px 0 18px' }}>You’re signed in but not part of a workspace yet. Enter your invite code, or ask your admin for a link.</p>
+        {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{err}</div>}
+        <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="INVITE CODE"
+          onKeyDown={(e) => e.key === 'Enter' && code && redeem()} style={{ ...inputStyle, textAlign: 'center', letterSpacing: '.15em', fontFamily: 'var(--mono)' }} />
+        <div style={{ height: 14 }} />
+        <button className="btn grad" onClick={redeem} disabled={busy || !code}>{busy ? 'Joining…' : 'Join workspace'}</button>
+        <p className="note" style={{ marginTop: 16 }}><a onClick={signOut} style={{ color: 'var(--info)', cursor: 'pointer' }}>Sign out</a></p>
+      </div>
+    </div>
   );
 }
 
@@ -83,7 +138,7 @@ const PORTALS = {
   },
 };
 
-function Login() {
+function Login({ invite }) {
   const [portal, setPortal] = useState(() => localStorage.getItem('caliper_portal') || null);
   const pick = (p) => { localStorage.setItem('caliper_portal', p); setPortal(p); };
 
@@ -119,20 +174,24 @@ function Login() {
       </div>
     );
   }
-  return <LoginForm portal={portal} onSwitch={() => { localStorage.removeItem('caliper_portal'); setPortal(null); }} />;
+  return <LoginForm portal={portal} invite={invite} onSwitch={() => { localStorage.removeItem('caliper_portal'); setPortal(null); }} />;
 }
 
-function LoginForm({ portal, onSwitch }) {
+function LoginForm({ portal, onSwitch, invite }) {
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
+  const [mode, setMode] = useState(invite ? 'signup' : 'signin'); // invited → create account
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const p = PORTALS[portal];
+  const isSignup = mode === 'signup';
 
   const submit = async () => {
     setErr(null); setBusy(true);
-    try { await signIn(email, pw); }
-    catch (e) { setErr(e.message || 'Sign-in failed'); }
+    try {
+      if (isSignup) await signUp(email, pw);   // invite is redeemed post-auth by AuthGate
+      else await signIn(email, pw);
+    } catch (e) { setErr(e.message || (isSignup ? 'Could not create account' : 'Sign-in failed')); }
     finally { setBusy(false); }
   };
 
@@ -146,24 +205,33 @@ function LoginForm({ portal, onSwitch }) {
             {portal === 'crew' ? 'crew' : 'office'}
           </span>
         </div>
-        <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 24 }}>{p.tagline}</p>
+        <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 20 }}>{p.tagline}</p>
 
+        {invite && isSignup && (
+          <div className="offline" style={{ color: 'var(--money)', borderColor: '#4ade8033', background: 'var(--money-dim)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <IcCheck width={14} height={14} /> You’ve been invited — create your account to join.
+          </div>
+        )}
         {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{err}</div>}
 
         <div className="field-label">Email</div>
         <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email"
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
-          style={inputStyle} />
+          onKeyDown={(e) => e.key === 'Enter' && submit()} style={inputStyle} />
         <div style={{ height: 14 }} />
         <div className="field-label">Password</div>
-        <input value={pw} onChange={(e) => setPw(e.target.value)} type="password" autoComplete="current-password"
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
-          style={inputStyle} />
+        <input value={pw} onChange={(e) => setPw(e.target.value)} type="password" autoComplete={isSignup ? 'new-password' : 'current-password'}
+          onKeyDown={(e) => e.key === 'Enter' && submit()} style={inputStyle} />
         <div style={{ height: 20 }} />
-        <button className="btn grad" onClick={submit} disabled={busy || !email || !pw}>
-          {busy ? 'Signing in…' : `Sign in to ${p.title}`}
+        <button className="btn grad" onClick={submit} disabled={busy || !email || pw.length < 6}>
+          {busy ? (isSignup ? 'Creating…' : 'Signing in…') : isSignup ? `Create account & join` : `Sign in to ${p.title}`}
         </button>
-        <p className="note" style={{ textAlign: 'center', marginTop: 16 }}>
+
+        <p className="note" style={{ textAlign: 'center', marginTop: 14 }}>
+          <a onClick={() => { setMode(isSignup ? 'signin' : 'signup'); setErr(null); }} style={{ color: 'var(--info)', cursor: 'pointer' }}>
+            {isSignup ? 'Already have an account? Sign in' : 'Have an invite? Create your account'}
+          </a>
+        </p>
+        <p className="note" style={{ textAlign: 'center', marginTop: 6 }}>
           Protected by row-level security. Sensitive data is AES-256 encrypted at rest.
         </p>
         <p className="note" style={{ textAlign: 'center', marginTop: 6 }}>
