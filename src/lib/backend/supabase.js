@@ -289,6 +289,22 @@ export async function signedFileUrl(bucket, path) {
   return data.signedUrl;
 }
 
+// ---- cloud labor persistence: the imported spine follows the account ----
+// staff-only (carries rates). Stored as a single per-org document.
+export async function getLaborState(orgId) {
+  const { data, error } = await supabase
+    .from('labor_state').select('imported, props, range').eq('org_id', orgId).maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+export async function saveLaborState(orgId, s) {
+  const { error } = await supabase.from('labor_state').upsert({
+    org_id: orgId, imported: s.imported, props: s.props, range: s.range, updated_at: new Date().toISOString(),
+  }, { onConflict: 'org_id' });
+  if (error) throw error;
+}
+
 // native buildings discovered from an Excel import (non-integrated shops)
 export async function insertProperties(orgId, props) {
   const rows = props.map((p) => ({

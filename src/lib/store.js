@@ -11,6 +11,7 @@ import {
   upsertChatMember, listChatMembers, listChatChannels, insertChatChannel,
   listPropertyCards, insertPropertyCard, deletePropertyCard,
   listLiveTimers, upsertLiveTimer, deleteLiveTimer, subscribeLiveTimers,
+  getLaborState, saveLaborState,
   fetchMyOperatorId, insertTimer, insertProperties,
 } from './backend/supabase.js';
 
@@ -86,6 +87,31 @@ export function useStore() {
   useEffect(() => { localStorage.setItem(PROP_KEY, JSON.stringify(impProps)); }, [impProps]);
   const impPropsRef = useRef(impProps);
   useEffect(() => { impPropsRef.current = impProps; }, [impProps]);
+
+  // ---- cloud labor persistence: the spine follows the account (staff only) ----
+  // localStorage is the fast local cache; when connected, this org record is the
+  // source of truth so dashboards/team/properties are the same on every device.
+  const [laborBackend, setLaborBackend] = useState('local');
+  const hydratedRef = useRef(false);
+  const isStaffMember = role === 'admin' || role === 'manager';
+  useEffect(() => {
+    if (!isConfigured() || !orgId || !isStaffMember) { hydratedRef.current = true; return; }
+    getLaborState(orgId).then((s) => {
+      if (s) {
+        if (s.imported && (s.imported.timers?.length || s.imported.techs?.length)) setImported(s.imported);
+        if (Array.isArray(s.props)) { impPropsRef.current = s.props; setImpProps(s.props); }
+        if (s.range?.from && s.range?.to) setRange(s.range);
+      }
+      setLaborBackend('db');
+      hydratedRef.current = true;
+    }).catch(() => { setLaborBackend('local'); hydratedRef.current = true; });
+  }, [orgId, isStaffMember]);
+  // write-through: after hydration, sync any spine change up (debounced)
+  useEffect(() => {
+    if (laborBackend !== 'db' || !hydratedRef.current || !orgId || !isStaffMember) return;
+    const t = setTimeout(() => { saveLaborState(orgId, { imported, props: impProps, range }).catch(() => {}); }, 900);
+    return () => clearTimeout(t);
+  }, [imported, impProps, range, laborBackend, orgId, isStaffMember]);
 
   const properties = useMemo(() => [...(demoMode ? seed.properties : []), ...impProps], [impProps, demoMode]);
   const propById = useMemo(() => Object.fromEntries(properties.map((p) => [p.id, p])), [properties]);
@@ -563,6 +589,7 @@ export function useStore() {
     role,
     // import
     addImported, clearImported, ensureProperties, loadSampleData, allocateImported,
+    laborBackend,
     hasImported: imported.timers.length > 0,
     importedCount: imported.timers.length,
     // work orders
