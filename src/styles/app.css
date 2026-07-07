@@ -119,7 +119,10 @@
 .grid.g3 { grid-template-columns: repeat(3,1fr); }
 .grid.g4 { grid-template-columns: repeat(2,1fr); }
 @media (min-width: 720px){ .grid.g4 { grid-template-columns: repeat(4,1fr); } }
-@media (max-width: 520px){ .grid.g3 { grid-template-columns: 1fr 1fr; } }
+/* phones: content grids collapse to ONE full-width column. Half-width cards
+   were crushing tables into one-word-per-line wraps and bleeding off-screen.
+   A single readable column keeps every box balanced and full-width. */
+@media (max-width: 560px){ .grid.g2, .grid.g3 { grid-template-columns: 1fr; } }
 
 /* ---- stat block ---- */
 .stat { display: flex; flex-direction: column; gap: 6px; }
