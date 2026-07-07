@@ -218,6 +218,19 @@ export async function triggerRmSync({ mock = false } = {}) {
   return data;
 }
 
+// ---- AI receipt OCR + price-match (Claude vision, server-side) ----
+// image: a base64 string or data: URL. Returns
+// { vendor, total, date, category, lineItems[], priceFlags[] }.
+export async function scanReceipt(image, mimeType = 'image/jpeg') {
+  const { data, error } = await supabase.functions.invoke('receipt-ocr', { body: { image, mimeType } });
+  if (error) {
+    let detail = error.message;
+    try { detail = (await error.context.json()).error || detail; } catch { /* keep */ }
+    throw new Error(detail);
+  }
+  return data.receipt;
+}
+
 export async function getRmConnection(orgId) {
   const { data, error } = await supabase
     .from('rm_connections').select('*').eq('org_id', orgId).maybeSingle();

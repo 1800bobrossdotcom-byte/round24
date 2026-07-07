@@ -96,7 +96,8 @@ export function parseSheet(ws, sheetName) {
 
   const entries = [];
   let periodTag = null;
-  let lastBuildings = [];   // building names from the most recent grid header row
+  let lastBuildings = [];      // building names from the most recent grid header row
+  let lastBuildingCols = [];   // [{ col, name }] — where each of those names sits
 
   for (const row of rows) {
     if (!row || !row.length) continue;
@@ -154,17 +155,36 @@ export function parseSheet(ws, sheetName) {
       if (v && !BUILDING_HDR.test(v) && !/total/i.test(v)) colBuilding = v;
     }
     const gridBuildings = [];
+    const gridCols = [];
     for (let i = 1; i < row.length; i++) {
-      if (looksLikeBuilding(row[i])) gridBuildings.push(row[i].trim());
+      if (looksLikeBuilding(row[i])) { gridBuildings.push(row[i].trim()); gridCols.push(i); }
     }
-    if (gridBuildings.length) lastBuildings = gridBuildings;
+    if (gridBuildings.length) {
+      lastBuildings = gridBuildings;
+      lastBuildingCols = gridBuildings.map((name, k) => ({ col: gridCols[k], name }));
+    }
 
     let buildings = [];
+    let inheritsCols = false;
     if (colBuilding) buildings = [colBuilding];
     else if (gridBuildings.length) buildings = gridBuildings;
-    else if (lastBuildings.length) buildings = lastBuildings;
+    else if (lastBuildings.length) { buildings = lastBuildings; inheritsCols = true; }
     else if (sheetBuilding) buildings = [sheetBuilding];
     buildings = [...new Set(buildings)];
+
+    // dollar-weighted allocation: a row that inherits a header's columns often
+    // carries the per-building dollar spend in those same columns. Weight this
+    // row's hours by that spend so a building with $0 doesn't absorb hours it
+    // never earned. Falls back to an even split when no dollars are present.
+    let weights = null;
+    if (inheritsCols && buildings.length > 1 && lastBuildingCols.length) {
+      const w = buildings.map((b) => {
+        const bc = lastBuildingCols.find((x) => x.name === b);
+        const v = bc ? row[bc.col] : null;
+        return isNum(v) && v > 0 ? v : 0;
+      });
+      if (w.some((x) => x > 0)) weights = w;
+    }
 
     entries.push({
       tech: techName,
@@ -177,6 +197,7 @@ export function parseSheet(ws, sheetName) {
       texts,          // all string cells
       building: colBuilding || buildings[0] || null,
       buildings,      // every building this row is allocated across
+      weights,        // parallel to buildings: dollar spend when known, else null
       flag,
     });
   }
@@ -219,18 +240,37 @@ export function toTimers(sheets, selectedNames, resolveBuildings) {
     if (!selectedNames.includes(s.name)) continue;
     for (const e of s.entries) {
       if (e.hours <= 0) continue; // skip OFF days
-      const ids = resolveBuildings ? resolveBuildings(e.buildings || []) : [];
+      const names = e.buildings || [];
+      // resolve each name → property id, accumulating dollar weight per id so
+      // duplicate names or names that collapse to one property merge cleanly.
+      const weightById = new Map();
+      const order = [];
+      names.forEach((nm, k) => {
+        const rid = resolveBuildings ? resolveBuildings([nm])[0] : null;
+        if (!rid) return;
+        if (!weightById.has(rid)) order.push(rid);
+        const w = e.weights && e.weights[k] > 0 ? e.weights[k] : 0;
+        weightById.set(rid, (weightById.get(rid) || 0) + w);
+      });
       const base = {
         techName: e.tech, date: e.date, rate: e.rate || 0,
         category: e.category || 'imported', issue: e.note || 'imported from pay log',
         unit: e.unit || '—', period: e.period,
       };
-      if (ids.length) {
-        const per = Math.round((e.hours / ids.length) * 100) / 100;
-        ids.forEach((propId, k) => {
+      if (order.length) {
+        const totalW = order.reduce((a, rid) => a + weightById.get(rid), 0);
+        // dollar-weighted fractions when we have spend, else even split
+        const fracs = totalW > 0
+          ? order.map((rid) => weightById.get(rid) / totalW)
+          : order.map(() => 1 / order.length);
+        let assigned = 0;
+        order.forEach((propId, k) => {
           id++; allocated++;
-          // give any rounding remainder to the last split so hours sum exactly
-          const hrs = k === ids.length - 1 ? Math.round((e.hours - per * (ids.length - 1)) * 100) / 100 : per;
+          // last split takes the exact remainder so hours sum precisely
+          const hrs = k === order.length - 1
+            ? Math.round((e.hours - assigned) * 100) / 100
+            : Math.round((e.hours * fracs[k]) * 100) / 100;
+          assigned += hrs;
           timers.push({ id: `imp_${id}`, ...base, durationHrs: hrs, propId });
         });
       } else {

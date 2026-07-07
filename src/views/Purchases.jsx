@@ -1,7 +1,17 @@
 import { useState, useMemo } from 'react';
 import { fmtMoneyC } from '../lib/rollups.js';
-import { isConfigured, signedFileUrl } from '../lib/backend/supabase.js';
-import { IcClip, IcCheck, IcX } from '../components/ui.jsx';
+import { isConfigured, signedFileUrl, scanReceipt } from '../lib/backend/supabase.js';
+import { IcClip, IcCheck, IcX, IcReceipt } from '../components/ui.jsx';
+
+// read a File into a base64 data: URL for the OCR call
+function fileToDataUrl(f) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(f);
+  });
+}
 
 // crew: submit material purchases with a receipt photo → office approves.
 // materials land on the same job-cost spine as labor.
@@ -18,6 +28,9 @@ export default function Purchases({ store }) {
   const [draft, setDraft] = useState(null);
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanMsg, setScanMsg] = useState(null);   // { kind:'err'|'ok', text }
+  const [flags, setFlags] = useState([]);          // AI price-match flags
 
   const openWos = useMemo(() => workOrders.filter((w) => w.status === 'open' || w.status === 'in_progress'), [workOrders]);
   const pending = purchases.filter((p) => p.status === 'pending');
@@ -26,8 +39,36 @@ export default function Purchases({ store }) {
 
   const save = async () => {
     setBusy(true);
-    try { await addPurchase({ ...draft, amount: parseFloat(draft.amount) }, file); setDraft(null); setFile(null); }
+    try { await addPurchase({ ...draft, amount: parseFloat(draft.amount) }, file); reset(); }
     finally { setBusy(false); }
+  };
+
+  const reset = () => { setDraft(null); setFile(null); setScanMsg(null); setFlags([]); };
+
+  // pick a receipt photo, read it with Claude, prefill the form
+  const onPickReceipt = async (f) => {
+    setFile(f || null);
+    setScanMsg(null); setFlags([]);
+    if (!f || !isConfigured()) return;
+    setScanning(true);
+    try {
+      const dataUrl = await fileToDataUrl(f);
+      const r = await scanReceipt(dataUrl, f.type || 'image/jpeg');
+      setDraft((d) => ({
+        ...d,
+        vendor: r.vendor || d.vendor,
+        amount: r.total ? String(r.total) : d.amount,
+        note: d.note || (r.lineItems?.length ? r.lineItems.map((li) => li.description).slice(0, 3).join(', ') : ''),
+        category: r.category || d.category,
+        date: r.date || d.date,
+      }));
+      setFlags(r.priceFlags || []);
+      setScanMsg({ kind: 'ok', text: `Read ${r.lineItems?.length || 0} line items${r.priceFlags?.length ? ` · ${r.priceFlags.length} price flag${r.priceFlags.length > 1 ? 's' : ''}` : ''}` });
+    } catch (e) {
+      setScanMsg({ kind: 'err', text: e.message || 'Could not read receipt' });
+    } finally {
+      setScanning(false);
+    }
   };
 
   return (
@@ -50,7 +91,7 @@ export default function Purchases({ store }) {
       )}
 
       {!draft && (
-        <button className="btn grad" style={{ marginBottom: 'var(--gap)' }} onClick={() => setDraft({ vendor: '', amount: '', note: '' })}>
+        <button className="btn grad" style={{ marginBottom: 'var(--gap)' }} onClick={() => setDraft({ vendor: '', amount: '', note: '', category: '', date: '' })}>
           + New purchase
         </button>
       )}
@@ -86,14 +127,31 @@ export default function Purchases({ store }) {
           <div className="field-label">Note</div>
           <input style={inputStyle} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder="what it was for" />
           <div style={{ height: 12 }} />
-          <div className="field-label">Receipt photo</div>
-          <input type="file" accept="image/*" capture="environment" onChange={(e) => setFile(e.target.files[0] || null)}
+          <div className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <IcReceipt width={12} height={12} /> Receipt photo {isConfigured() && <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}>— we read it for you</span>}
+          </div>
+          <input type="file" accept="image/*" capture="environment" onChange={(e) => onPickReceipt(e.target.files[0] || null)}
             style={{ ...inputStyle, padding: 9 }} />
           {file && <p className="note" style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 5 }}><IcClip width={12} height={12} /> {file.name}</p>}
-          {!isConfigured() && <p className="note" style={{ marginTop: 6 }}>Photo uploads activate once connected to the cloud.</p>}
+          {scanning && <p className="note" style={{ marginTop: 6 }}>◐ Reading receipt with AI…</p>}
+          {scanMsg && <p className="note" style={{ marginTop: 6, color: scanMsg.kind === 'err' ? 'var(--danger)' : 'var(--money)' }}>{scanMsg.text}</p>}
+          {!isConfigured() && <p className="note" style={{ marginTop: 6 }}>Photo uploads and AI receipt reading activate once connected to the cloud.</p>}
+
+          {flags.length > 0 && (
+            <div className="card" style={{ marginTop: 12, borderColor: '#ffb02033', background: 'var(--surface-2)' }}>
+              <span className="field-label" style={{ color: 'var(--warn)' }}>Price check — review before approving</span>
+              {flags.map((f, i) => (
+                <div className="note" key={i} style={{ margin: '4px 0 0' }}>
+                  <b>{f.item}</b> — paid <span className="mono money">{fmtMoneyC(f.paid || 0)}</span>
+                  {f.typical ? <> · typical ~<span className="mono">{fmtMoneyC(f.typical)}</span></> : null}
+                  {f.note ? ` · ${f.note}` : ''}
+                </div>
+              ))}
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-            <button className="btn ghost" style={{ flex: 1 }} onClick={() => { setDraft(null); setFile(null); }}>Cancel</button>
+            <button className="btn ghost" style={{ flex: 1 }} onClick={reset}>Cancel</button>
             <button className="btn grad" style={{ flex: 2 }} onClick={save} disabled={busy || !(parseFloat(draft.amount) > 0)}>
               {busy ? 'Saving…' : 'Submit purchase'}
             </button>
