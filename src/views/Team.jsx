@@ -4,8 +4,11 @@ import { Avatar } from '../components/ui.jsx';
 
 const GRAINS = ['day', 'week', 'month', 'year'];
 
-export default function Team({ store, focus }) {
+export default function Team({ store, focus, navigate }) {
   const { timers, techById, techs } = store;
+  const go = navigate || (() => {});
+  // a period row → the Calendar month it falls in (week/day keys carry a date)
+  const monthOf = (key) => (grain === 'year' ? `${key}-01` : key.slice(0, 7));
   const [grain, setGrain] = useState('week');
   const [hl, setHl] = useState(null); // operator highlighted from a drill-down
   const cardRefs = useRef({});
@@ -54,7 +57,7 @@ export default function Team({ store, focus }) {
               <thead><tr><th>{grain[0].toUpperCase() + grain.slice(1)}</th><th className="num">Jobs</th><th className="num">Hours</th><th className="num">Labor cost</th></tr></thead>
               <tbody>
                 {periods.map((p) => (
-                  <tr key={p.key}>
+                  <tr key={p.key} onClick={() => go('cal', { month: monthOf(p.key) })} style={{ cursor: 'pointer' }}>
                     <td className="barcell"><div className="bar" style={{ width: `${(p.cost / maxc) * 100}%` }} />
                       <span className="bar-label mono" style={{ fontSize: 12 }}>{p.label}</span></td>
                     <td className="num">{p.count}</td>

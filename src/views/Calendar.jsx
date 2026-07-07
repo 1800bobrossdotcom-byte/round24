@@ -6,8 +6,10 @@ import { fmtMoney, fmtHrs, cost } from '../lib/rollups.js';
 const DOW = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const WEEK_START = 6; // Saturday
 
-export default function Calendar({ store, focus }) {
-  const { allTimers, techById, propById } = store;
+export default function Calendar({ store, focus, navigate }) {
+  const { allTimers, techById, propById, role } = store;
+  const go = navigate || (() => {});
+  const isOffice = role === 'admin' || role === 'manager';
 
   const byDay = useMemo(() => {
     const m = new Map();
@@ -102,9 +104,19 @@ export default function Calendar({ store, focus }) {
             <span className="mono money" style={{ fontWeight: 700 }}>{fmtMoney(sel.cost)} · {fmtHrs(sel.hrs)}h</span>
           </div>
           {sel.entries.map((t) => (
-            <div className="row" key={t.id}>
+            <div className="row" key={t.id}
+              onClick={t.propId ? () => go('props', { propId: t.propId }) : undefined}
+              style={t.propId ? { cursor: 'pointer' } : undefined}>
               <div className="lead">
-                <div className="t">{techById[t.techId]?.name || '?'} — {propById[t.propId]?.name || 'Unallocated'}{t.unit && t.unit !== '—' ? ` · ${t.unit}` : ''}</div>
+                <div className="t">
+                  {isOffice ? (
+                    <span onClick={(e) => { e.stopPropagation(); go('team', { operatorId: t.techId }); }}
+                      style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'var(--line)', textUnderlineOffset: 2 }}>
+                      {techById[t.techId]?.name || '?'}
+                    </span>
+                  ) : (techById[t.techId]?.name || '?')}
+                  {' — '}{propById[t.propId]?.name || 'Unallocated'}{t.unit && t.unit !== '—' ? ` · ${t.unit}` : ''}
+                </div>
                 <div className="s">{t.category}{t.issue ? ` · ${t.issue}` : ''}</div>
               </div>
               <div className="val">
