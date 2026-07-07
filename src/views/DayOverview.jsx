@@ -1,7 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { fmtHrs } from '../lib/rollups.js';
 import { WO_PRIORITIES, byPriority } from './WorkOrders.jsx';
-import { Avatar, IcWrench } from '../components/ui.jsx';
+import { Avatar, IcWrench, IcClock } from '../components/ui.jsx';
+
+// live elapsed since an ISO start, as H:MM:SS
+function elapsedStr(startedAt, now) {
+  const s = Math.max(0, Math.floor((now - new Date(startedAt).getTime()) / 1000));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
 
 // Day overview / dispatch board: who's working, where, on what — each crew's
 // queue and workload, plus what's live right now (in-progress = on the clock).
@@ -9,8 +16,11 @@ import { Avatar, IcWrench } from '../components/ui.jsx';
 const UNASSIGNED = '__unassigned__';
 
 export default function DayOverview({ store, navigate }) {
-  const { workOrders, timers, techById, techs, setWoAssignee } = store;
+  const { workOrders, timers, techById, techs, setWoAssignee, liveTimers = [] } = store;
   const go = navigate || (() => {});
+  // tick once a second so live stopwatches count up
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => { const id = setInterval(() => setNowMs(Date.now()), 1000); return () => clearInterval(id); }, []);
   const crew = techs.filter((t) => t.role !== 'viewer');
   const techIdByName = useMemo(() => Object.fromEntries(techs.map((t) => [t.name, t.id])), [techs]);
   const now = new Date();
@@ -57,16 +67,25 @@ export default function DayOverview({ store, navigate }) {
       </div>
 
       <div className="day-summary">
-        <div><span className="n mono">{activeWos.length}</span><span className="k">on the clock</span></div>
+        <div><span className="n mono">{liveTimers.length || activeWos.length}</span><span className="k">on the clock</span></div>
         <div><span className="n mono">{openWos.length}</span><span className="k">open queue</span></div>
         <div><span className="n mono">{fmtHrs(totalToday)}</span><span className="k">hours today</span></div>
       </div>
 
-      {/* live now */}
+      {/* live now — real running timers when present, else in-progress orders */}
       <div className="card" style={{ marginBottom: 'var(--gap)' }}>
-        <span className="field-label"><span className="live-dot" /> On the clock now ({activeWos.length})</span>
-        {activeWos.length === 0 && <p className="note">Nobody's clocked onto a job right now.</p>}
-        {activeWos.map((w) => (
+        <span className="field-label"><span className="live-dot" /> On the clock now ({liveTimers.length || activeWos.length})</span>
+        {liveTimers.length > 0 ? liveTimers.map((lt) => (
+          <div className="row" key={lt.userId}>
+            <div className="lead">
+              <div className="t"><span className="live-dot" style={lt.onBreak ? { background: 'var(--text-faint)', animation: 'none' } : null} /> {lt.operatorLabel || 'Operator'} — {lt.propLabel || 'No property'}{lt.unit && lt.unit !== '—' ? ` · ${lt.unit}` : ''}</div>
+              <div className="s">{lt.onBreak ? 'On break' : (lt.task || 'Working')}</div>
+            </div>
+            <div className="val"><div className="big mono" style={{ color: lt.onBreak ? 'var(--text-dim)' : 'var(--warn)' }}>{elapsedStr(lt.startedAt, nowMs)}</div></div>
+          </div>
+        )) : activeWos.length === 0 ? (
+          <p className="note">Nobody's clocked onto a job right now.</p>
+        ) : activeWos.map((w) => (
           <div className="row" key={w.id} onClick={() => go('wo')} style={{ cursor: 'pointer' }}>
             <div className="lead">
               <div className="t"><span className="live-dot" /> {w.assigneeLabel || 'Unassigned'} — {w.propLabel || 'No property'}{w.unit ? ` · ${w.unit}` : ''}</div>

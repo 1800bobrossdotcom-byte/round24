@@ -323,6 +323,43 @@ export async function scanReceipt(image, mimeType = 'image/jpeg') {
   return data.receipt;
 }
 
+// ---- live presence: who's on the clock right now ----
+const ltFromDb = (r) => ({
+  userId: r.user_id, operatorLabel: r.operator_label, workOrderId: r.work_order_id,
+  task: r.task, propLabel: r.prop_label, unit: r.unit, startedAt: r.started_at, onBreak: r.on_break,
+});
+
+export async function listLiveTimers(orgId) {
+  const { data, error } = await supabase.from('live_timers').select('*').eq('org_id', orgId);
+  if (error) throw error;
+  return data.map(ltFromDb);
+}
+
+export async function upsertLiveTimer(orgId, t) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const { error } = await supabase.from('live_timers').upsert({
+    org_id: orgId, user_id: user.id, operator_label: t.operatorLabel,
+    work_order_id: t.workOrderId || null, task: t.task || null,
+    prop_label: t.propLabel || null, unit: t.unit || null,
+    started_at: t.startedAt, on_break: !!t.onBreak, updated_at: new Date().toISOString(),
+  }, { onConflict: 'org_id,user_id' });
+  if (error) throw error;
+}
+
+export async function deleteLiveTimer(orgId) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from('live_timers').delete().eq('org_id', orgId).eq('user_id', user.id);
+}
+
+export function subscribeLiveTimers(orgId, cb) {
+  const ch = supabase.channel('live-timers-' + orgId)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'live_timers', filter: `org_id=eq.${orgId}` }, () => cb())
+    .subscribe();
+  return () => supabase.removeChannel(ch);
+}
+
 // ---- per-property credit cards (auto-file receipts by card) ----
 const cardFromDb = (r) => ({ id: r.id, last4: r.last4, brand: r.brand, propLabel: r.property_label, label: r.label });
 

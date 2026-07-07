@@ -49,6 +49,17 @@ export default function Field({ store }) {
     localStorage.setItem(TIMER_KEY, JSON.stringify({ running, log, onBreak, breakMs, lastNudge, lunchNudged }));
   }, [running, log, onBreak, breakMs, lastNudge, lunchNudged]);
 
+  // broadcast live presence so the office board sees this timer tick in real time
+  useEffect(() => {
+    if (!running) { store.syncLivePresence(null); return; }
+    const p = properties.find((x) => x.id === running.propId);
+    store.syncLivePresence({
+      startedAt: new Date(running.start).toISOString(),
+      workOrderId: /^[0-9a-f-]{36}$/i.test(String(running.woId)) ? running.woId : null,
+      task: running.woTask || null, propLabel: p?.name || null, unit: running.unit, onBreak: !!onBreak,
+    });
+  }, [running, onBreak]);
+
   const myWos = workOrders.filter((w) => w.status === 'open' || w.status === 'in_progress').sort(byPriority);
 
   // start the timer straight from a work order — property/unit/category prefilled

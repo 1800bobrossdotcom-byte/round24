@@ -10,6 +10,7 @@ import {
   listMessages, insertMessage, subscribeMessages, uploadVoiceNote, summarizeThread,
   upsertChatMember, listChatMembers, listChatChannels, insertChatChannel,
   listPropertyCards, insertPropertyCard, deletePropertyCard,
+  listLiveTimers, upsertLiveTimer, deleteLiveTimer, subscribeLiveTimers,
   fetchMyOperatorId, insertTimer, insertProperties,
 } from './backend/supabase.js';
 
@@ -374,6 +375,23 @@ export function useStore() {
     return doc;
   }, [orgId]);
 
+  // ---- live presence: who's on the clock (crew timers → office board) ----
+  const [liveTimers, setLiveTimers] = useState([]);
+  useEffect(() => {
+    if (!isConfigured() || !orgId) return;
+    const refresh = () => listLiveTimers(orgId).then(setLiveTimers).catch(() => {});
+    refresh();
+    return subscribeLiveTimers(orgId, refresh);
+  }, [orgId]);
+
+  // Field timer calls this: pass the running session (or null on stop) to
+  // broadcast/clear this operator's presence.
+  const syncLivePresence = useCallback((info) => {
+    if (!isConfigured() || !orgId) return;
+    if (info) upsertLiveTimer(orgId, { ...info, operatorLabel: myName }).catch(() => {});
+    else deleteLiveTimer(orgId).catch(() => {});
+  }, [orgId, myName]);
+
   // ---- per-property credit cards: auto-file receipts by card ----
   const [cards, setCards] = useState(() => loadLS('caliper_cards_v1', []));
   const [cardBackend, setCardBackend] = useState('local');
@@ -552,6 +570,8 @@ export function useStore() {
     woNotice, clearWoNotice: () => setWoNotice(null),
     // cloud timers
     addTimerEntry, operatorId,
+    // live presence
+    liveTimers, syncLivePresence,
     // purchases
     purchases, addPurchase, setPurchaseStatus, purBackend,
     // per-property cards
