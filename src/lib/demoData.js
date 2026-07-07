@@ -97,9 +97,9 @@ export const DEMO_WORK_ORDERS = [
 // purchases in the addPurchase() shape (status is set to pending by the store;
 // we tag a couple as pre-decided by inserting them then flipping status)
 export const DEMO_PURCHASES = [
-  { vendor: 'Home Depot', amount: 142.5, propLabel: '179-189 St Paul', note: 'faucet + supply lines', submittedBy: 'Gianni Alvarez' },
+  { vendor: 'Home Depot', amount: 77.88, propLabel: '179-189 St Paul', note: 'faucet cartridge + supply lines', submittedBy: 'Gianni Alvarez', receiptPath: '/mock/receipt-homedepot.png' },
+  { vendor: 'Sherwin-Williams', amount: 112.07, propLabel: '121 Park', note: '2 gal eggshell + roller kit', submittedBy: 'Marco Rossi', receiptPath: '/mock/receipt-sherwin.png' },
   { vendor: 'Ferguson', amount: 318.0, propLabel: '440 Armstrong', note: 'furnace igniter + flame sensor', submittedBy: 'Brent Kowalski' },
-  { vendor: 'Sherwin-Williams', amount: 96.75, propLabel: '121 Park', note: '2 gal eggshell + supplies', submittedBy: 'Marco Rossi' },
   { vendor: 'Lowe\'s', amount: 449.0, propLabel: '31 Genesee', note: 'dishwasher', submittedBy: 'Luis Fernandez' },
   { vendor: 'Grainger', amount: 61.2, propLabel: '301 Central Ave', note: 'smoke detectors 4-pack', submittedBy: 'Dawn Whitfield' },
 ];

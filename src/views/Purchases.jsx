@@ -224,6 +224,8 @@ export default function Purchases({ store }) {
 function PurRow({ p, isStaff, setPurchaseStatus, decided }) {
   const [receiptUrl, setReceiptUrl] = useState(null);
   const viewReceipt = async () => {
+    // bundled sample receipts are plain URLs; uploaded ones are storage paths
+    if (/^(\/|https?:)/.test(p.receiptPath)) { window.open(p.receiptPath, '_blank'); return; }
     try { const url = await signedFileUrl('receipts', p.receiptPath); window.open(url, '_blank'); }
     catch { setReceiptUrl('err'); }
   };

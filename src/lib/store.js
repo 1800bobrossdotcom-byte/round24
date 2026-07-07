@@ -300,7 +300,7 @@ export function useStore() {
     if (receiptFile && isConfigured() && orgId && purBackend === 'db') {
       try { receiptPath = await uploadReceipt(orgId, receiptFile); } catch { /* keep going without the photo */ }
     }
-    const local = { ...p, receiptPath, id: 'pur_' + Math.random().toString(36).slice(2, 10), status: 'pending', createdAt: new Date().toISOString() };
+    const local = { ...p, receiptPath: receiptPath || p.receiptPath || null, id: 'pur_' + Math.random().toString(36).slice(2, 10), status: 'pending', createdAt: new Date().toISOString() };
     setPurchases((l) => [local, ...l]);
     if (isConfigured() && orgId && purBackend === 'db') {
       try {
