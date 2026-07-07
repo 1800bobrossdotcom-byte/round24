@@ -358,8 +358,10 @@
   .grid.g3 > :last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
 
-.portal-card { transition: border-color .15s, transform .15s; }
+.portal-card { display: flex; flex-direction: column; height: 100%; transition: border-color .15s, transform .15s; }
 .portal-card:hover { border-color: var(--text-faint); transform: translateY(-2px); }
+/* reserve room for a 2-line tagline so the bullet lists top-align in both cards */
+.portal-card .p-tag { min-height: 32px; }
 
 /* recharts can report a couple px past its container — clamp it */
 .recharts-responsive-container, .recharts-wrapper, .recharts-surface { max-width: 100% !important; }

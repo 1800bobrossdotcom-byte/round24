@@ -95,7 +95,7 @@ function Login() {
             <Mark /> <span style={{ fontWeight: 800, fontSize: 22 }}>Caliper</span>
           </div>
           <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 26 }}>Labor, measured true. Pick your door.</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, alignItems: 'stretch' }}>
             {Object.entries(PORTALS).map(([key, p]) => (
               <button key={key} onClick={() => pick(key)} className="card portal-card" style={{
                 cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)', color: 'var(--text)',
@@ -105,10 +105,12 @@ function Login() {
                   {key === 'crew' ? <IcWrench width={26} height={26} /> : <IcChart width={26} height={26} />}
                 </div>
                 <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 4 }}>{p.title}</div>
-                <div style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 12 }}>{p.tagline}</div>
-                {p.points.map((pt) => (
-                  <div key={pt} style={{ fontSize: 12, color: 'var(--text-faint)', fontWeight: 600, padding: '2px 0' }}>· {pt}</div>
-                ))}
+                <div className="p-tag" style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 12 }}>{p.tagline}</div>
+                <div className="p-points">
+                  {p.points.map((pt) => (
+                    <div key={pt} style={{ fontSize: 12, color: 'var(--text-faint)', fontWeight: 600, padding: '2px 0' }}>· {pt}</div>
+                  ))}
+                </div>
               </button>
             ))}
           </div>
