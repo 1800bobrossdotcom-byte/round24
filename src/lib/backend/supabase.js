@@ -323,6 +323,28 @@ export async function scanReceipt(image, mimeType = 'image/jpeg') {
   return data.receipt;
 }
 
+// ---- per-property credit cards (auto-file receipts by card) ----
+const cardFromDb = (r) => ({ id: r.id, last4: r.last4, brand: r.brand, propLabel: r.property_label, label: r.label });
+
+export async function listPropertyCards(orgId) {
+  const { data, error } = await supabase.from('property_cards').select('*').eq('org_id', orgId).order('created_at');
+  if (error) throw error;
+  return data.map(cardFromDb);
+}
+
+export async function insertPropertyCard(orgId, c) {
+  const { data, error } = await supabase.from('property_cards').insert({
+    org_id: orgId, last4: c.last4, brand: c.brand || null, property_label: c.propLabel, label: c.label || null,
+  }).select().single();
+  if (error) throw error;
+  return cardFromDb(data);
+}
+
+export async function deletePropertyCard(id) {
+  const { error } = await supabase.from('property_cards').delete().eq('id', id);
+  if (error) throw error;
+}
+
 // ---- AI local-stock check: pickup vs order per item (Claude, server-side) ----
 export async function checkStock(items, location) {
   const { data, error } = await supabase.functions.invoke('stock-check', { body: { items, location } });

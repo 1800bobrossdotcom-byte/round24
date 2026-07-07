@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { fmtMoneyC } from '../lib/rollups.js';
 import { isConfigured, signedFileUrl, scanReceipt, checkStock } from '../lib/backend/supabase.js';
-import { IcClip, IcCheck, IcX, IcReceipt, IcSparkle, IcActivity } from '../components/ui.jsx';
+import { IcClip, IcCheck, IcX, IcReceipt, IcSparkle, IcActivity, IcCreditCard } from '../components/ui.jsx';
 
 // read a File into a base64 data: URL for the OCR call
 function fileToDataUrl(f) {
@@ -23,8 +23,11 @@ const inputStyle = {
 };
 
 export default function Purchases({ store }) {
-  const { purchases, addPurchase, setPurchaseStatus, properties, workOrders, role, purBackend } = store;
+  const { purchases, addPurchase, setPurchaseStatus, properties, workOrders, role, purBackend,
+    cards, addCard, removeCard, matchCard } = store;
   const isStaff = role === 'admin' || role === 'manager';
+  const [showCards, setShowCards] = useState(false);
+  const [matched, setMatched] = useState(null); // {card, via last4}
   const [draft, setDraft] = useState(null);
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -47,7 +50,7 @@ export default function Purchases({ store }) {
     finally { setBusy(false); }
   };
 
-  const reset = () => { setDraft(null); setFile(null); setScanMsg(null); setFlags([]); setItems([]); setStock(null); setStockErr(null); };
+  const reset = () => { setDraft(null); setFile(null); setScanMsg(null); setFlags([]); setItems([]); setStock(null); setStockErr(null); setMatched(null); };
 
   const runStock = async () => {
     setStockErr(null); setStockBusy(true);
@@ -59,12 +62,15 @@ export default function Purchases({ store }) {
   // pick a receipt photo, read it with Claude, prefill the form
   const onPickReceipt = async (f) => {
     setFile(f || null);
-    setScanMsg(null); setFlags([]);
+    setScanMsg(null); setFlags([]); setMatched(null);
     if (!f || !isConfigured()) return;
     setScanning(true);
     try {
       const dataUrl = await fileToDataUrl(f);
       const r = await scanReceipt(dataUrl, f.type || 'image/jpeg');
+      // auto-file to a property by the card used, if we know that card
+      const card = r.cardLast4 ? matchCard(r.cardLast4) : null;
+      if (card) setMatched({ propLabel: card.propLabel, last4: r.cardLast4 });
       setDraft((d) => ({
         ...d,
         vendor: r.vendor || d.vendor,
@@ -72,11 +78,16 @@ export default function Purchases({ store }) {
         note: d.note || (r.lineItems?.length ? r.lineItems.map((li) => li.description).slice(0, 3).join(', ') : ''),
         category: r.category || d.category,
         date: r.date || d.date,
+        propLabel: card ? card.propLabel : (d.propLabel || null),
       }));
       setFlags(r.priceFlags || []);
       setItems(r.lineItems || []);
       setStock(null); setStockErr(null);
-      setScanMsg({ kind: 'ok', text: `Read ${r.lineItems?.length || 0} line items${r.priceFlags?.length ? ` · ${r.priceFlags.length} price flag${r.priceFlags.length > 1 ? 's' : ''}` : ''}` });
+      const parts = [`Read ${r.lineItems?.length || 0} line items`];
+      if (r.priceFlags?.length) parts.push(`${r.priceFlags.length} price flag${r.priceFlags.length > 1 ? 's' : ''}`);
+      if (card) parts.push(`auto-filed to ${card.propLabel} via card ••${r.cardLast4}`);
+      else if (r.cardLast4) parts.push(`card ••${r.cardLast4} (unregistered)`);
+      setScanMsg({ kind: 'ok', text: parts.join(' · ') });
     } catch (e) {
       setScanMsg({ kind: 'err', text: e.message || 'Could not read receipt' });
     } finally {
@@ -93,6 +104,15 @@ export default function Purchases({ store }) {
 
       {purBackend === 'local' && (
         <div className="offline">◐ Stored on this device — syncs to the cloud once the purchases migration is applied.</div>
+      )}
+
+      {isStaff && (
+        <div style={{ marginBottom: 'var(--gap)' }}>
+          <button className="btn ghost sm" onClick={() => setShowCards((v) => !v)}>
+            <IcCreditCard width={14} height={14} /> Property cards {cards.length > 0 ? `(${cards.length})` : ''}
+          </button>
+          {showCards && <CardManager cards={cards} properties={properties} addCard={addCard} removeCard={removeCard} />}
+        </div>
       )}
 
       {isStaff && (
@@ -122,8 +142,8 @@ export default function Purchases({ store }) {
               <input style={inputStyle} type="number" step="0.01" inputMode="decimal" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} placeholder="0.00" />
             </div>
             <div>
-              <div className="field-label">Property</div>
-              <select style={inputStyle} value={draft.propLabel || ''} onChange={(e) => setDraft({ ...draft, propLabel: e.target.value || null })}>
+              <div className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>Property {matched && <span className="chip" style={{ color: 'var(--money)' }}><IcCreditCard width={11} height={11} /> card ••{matched.last4}</span>}</div>
+              <select style={{ ...inputStyle, ...(matched ? { borderColor: 'var(--money)' } : null) }} value={draft.propLabel || ''} onChange={(e) => { setDraft({ ...draft, propLabel: e.target.value || null }); setMatched(null); }}>
                 <option value="">— pick property —</option>
                 {properties.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
               </select>
@@ -217,6 +237,40 @@ export default function Purchases({ store }) {
           {decided.map((p) => <PurRow key={p.id} p={p} isStaff={isStaff} setPurchaseStatus={setPurchaseStatus} decided />)}
         </div>
       )}
+    </div>
+  );
+}
+
+// register each property's card so receipts auto-file by the card's last 4
+function CardManager({ cards, properties, addCard, removeCard }) {
+  const [last4, setLast4] = useState('');
+  const [brand, setBrand] = useState('');
+  const [propLabel, setPropLabel] = useState('');
+  const [busy, setBusy] = useState(false);
+  const add = async () => { setBusy(true); try { await addCard({ last4, brand, propLabel }); setLast4(''); setBrand(''); setPropLabel(''); } finally { setBusy(false); } };
+  const ok = last4.replace(/\D/g, '').length === 4 && propLabel;
+  return (
+    <div className="card" style={{ marginTop: 8 }}>
+      <span className="field-label">Cards on file — receipts auto-file to the matching building</span>
+      {cards.length === 0 && <p className="note">No cards yet. Add each building's card so a scanned receipt files itself.</p>}
+      {cards.map((c) => (
+        <div className="row" key={c.id}>
+          <div className="lead">
+            <div className="t"><IcCreditCard width={13} height={13} style={{ verticalAlign: -2 }} /> {c.brand || 'Card'} ••{c.last4}</div>
+            <div className="s">{c.propLabel}</div>
+          </div>
+          <button className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)' }} onClick={() => removeCard(c.id)} aria-label="Remove"><IcX width={14} height={14} /></button>
+        </div>
+      ))}
+      <div className="grid g3" style={{ marginTop: 10, gap: 8 }}>
+        <input style={{ ...inputStyle, padding: 9 }} value={last4} onChange={(e) => setLast4(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="Last 4" inputMode="numeric" />
+        <input style={{ ...inputStyle, padding: 9 }} value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Visa (optional)" />
+        <select style={{ ...inputStyle, padding: 9 }} value={propLabel} onChange={(e) => setPropLabel(e.target.value)}>
+          <option value="">— building —</option>
+          {properties.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+        </select>
+      </div>
+      <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={add} disabled={busy || !ok}>+ Add card</button>
     </div>
   );
 }

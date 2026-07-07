@@ -9,6 +9,7 @@ import {
   listDocuments, uploadDocument,
   listMessages, insertMessage, subscribeMessages, uploadVoiceNote, summarizeThread,
   upsertChatMember, listChatMembers, listChatChannels, insertChatChannel,
+  listPropertyCards, insertPropertyCard, deletePropertyCard,
   fetchMyOperatorId, insertTimer, insertProperties,
 } from './backend/supabase.js';
 
@@ -373,6 +374,38 @@ export function useStore() {
     return doc;
   }, [orgId]);
 
+  // ---- per-property credit cards: auto-file receipts by card ----
+  const [cards, setCards] = useState(() => loadLS('caliper_cards_v1', []));
+  const [cardBackend, setCardBackend] = useState('local');
+  useEffect(() => { if (cardBackend === 'local') localStorage.setItem('caliper_cards_v1', JSON.stringify(cards)); }, [cards, cardBackend]);
+  useEffect(() => {
+    if (!isConfigured() || !orgId) return;
+    listPropertyCards(orgId).then((rows) => { setCards(rows); setCardBackend('db'); }).catch(() => setCardBackend('local'));
+  }, [orgId]);
+
+  const addCard = useCallback(async (c) => {
+    const last4 = String(c.last4 || '').replace(/\D/g, '').slice(-4);
+    if (last4.length !== 4 || !c.propLabel) return null;
+    const local = { ...c, last4, id: 'card_' + Math.random().toString(36).slice(2, 9) };
+    setCards((l) => [...l, local]);
+    if (isConfigured() && orgId && cardBackend === 'db') {
+      try { const saved = await insertPropertyCard(orgId, { ...c, last4 }); if (saved?.id) setCards((l) => l.map((x) => (x.id === local.id ? saved : x))); return saved; }
+      catch { /* keep local */ }
+    }
+    return local;
+  }, [orgId, cardBackend]);
+
+  const removeCard = useCallback((id) => {
+    setCards((l) => l.filter((x) => x.id !== id));
+    if (isConfigured() && cardBackend === 'db' && !String(id).startsWith('card_')) deletePropertyCard(id).catch(() => {});
+  }, [cardBackend]);
+
+  // last4 → the property that card belongs to
+  const matchCard = useCallback((last4) => {
+    const l4 = String(last4 || '').replace(/\D/g, '').slice(-4);
+    return l4 ? cards.find((c) => c.last4 === l4) || null : null;
+  }, [cards]);
+
   // ---- team comms: Slack-style messages + voice notes ----
   const [messages, setMessages] = useState(() => loadLS(MSG_KEY, []));
   const [msgBackend, setMsgBackend] = useState('local'); // 'db' | 'local'
@@ -521,6 +554,8 @@ export function useStore() {
     addTimerEntry, operatorId,
     // purchases
     purchases, addPurchase, setPurchaseStatus, purBackend,
+    // per-property cards
+    cards, addCard, removeCard, matchCard,
     // documents
     documents, addDocument, docBackend,
     // team comms

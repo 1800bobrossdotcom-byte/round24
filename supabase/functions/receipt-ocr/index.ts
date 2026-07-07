@@ -43,6 +43,8 @@ const RECEIPT_TOOL = {
       vendor: { type: 'string', description: 'Store / vendor name, e.g. "Home Depot". Empty string if unreadable.' },
       total: { type: 'number', description: 'Grand total actually charged, in dollars. 0 if unreadable.' },
       date: { type: 'string', description: 'Purchase date as YYYY-MM-DD. Empty string if not on the receipt.' },
+      cardLast4: { type: 'string', description: 'Last 4 digits of the card from the payment/tender line (e.g. "4471"). Empty string if not shown.' },
+      cardBrand: { type: 'string', description: 'Card brand if shown (Visa, Mastercard, Amex, Discover). Empty string if not shown.' },
       category: {
         type: 'string',
         description: 'Best single spend category for the whole receipt.',
@@ -79,7 +81,7 @@ const RECEIPT_TOOL = {
         },
       },
     },
-    required: ['vendor', 'total', 'date', 'category', 'lineItems', 'priceFlags'],
+    required: ['vendor', 'total', 'date', 'cardLast4', 'category', 'lineItems', 'priceFlags'],
   },
 };
 
@@ -87,6 +89,7 @@ const SYSTEM = [
   'You are a receipts clerk for a property-maintenance company.',
   'You read a photo of a purchase receipt and return its contents via the record_receipt tool.',
   'Transcribe exactly what is printed — never invent items or prices.',
+  'Read the payment/tender line and capture the last 4 digits of the card into cardLast4 (e.g. "VISA ************4471" or "XXXXXXXXXXXX4471" → "4471"), and the brand into cardBrand. Leave them empty only if no card digits are shown.',
   'For price-matching: using your general knowledge of US hardware/supply retail prices, flag any line item whose unit price is clearly high for that item (roughly 25%+ over typical). Do not flag ordinary prices.',
   'Always call the record_receipt tool. If the image is not a readable receipt, return empty/zero fields.',
 ].join(' ');
@@ -145,6 +148,8 @@ Deno.serve(async (req) => {
       vendor: r.vendor || '',
       total: num(r.total),
       date: r.date || '',
+      cardLast4: (r.cardLast4 || '').replace(/\D/g, '').slice(-4),
+      cardBrand: r.cardBrand || '',
       category: r.category || 'general',
       lineItems: Array.isArray(r.lineItems) ? r.lineItems.map((li) => ({
         description: li.description || '', qty: num(li.qty, 1),
@@ -161,7 +166,7 @@ Deno.serve(async (req) => {
 });
 
 interface ReceiptResult {
-  vendor: string; total: number; date: string; category: string;
+  vendor: string; total: number; date: string; cardLast4?: string; cardBrand?: string; category: string;
   lineItems: Array<{ description: string; qty: number; unitPrice: number; amount: number }>;
   priceFlags: Array<{ item: string; paid: number; typical?: number; note: string }>;
 }

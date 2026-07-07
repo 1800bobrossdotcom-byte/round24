@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { byProp, byUnit, byCategory, totals, fmtMoney, fmtHrs } from '../lib/rollups.js';
-import { IcChevron } from '../components/ui.jsx';
+import { byProp, byUnit, byCategory, totals, fmtMoney, fmtHrs, fmtMoneyC } from '../lib/rollups.js';
+import { IcChevron, IcReceipt } from '../components/ui.jsx';
 
 export default function Properties({ store, focus }) {
-  const { timers, properties, propById } = store;
+  const { timers, properties, propById, purchases = [] } = store;
   const [sel, setSel] = useState(focus?.propId || null);
   // opening from a Dashboard drill-down: jump straight to that property
   useEffect(() => { if (focus?.propId) setSel(focus.propId); }, [focus]);
@@ -17,6 +17,9 @@ export default function Properties({ store, focus }) {
     const cats = byCategory(pt).sort((a, b) => b.cost - a.cost);
     const p = propById[sel];
     const umax = Math.max(...units.map((u) => u.cost), 1);
+    // materials: receipts filed to this building (approved counts toward true cost)
+    const mats = purchases.filter((pu) => pu.propLabel === p.name);
+    const matTotal = mats.filter((pu) => pu.status === 'approved').reduce((a, pu) => a + (pu.amount || 0), 0);
     return (
       <div>
         <button className="btn ghost sm" onClick={() => setSel(null)} style={{ marginBottom: 14 }}><IcChevron width={14} height={14} style={{ transform: 'rotate(180deg)' }} /> All properties</button>
@@ -51,6 +54,16 @@ export default function Properties({ store, focus }) {
             </tbody></table>
           </div>
         </div>
+
+        {mats.length > 0 && (
+          <div className="card" style={{ marginTop: 'var(--gap)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span className="field-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}><IcReceipt width={13} height={13} /> Materials &amp; receipts</span>
+              <span className="mono money" style={{ fontWeight: 700 }}>{fmtMoneyC(matTotal)}<span style={{ color: 'var(--text-dim)', fontWeight: 400, fontSize: 11 }}> approved</span></span>
+            </div>
+            {mats.map((pu) => <MatRow key={pu.id} pu={pu} />)}
+          </div>
+        )}
       </div>
     );
   }
@@ -76,6 +89,38 @@ export default function Properties({ store, focus }) {
         </table>
       </div>
       <p className="note">This is the allocation Gianni does by hand in the pay-log grid — splitting hours across 379 S.Main, Water St, St.Paul, Armstrong — except here it reconciles automatically instead of drifting into "overpay" and negative balances.</p>
+    </div>
+  );
+}
+
+// one material receipt on a building, with an optional itemized expand
+function MatRow({ pu }) {
+  const [open, setOpen] = useState(false);
+  const items = pu.lineItems || [];
+  const STATUS = { pending: 'var(--warn)', approved: 'var(--money)', rejected: 'var(--danger)' };
+  return (
+    <div className="pur-item">
+      <div className="row">
+        <div className="lead">
+          <div className="t">{pu.vendor || 'Purchase'} — <span className="mono money">{fmtMoneyC(pu.amount || 0)}</span></div>
+          <div className="s">
+            {[pu.workOrderId && 'on a work order', pu.note, new Date(pu.createdAt).toLocaleDateString()].filter(Boolean).join(' · ')}
+            {items.length > 0 && <> · <a onClick={() => setOpen((o) => !o)} style={{ color: 'var(--accent)', cursor: 'pointer' }}>{open ? 'hide items' : `${items.length} items`}</a></>}
+          </div>
+        </div>
+        <span className="chip" style={{ color: STATUS[pu.status] }}>{pu.status}</span>
+      </div>
+      {open && items.length > 0 && (
+        <div className="pur-items">
+          {items.map((li, i) => (
+            <div className="pur-item-row" key={i}>
+              <span className="pi-desc">{li.description}</span>
+              <span className="pi-qty mono">{li.qty || 1} × {fmtMoneyC(li.unitPrice || 0)}</span>
+              <span className="pi-amt mono money">{fmtMoneyC(li.amount || 0)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
