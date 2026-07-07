@@ -20,6 +20,19 @@ function loadLS(key, fallback) {
   catch { return fallback; }
 }
 
+// One-time purge of pre-fix imported caches. Older builds appended every
+// upload, so browsers carry compounded test data that a code deploy can't
+// reach. Bump SCHEMA_VERSION to force every client to start clean on load.
+const SCHEMA_KEY = 'caliper_import_schema';
+const SCHEMA_VERSION = '2';
+try {
+  if (typeof localStorage !== 'undefined' && localStorage.getItem(SCHEMA_KEY) !== SCHEMA_VERSION) {
+    localStorage.removeItem(IMP_KEY);
+    localStorage.removeItem(PROP_KEY);
+    localStorage.setItem(SCHEMA_KEY, SCHEMA_VERSION);
+  }
+} catch { /* private mode / no storage — nothing to purge */ }
+
 const slugTech = (name) =>
   't_imp_' + name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 const normName = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
