@@ -1,13 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { byTech, byPeriod, totals, fmtMoney, fmtHrs, periodKey } from '../lib/rollups.js';
 import { Avatar } from '../components/ui.jsx';
 
 const GRAINS = ['day', 'week', 'month', 'year'];
 
-export default function Team({ store }) {
+export default function Team({ store, focus }) {
   const { timers, techById, techs } = store;
   const [grain, setGrain] = useState('week');
+  const [hl, setHl] = useState(null); // operator highlighted from a drill-down
+  const cardRefs = useRef({});
   const rows = byTech(timers).sort((a, b) => b.cost - a.cost);
+
+  // opening from a Dashboard drill-down: scroll to the operator and flash it
+  useEffect(() => {
+    const id = focus?.operatorId;
+    if (!id) return;
+    setHl(id);
+    const el = cardRefs.current[id];
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const t = setTimeout(() => setHl(null), 2400);
+    return () => clearTimeout(t);
+  }, [focus]);
 
   return (
     <div>
@@ -28,7 +41,9 @@ export default function Team({ store }) {
         const tech = techById[r.key] || { name: 'Unknown operator', role: 'tech', rate: 0 };
         const maxc = Math.max(...periods.map((p) => p.cost), 1);
         return (
-          <div className="card" key={r.key} style={{ marginBottom: 'var(--gap)' }}>
+          <div className="card" key={r.key} ref={(el) => { cardRefs.current[r.key] = el; }}
+            style={{ marginBottom: 'var(--gap)', transition: 'border-color .3s, box-shadow .3s',
+              ...(hl === r.key ? { borderColor: 'var(--accent, #a855f7)', boxShadow: '0 0 0 1px var(--accent, #a855f7)' } : null) }}>
             <div className="row" style={{ paddingTop: 0 }}>
               <Avatar name={tech.name} i={i} />
               <div className="lead"><div className="t">{tech.name}</div><div className="s" style={{ textTransform: 'capitalize' }}>{tech.role} · ${tech.rate}/hr</div></div>

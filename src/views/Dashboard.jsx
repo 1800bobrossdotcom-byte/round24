@@ -5,11 +5,12 @@ import { Stat, Avatar } from '../components/ui.jsx';
 
 const GRAIN = ['week', 'month'];
 
-export default function Dashboard({ store }) {
+export default function Dashboard({ store, navigate }) {
   const [grain, setGrain] = useState('week');
   const [showUnalloc, setShowUnalloc] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const { timers, propById, techById, meta } = store;
+  const go = navigate || (() => {}); // drill-down navigation (no-op if absent)
 
   const seed = async () => {
     setSeeding(true);
@@ -97,7 +98,8 @@ export default function Dashboard({ store }) {
             <XAxis dataKey="label" tick={{ fill: '#63636f', fontSize: 10, fontFamily: 'Space Mono' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
             <Tooltip cursor={{ fill: '#ffffff08' }} contentStyle={{ background: '#16161c', border: '1px solid #26262f', borderRadius: 10, fontFamily: 'Space Mono', fontSize: 12 }}
               formatter={(v) => [fmtMoney(v), 'labor']} labelStyle={{ color: '#a0a0ad' }} />
-            <Bar dataKey="cost" radius={[5, 5, 0, 0]}>
+            <Bar dataKey="cost" radius={[5, 5, 0, 0]} cursor="pointer"
+              onClick={(d) => { const k = d?.key || d?.payload?.key; if (k) go('cal', { month: k.slice(0, 7) }); }}>
               {series.map((_, i) => <Cell key={i} fill="url(#barGrad)" />)}
             </Bar>
           </BarChart>
@@ -115,7 +117,7 @@ export default function Dashboard({ store }) {
           <table className="tbl">
             <tbody>
               {props.map((p) => (
-                <tr key={p.key}>
+                <tr key={p.key} onClick={() => go('props', { propId: p.key })} style={{ cursor: 'pointer' }}>
                   <td className="barcell"><div className="bar" style={{ width: `${(p.cost / maxP) * 100}%` }} />
                     <span className="bar-label" style={{ fontWeight: 700 }}>{propById[p.key]?.name || '—'}</span>
                     <div className="bar-label" style={{ fontSize: 11, color: 'var(--text-dim)' }}>{propById[p.key]?.city || ''}</div>
@@ -130,7 +132,7 @@ export default function Dashboard({ store }) {
         <div className="card">
           <span className="field-label">Labor by operator</span>
           {techs.map((tc, i) => (
-            <div className="row" key={tc.key}>
+            <div className="row" key={tc.key} onClick={() => go('team', { operatorId: tc.key })} style={{ cursor: 'pointer' }}>
               <Avatar name={techById[tc.key]?.name || '?'} i={i} />
               <div className="lead">
                 <div className="t">{techById[tc.key]?.name}</div>

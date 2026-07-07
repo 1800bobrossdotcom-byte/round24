@@ -40,10 +40,19 @@ function Shell() {
   const [tab, setTab] = useState(tabs[0].id);
   const [moreOpen, setMoreOpen] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [focus, setFocus] = useState(null); // drill-down params for the target tab
   const isOffice = role === 'admin' || role === 'manager';
+
+  // switch tabs, optionally carrying a focus payload (e.g. a property to open).
+  // ignores targets the current role can't see, so a drill-down never bounces.
+  const navigate = (id, params = null) => {
+    if (!tabs.some((t) => t.id === id)) return;
+    setTab(id); setFocus(params); setMoreOpen(false);
+  };
+
   const seedDemo = async () => {
     setSeeding(true);
-    try { await store.loadSampleData(); setTab('dash'); setMoreOpen(false); }
+    try { await store.loadSampleData(); navigate('dash'); }
     finally { setSeeding(false); }
   };
   useEffect(() => {
@@ -57,7 +66,6 @@ function Shell() {
   const fits = tabs.length <= MAX_BAR;
   const primary = fits ? tabs : tabs.slice(0, MAX_BAR - 1);
   const overflow = fits ? [] : tabs.slice(MAX_BAR - 1);
-  const go = (id) => { setTab(id); setMoreOpen(false); };
 
   // live task-list notifications (priority changes, new assignments)
   const { woNotice, clearWoNotice } = store;
@@ -81,7 +89,7 @@ function Shell() {
       <nav className="tabbar nav-desktop">
         <div className="desk-brand"><Mark /> Caliper</div>
         {tabs.map(({ id, label, Icon }) => (
-          <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
+          <button key={id} className={tab === id ? 'active' : ''} onClick={() => navigate(id)}>
             <Icon width={22} height={22} /> <span>{label}</span>
           </button>
         ))}
@@ -95,13 +103,13 @@ function Shell() {
           <AccountButton />
           <SignOutButton />
         </header>
-        <main className="content"><Active store={store} /></main>
+        <main className="content"><Active store={store} navigate={navigate} focus={focus} /></main>
       </div>
 
       {/* mobile bottom bar — primary tabs + More */}
       <nav className="tabbar nav-mobile">
         {primary.map(({ id, label, Icon }) => (
-          <button key={id} className={tab === id ? 'active' : ''} onClick={() => go(id)}>
+          <button key={id} className={tab === id ? 'active' : ''} onClick={() => navigate(id)}>
             <Icon width={22} height={22} /> <span>{label}</span>
           </button>
         ))}
@@ -118,7 +126,7 @@ function Shell() {
             <div className="sheet-grip" />
             <div className="sheet-grid">
               {overflow.map(({ id, label, Icon }) => (
-                <button key={id} className={tab === id ? 'active' : ''} onClick={() => go(id)}>
+                <button key={id} className={tab === id ? 'active' : ''} onClick={() => navigate(id)}>
                   <Icon width={24} height={24} /> <span>{label}</span>
                 </button>
               ))}

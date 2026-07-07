@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { byProp, byUnit, byCategory, totals, fmtMoney, fmtHrs } from '../lib/rollups.js';
 import { IcChevron } from '../components/ui.jsx';
 
-export default function Properties({ store }) {
+export default function Properties({ store, focus }) {
   const { timers, properties, propById } = store;
-  const [sel, setSel] = useState(null);
+  const [sel, setSel] = useState(focus?.propId || null);
+  // opening from a Dashboard drill-down: jump straight to that property
+  useEffect(() => { if (focus?.propId) setSel(focus.propId); }, [focus]);
   const rows = byProp(timers).sort((a, b) => b.cost - a.cost);
   const max = Math.max(...rows.map((r) => r.cost), 1);
 

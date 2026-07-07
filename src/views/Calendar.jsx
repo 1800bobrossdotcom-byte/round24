@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { fmtMoney, fmtHrs, cost } from '../lib/rollups.js';
 
 // month calendar of labor intensity — weeks start Saturday to match the
@@ -6,7 +6,7 @@ import { fmtMoney, fmtHrs, cost } from '../lib/rollups.js';
 const DOW = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const WEEK_START = 6; // Saturday
 
-export default function Calendar({ store }) {
+export default function Calendar({ store, focus }) {
   const { allTimers, techById, propById } = store;
 
   const byDay = useMemo(() => {
@@ -24,8 +24,10 @@ export default function Calendar({ store }) {
       allTimers.length ? '1970-01-01' : new Date().toISOString().slice(0, 10)),
     [allTimers]
   );
-  const [ym, setYm] = useState(latestDate.slice(0, 7));
+  const [ym, setYm] = useState(focus?.month || latestDate.slice(0, 7));
   const [selDay, setSelDay] = useState(null);
+  // opening from a Dashboard chart drill-down: jump to that month
+  useEffect(() => { if (focus?.month) { setYm(focus.month); setSelDay(null); } }, [focus]);
 
   const [y, m] = ym.split('-').map(Number);
   const monthLabel = new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
