@@ -94,6 +94,11 @@ export async function updateWorkOrderPriority(id, priority) {
   if (error) throw error;
 }
 
+export async function updateWorkOrderAssignee(id, assigneeLabel) {
+  const { error } = await supabase.from('work_orders').update({ assignee_label: assigneeLabel }).eq('id', id);
+  if (error) throw error;
+}
+
 // live task-list updates — RLS scopes events to rows the caller can see
 export function subscribeWorkOrders(orgId, cb) {
   const ch = supabase.channel('wo-live-' + orgId)

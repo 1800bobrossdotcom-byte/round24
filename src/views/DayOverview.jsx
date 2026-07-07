@@ -9,8 +9,10 @@ import { Avatar, IcWrench } from '../components/ui.jsx';
 const UNASSIGNED = '__unassigned__';
 
 export default function DayOverview({ store, navigate }) {
-  const { workOrders, timers, techById } = store;
+  const { workOrders, timers, techById, techs, setWoAssignee } = store;
   const go = navigate || (() => {});
+  const crew = techs.filter((t) => t.role !== 'viewer');
+  const techIdByName = useMemo(() => Object.fromEntries(techs.map((t) => [t.name, t.id])), [techs]);
   const now = new Date();
   const todayISO = now.toISOString().slice(0, 10);
   const dateLabel = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -54,10 +56,10 @@ export default function DayOverview({ store, navigate }) {
         <p>{dateLabel} · who's working where, and what's live right now</p>
       </div>
 
-      <div className="grid g3" style={{ marginBottom: 'var(--gap)' }}>
-        <div className="card"><div className="stat"><span className="k">On the clock</span><span className="v mono sm">{activeWos.length}</span></div></div>
-        <div className="card"><div className="stat"><span className="k">Open queue</span><span className="v mono sm">{openWos.length}</span></div></div>
-        <div className="card"><div className="stat"><span className="k">Hours today</span><span className="v mono sm">{fmtHrs(totalToday)}</span></div></div>
+      <div className="day-summary">
+        <div><span className="n mono">{activeWos.length}</span><span className="k">on the clock</span></div>
+        <div><span className="n mono">{openWos.length}</span><span className="k">open queue</span></div>
+        <div><span className="n mono">{fmtHrs(totalToday)}</span><span className="k">hours today</span></div>
       </div>
 
       {/* live now */}
@@ -84,7 +86,8 @@ export default function DayOverview({ store, navigate }) {
         const hrs = hoursToday.get(name) || 0;
         return (
           <div className="card" key={name} style={{ marginBottom: 'var(--gap)' }}>
-            <div className="row" style={{ paddingTop: 0 }}>
+            <div className="row" style={{ paddingTop: 0, cursor: techIdByName[name] ? 'pointer' : undefined }}
+              onClick={techIdByName[name] ? () => go('team', { operatorId: techIdByName[name] }) : undefined}>
               <Avatar name={name} i={i} />
               <div className="lead">
                 <div className="t">{name}</div>
@@ -114,17 +117,23 @@ export default function DayOverview({ store, navigate }) {
         );
       })}
 
-      {/* unassigned — needs dispatch */}
+      {/* unassigned — needs dispatch, assign right here */}
       {unassigned.length > 0 && (
         <div className="card" style={{ borderColor: '#ffb02033' }}>
           <span className="field-label" style={{ color: 'var(--warn)' }}><IcWrench width={13} height={13} style={{ verticalAlign: -2 }} /> Needs dispatch ({unassigned.length})</span>
           {unassigned.map((w) => (
-            <div className="row" key={w.id} onClick={() => go('wo')} style={{ cursor: 'pointer' }}>
+            <div className="row" key={w.id}>
               <div className="lead">
                 <div className="t">{w.task}</div>
                 <div className="s">{[w.propLabel, w.unit && `Unit ${w.unit}`].filter(Boolean).join(' · ') || 'no property set'}</div>
               </div>
-              <span className="chip" style={{ color: WO_PRIORITIES[w.priority ?? 3].color }}>{WO_PRIORITIES[w.priority ?? 3].label}</span>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <span className="chip" style={{ color: WO_PRIORITIES[w.priority ?? 3].color }}>{WO_PRIORITIES[w.priority ?? 3].label}</span>
+                <select className="dispatch-sel" defaultValue="" onChange={(e) => e.target.value && setWoAssignee(w.id, e.target.value)}>
+                  <option value="" disabled>Assign…</option>
+                  {crew.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
+                </select>
+              </div>
             </div>
           ))}
         </div>

@@ -4,7 +4,7 @@ import { useAuth } from '../components/AuthGate.jsx';
 import { DEMO_PROPERTIES, buildDemoTimers, DEMO_WORK_ORDERS, DEMO_PURCHASES } from './demoData.js';
 import {
   isConfigured, listWorkOrders, insertWorkOrder, updateWorkOrderStatus,
-  updateWorkOrderPriority, subscribeWorkOrders,
+  updateWorkOrderPriority, updateWorkOrderAssignee, subscribeWorkOrders,
   listPurchases, insertPurchase, setPurchaseStatus as dbSetPurchaseStatus, uploadReceipt,
   listDocuments, uploadDocument,
   fetchMyOperatorId, insertTimer, insertProperties,
@@ -213,6 +213,13 @@ export function useStore() {
     }
   }, [woBackend]);
 
+  const setWoAssignee = useCallback((id, assigneeLabel) => {
+    setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, assigneeLabel } : w)));
+    if (isConfigured() && woBackend === 'db' && !String(id).startsWith('wo_')) {
+      updateWorkOrderAssignee(id, assigneeLabel).catch(() => {});
+    }
+  }, [woBackend]);
+
   // ---- live task list: realtime changes → state merge + notification ----
   const [woNotice, setWoNotice] = useState(null); // { msg, ts }
   const woRef = useRef(workOrders);
@@ -399,7 +406,7 @@ export function useStore() {
     hasImported: imported.timers.length > 0,
     importedCount: imported.timers.length,
     // work orders
-    workOrders, addWorkOrder, setWoStatus, setWoPriority, woBackend,
+    workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, woBackend,
     woNotice, clearWoNotice: () => setWoNotice(null),
     // cloud timers
     addTimerEntry, operatorId,
