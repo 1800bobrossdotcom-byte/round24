@@ -103,6 +103,8 @@ export default function WorkOrders({ store }) {
   const recRef = useRef(null);
 
   const isStaff = role === 'admin' || role === 'manager';
+  // only the field crew starts/stops a job. Office dispatches & prioritizes.
+  const canRun = role === 'tech';
   const open = useMemo(
     () => workOrders.filter((w) => w.status === 'open' || w.status === 'in_progress').sort(byPriority),
     [workOrders]
@@ -233,20 +235,20 @@ export default function WorkOrders({ store }) {
       <div className="card">
         <span className="field-label">Open ({open.length}) — sorted by priority</span>
         {open.length === 0 && <p className="note">Nothing open. {isStaff ? 'Create one above — or just say it out loud.' : 'Nothing assigned to you right now.'}</p>}
-        {open.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} isStaff={isStaff} />)}
+        {open.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} isStaff={isStaff} canRun={canRun} />)}
       </div>
 
       {closed.length > 0 && (
         <div className="card" style={{ marginTop: 'var(--gap)' }}>
           <span className="field-label">Closed ({closed.length})</span>
-          {closed.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} isStaff={isStaff} done />)}
+          {closed.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} isStaff={isStaff} canRun={canRun} done />)}
         </div>
       )}
     </div>
   );
 }
 
-function WoRow({ w, setWoStatus, setWoPriority, isStaff, done }) {
+function WoRow({ w, setWoStatus, setWoPriority, isStaff, canRun, done }) {
   const pr = WO_PRIORITIES[w.priority ?? 3];
   return (
     <div className="row">
@@ -273,8 +275,8 @@ function WoRow({ w, setWoStatus, setWoPriority, isStaff, done }) {
           <span className="chip" style={{ color: pr.color }}>{pr.label}</span>
         )}
         <span className="chip" style={{ color: STATUS_COLORS[w.status] }}>{w.status.replace('_', ' ')}</span>
-        {w.status === 'open' && <button className="btn ghost sm" onClick={() => setWoStatus(w.id, 'in_progress')}>Start</button>}
-        {w.status === 'in_progress' && <button className="btn ghost sm" onClick={() => setWoStatus(w.id, 'done')}>Done</button>}
+        {canRun && w.status === 'open' && <button className="btn ghost sm" onClick={() => setWoStatus(w.id, 'in_progress')}>Start</button>}
+        {canRun && w.status === 'in_progress' && <button className="btn ghost sm" onClick={() => setWoStatus(w.id, 'done')}>Done</button>}
         {isStaff && !done && <button className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)' }} onClick={() => setWoStatus(w.id, 'cancelled')} aria-label="Cancel"><IcX width={14} height={14} /></button>}
       </div>
     </div>

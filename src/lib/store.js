@@ -15,6 +15,7 @@ const WO_KEY = 'caliper_workorders_v1';
 const PUR_KEY = 'caliper_purchases_v1';
 const PROP_KEY = 'caliper_props_v1';       // buildings discovered from imports (non-integrated shops)
 const TQ_KEY = 'caliper_timerqueue_v1';   // offline queue for unsynced timer entries
+const SEEN_KEY = 'caliper_seen_v1';        // per-tab "last viewed" stamps → nav badges
 
 function loadLS(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -44,6 +45,16 @@ export function useStore() {
   // ---- imported pay-log data (merged into the same spine the charts read) ----
   const [imported, setImported] = useState(() => loadLS(IMP_KEY, { timers: [], techs: [] }));
   useEffect(() => { localStorage.setItem(IMP_KEY, JSON.stringify(imported)); }, [imported]);
+
+  // ---- nav notification badges: count items newer than the last time the
+  // user opened that tab. Seed stamps to "now" on first run so pre-existing
+  // items don't all badge. markSeen(tab) clears a tab's badge on open.
+  const [seen, setSeen] = useState(() => loadLS(SEEN_KEY, null) || { wo: Date.now(), pur: Date.now(), docs: Date.now() });
+  useEffect(() => { localStorage.setItem(SEEN_KEY, JSON.stringify(seen)); }, [seen]);
+  const markSeen = useCallback((tab) => {
+    if (!['wo', 'pur', 'docs'].includes(tab)) return;
+    setSeen((s) => ({ ...s, [tab]: Date.now() }));
+  }, []);
 
   // seed.json is SAMPLE data for the unconfigured demo experience only. A
   // real, logged-in org must never see it mixed into its charts — it sees
@@ -364,6 +375,16 @@ export function useStore() {
     return { timers: rows.length };
   }, [ensureProperties, addImported, addWorkOrder, addPurchase, setPurchaseStatus, purchases.length]);
 
+  // notification badges: items created since the tab was last opened
+  const badges = useMemo(() => {
+    const newer = (items, key) => items.filter((it) => it.createdAt && new Date(it.createdAt).getTime() > (seen[key] || 0)).length;
+    return {
+      wo: newer(workOrders, 'wo'),
+      pur: newer(purchases.filter((p) => p.status === 'pending'), 'pur'),
+      docs: newer(documents, 'docs'),
+    };
+  }, [workOrders, purchases, documents, seen]);
+
   return {
     meta: seed.meta,
     properties,
@@ -386,5 +407,7 @@ export function useStore() {
     purchases, addPurchase, setPurchaseStatus, purBackend,
     // documents
     documents, addDocument, docBackend,
+    // nav notification badges
+    badges, markSeen,
   };
 }

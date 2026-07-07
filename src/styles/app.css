@@ -72,6 +72,40 @@
 .tabbar button.active { color: var(--text); }
 .tabbar button.active svg { stroke: url(#cg); }
 
+/* ---- nav notification badges ---- */
+.nav-ic { position: relative; display: inline-flex; }
+.nav-badge {
+  position: absolute; top: -6px; right: -9px; min-width: 16px; height: 16px;
+  padding: 0 4px; border-radius: 999px; background: var(--accent-2, #ff3d81); color: #fff;
+  font-family: var(--mono); font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
+  box-shadow: 0 0 0 2px var(--bg); animation: badgepop .2s var(--ease);
+}
+@keyframes badgepop { from { transform: scale(0); } to { transform: scale(1); } }
+.nav-desktop .nav-badge { top: -4px; right: -8px; }
+
+/* ---- live "on the clock" dot ---- */
+.live-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px;
+  background: var(--warn); vertical-align: 1px; animation: livepulse 1.4s ease-in-out infinite;
+}
+@keyframes livepulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--warn); opacity: 1; }
+  50%      { box-shadow: 0 0 6px 1px var(--warn); opacity: .65; }
+}
+
+/* ---- day overview queue ---- */
+.queue { display: flex; flex-direction: column; gap: 6px; }
+.queue-item {
+  display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+  background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 10px;
+}
+.queue-item.live { border-color: #ffb02055; }
+.queue-item .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.queue-item .qi-body { flex: 1; min-width: 0; }
+.queue-item .qi-task { font-weight: 700; font-size: 13px; overflow-wrap: break-word; }
+.queue-item .qi-meta { color: var(--text-dim); font-size: 11px; margin-top: 1px; }
+.chip.sm { font-size: 10px; padding: 2px 7px; }
+
 /* mobile bottom bar — capped to 5 slots (4 primary + More), never overflows */
 .nav-mobile {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
