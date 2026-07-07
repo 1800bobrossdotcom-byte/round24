@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AuthGate, SignOutButton, AccountButton, useAuth } from './components/AuthGate.jsx';
+import TopStrip from './components/TopStrip.jsx';
 import { useStore } from './lib/store.js';
 import { Mark, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX } from './components/ui.jsx';
 import Dashboard from './views/Dashboard.jsx';
@@ -77,6 +78,7 @@ function Shell() {
 
   return (
     <div className="app desk">
+      <TopStrip />
       {woNotice && (
         <div className={`toast prio-${woNotice.priority || 'info'}`} role="alert" onClick={clearWoNotice}>
           <IcBell width={18} height={18} />

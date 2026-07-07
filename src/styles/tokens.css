@@ -50,6 +50,9 @@
   /* safe areas (mobile notch) */
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
+
+  /* persistent top strip height */
+  --strip-h: 26px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
