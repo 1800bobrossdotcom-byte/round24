@@ -39,7 +39,13 @@ export default function Import({ store }) {
   const [err, setErr] = useState(null);
   const [result, setResult] = useState(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const fileRef = useRef();
+
+  const seed = async () => {
+    setSeeding(true);
+    try { await store.loadSampleData(); } finally { setSeeding(false); }
+  };
 
   const handleFile = async (file) => {
     setErr(null);
@@ -164,6 +170,15 @@ export default function Import({ store }) {
               ) : (
                 <button className="btn ghost sm" onClick={() => setConfirmClear(true)}>Clear imported data</button>
               )}
+            </div>
+          )}
+          {!store.hasImported && (
+            <div className="card" style={{ marginBottom: 'var(--gap)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>Just exploring?</div>
+                <div className="note" style={{ margin: 0 }}>Fill the app with a sample Evolution24 portfolio — labor, team, orders and purchases.</div>
+              </div>
+              <button className="btn ghost sm" onClick={seed} disabled={seeding}>{seeding ? 'Filling…' : 'Load sample data'}</button>
             </div>
           )}
           <div

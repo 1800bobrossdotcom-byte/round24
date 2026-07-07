@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import seed from '../data/seed.json';
 import { useAuth } from '../components/AuthGate.jsx';
+import { DEMO_PROPERTIES, buildDemoTimers, DEMO_WORK_ORDERS, DEMO_PURCHASES } from './demoData.js';
 import {
   isConfigured, listWorkOrders, insertWorkOrder, updateWorkOrderStatus,
   updateWorkOrderPriority, subscribeWorkOrders,
@@ -320,6 +321,29 @@ export function useStore() {
     return doc;
   }, [orgId]);
 
+  // ---- one-tap demo fill: labor spine (local) + work orders/purchases (DB) ----
+  // Flows through the same write paths as real data, so what you see is exactly
+  // what the app produces. Additive-safe: labor is replaced (no compounding),
+  // orders/purchases only seed when empty so re-tapping never duplicates them.
+  const loadSampleData = useCallback(async () => {
+    // 1. properties + labor timers → charts, team, properties
+    const map = ensureProperties(DEMO_PROPERTIES.map((p) => p.label));
+    const rows = buildDemoTimers().map((r) => ({ ...r, propId: r.propLabel ? map[r.propLabel] : null }));
+    addImported(rows, { replace: true });
+
+    // 2. work orders (only if none yet)
+    if (woRef.current.length === 0) {
+      for (const wo of DEMO_WORK_ORDERS) await addWorkOrder(wo);
+    }
+    // 3. purchases (only if none yet); approve a couple so History isn't empty
+    if (purchases.length === 0) {
+      const saved = [];
+      for (const p of DEMO_PURCHASES) saved.push(await addPurchase(p));
+      saved.slice(0, 2).forEach((s) => s?.id && setPurchaseStatus(s.id, 'approved'));
+    }
+    return { timers: rows.length };
+  }, [ensureProperties, addImported, addWorkOrder, addPurchase, setPurchaseStatus, purchases.length]);
+
   return {
     meta: seed.meta,
     properties,
@@ -330,7 +354,7 @@ export function useStore() {
     propById, techById,
     role,
     // import
-    addImported, clearImported, ensureProperties,
+    addImported, clearImported, ensureProperties, loadSampleData,
     hasImported: imported.timers.length > 0,
     importedCount: imported.timers.length,
     // work orders

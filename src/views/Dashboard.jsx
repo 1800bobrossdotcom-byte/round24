@@ -8,7 +8,13 @@ const GRAIN = ['week', 'month'];
 export default function Dashboard({ store }) {
   const [grain, setGrain] = useState('week');
   const [showUnalloc, setShowUnalloc] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const { timers, propById, techById, meta } = store;
+
+  const seed = async () => {
+    setSeeding(true);
+    try { await store.loadSampleData(); } finally { setSeeding(false); }
+  };
 
   // dominant pipeline = ALLOCATED work only. Unallocated stays distinct and
   // out of the true-cost numbers unless the user toggles it in.
@@ -33,8 +39,14 @@ export default function Dashboard({ store }) {
         </div>
         <div className="card" style={{ textAlign: 'center', padding: 40 }}>
           <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 6 }}>No labor data yet</div>
-          <p className="note" style={{ margin: '0 auto', maxWidth: 380 }}>
+          <p className="note" style={{ margin: '0 auto 18px', maxWidth: 380 }}>
             Import your pay logs from the <b>Import</b> tab to see true cost per building, or log time in the <b>Field</b> tab. Everything you add shows up here.
+          </p>
+          <button className="btn grad" style={{ maxWidth: 320, margin: '0 auto' }} onClick={seed} disabled={seeding}>
+            {seeding ? 'Filling…' : 'Load sample data'}
+          </button>
+          <p className="note" style={{ margin: '10px auto 0', maxWidth: 380 }}>
+            Populates the whole app with a realistic Evolution24 portfolio — labor, team, orders and purchases — so you can explore it live. Clear it anytime from the Import tab.
           </p>
         </div>
       </div>
