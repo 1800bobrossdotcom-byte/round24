@@ -43,7 +43,7 @@ export default function Purchases({ store }) {
 
   const save = async () => {
     setBusy(true);
-    try { await addPurchase({ ...draft, amount: parseFloat(draft.amount) }, file); reset(); }
+    try { await addPurchase({ ...draft, amount: parseFloat(draft.amount), lineItems: items.length ? items : undefined }, file); reset(); }
     finally { setBusy(false); }
   };
 
@@ -223,6 +223,8 @@ export default function Purchases({ store }) {
 
 function PurRow({ p, isStaff, setPurchaseStatus, decided }) {
   const [receiptUrl, setReceiptUrl] = useState(null);
+  const [open, setOpen] = useState(false);
+  const items = p.lineItems || [];
   const viewReceipt = async () => {
     // bundled sample receipts are plain URLs; uploaded ones are storage paths
     if (/^(\/|https?:)/.test(p.receiptPath)) { window.open(p.receiptPath, '_blank'); return; }
@@ -230,24 +232,38 @@ function PurRow({ p, isStaff, setPurchaseStatus, decided }) {
     catch { setReceiptUrl('err'); }
   };
   return (
-    <div className="row">
-      <div className="lead">
-        <div className="t">{p.vendor || 'Purchase'} — <span className="mono money">{fmtMoneyC(p.amount || 0)}</span></div>
-        <div className="s">
-          {[p.propLabel, p.note, p.submittedBy && `by ${p.submittedBy}`, new Date(p.createdAt).toLocaleDateString()].filter(Boolean).join(' · ')}
-          {p.receiptPath && <> · <a onClick={viewReceipt} style={{ color: 'var(--info)', cursor: 'pointer' }}>receipt</a></>}
-          {receiptUrl === 'err' && ' (unavailable)'}
+    <div className="pur-item">
+      <div className="row">
+        <div className="lead">
+          <div className="t">{p.vendor || 'Purchase'} — <span className="mono money">{fmtMoneyC(p.amount || 0)}</span></div>
+          <div className="s">
+            {[p.propLabel, p.note, p.submittedBy && `by ${p.submittedBy}`, new Date(p.createdAt).toLocaleDateString()].filter(Boolean).join(' · ')}
+            {p.receiptPath && <> · <a onClick={viewReceipt} style={{ color: 'var(--info)', cursor: 'pointer' }}>receipt</a></>}
+            {items.length > 0 && <> · <a onClick={() => setOpen((o) => !o)} style={{ color: 'var(--accent)', cursor: 'pointer' }}>{open ? 'hide items' : `${items.length} items`}</a></>}
+            {receiptUrl === 'err' && ' (unavailable)'}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span className="chip" style={{ color: STATUS_COLORS[p.status] }}>{p.status}</span>
+          {isStaff && !decided && (
+            <>
+              <button className="btn ghost sm icon-btn" style={{ color: 'var(--money)' }} onClick={() => setPurchaseStatus(p.id, 'approved')} aria-label="Approve"><IcCheck width={15} height={15} /></button>
+              <button className="btn ghost sm icon-btn" style={{ color: 'var(--danger)' }} onClick={() => setPurchaseStatus(p.id, 'rejected')} aria-label="Reject"><IcX width={15} height={15} /></button>
+            </>
+          )}
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <span className="chip" style={{ color: STATUS_COLORS[p.status] }}>{p.status}</span>
-        {isStaff && !decided && (
-          <>
-            <button className="btn ghost sm icon-btn" style={{ color: 'var(--money)' }} onClick={() => setPurchaseStatus(p.id, 'approved')} aria-label="Approve"><IcCheck width={15} height={15} /></button>
-            <button className="btn ghost sm icon-btn" style={{ color: 'var(--danger)' }} onClick={() => setPurchaseStatus(p.id, 'rejected')} aria-label="Reject"><IcX width={15} height={15} /></button>
-          </>
-        )}
-      </div>
+      {open && items.length > 0 && (
+        <div className="pur-items">
+          {items.map((li, i) => (
+            <div className="pur-item-row" key={i}>
+              <span className="pi-desc">{li.description}</span>
+              <span className="pi-qty mono">{li.qty || 1} × {fmtMoneyC(li.unitPrice || 0)}</span>
+              <span className="pi-amt mono money">{fmtMoneyC(li.amount || 0)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

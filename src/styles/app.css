@@ -93,6 +93,16 @@
   50%      { box-shadow: 0 0 6px 1px var(--warn); opacity: .65; }
 }
 
+/* ---- persisted purchase line items ---- */
+.pur-item { border-bottom: 1px solid var(--line-soft); }
+.pur-item:last-child { border-bottom: 0; }
+.pur-item .row { border-bottom: 0; }
+.pur-items { padding: 4px 0 12px; display: flex; flex-direction: column; gap: 4px; }
+.pur-item-row { display: flex; align-items: baseline; gap: 8px; font-size: 12px; padding: 3px 6px; background: var(--surface-2); border-radius: 8px; }
+.pur-item-row .pi-desc { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: break-word; }
+.pur-item-row .pi-qty { color: var(--text-dim); font-size: 11px; flex: none; }
+.pur-item-row .pi-amt { flex: none; font-weight: 700; }
+
 /* ---- receipt itemizer ---- */
 .itemize {
   margin-top: 12px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden;

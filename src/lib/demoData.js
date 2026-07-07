@@ -97,8 +97,23 @@ export const DEMO_WORK_ORDERS = [
 // purchases in the addPurchase() shape (status is set to pending by the store;
 // we tag a couple as pre-decided by inserting them then flipping status)
 export const DEMO_PURCHASES = [
-  { vendor: 'Home Depot', amount: 77.88, propLabel: '179-189 St Paul', note: 'faucet cartridge + supply lines', submittedBy: 'Gianni Alvarez', receiptPath: '/mock/receipt-homedepot.png' },
-  { vendor: 'Sherwin-Williams', amount: 112.07, propLabel: '121 Park', note: '2 gal eggshell + roller kit', submittedBy: 'Marco Rossi', receiptPath: '/mock/receipt-sherwin.png' },
+  { vendor: 'Home Depot', amount: 77.88, propLabel: '179-189 St Paul', note: 'faucet cartridge + supply lines', submittedBy: 'Gianni Alvarez', receiptPath: '/mock/receipt-homedepot.png',
+    lineItems: [
+      { description: 'SharkBite 1/2" coupling', qty: 1, unitPrice: 8.47, amount: 8.47 },
+      { description: 'Fluidmaster supply line 20"', qty: 1, unitPrice: 9.98, amount: 9.98 },
+      { description: 'Teflon tape 3pk', qty: 1, unitPrice: 3.27, amount: 3.27 },
+      { description: 'Moen 1225 cartridge', qty: 1, unitPrice: 24.97, amount: 24.97 },
+      { description: 'Water heater element 4500W', qty: 1, unitPrice: 18.44, amount: 18.44 },
+      { description: 'Shop towels 2pk', qty: 1, unitPrice: 6.98, amount: 6.98 },
+    ] },
+  { vendor: 'Sherwin-Williams', amount: 112.07, propLabel: '121 Park', note: '2 gal eggshell + roller kit', submittedBy: 'Marco Rossi', receiptPath: '/mock/receipt-sherwin.png',
+    lineItems: [
+      { description: 'ProMar 200 eggshell 1gal', qty: 2, unitPrice: 38.99, amount: 77.98 },
+      { description: 'Premium roller covers 3pk', qty: 1, unitPrice: 12.49, amount: 12.49 },
+      { description: 'Blue painter tape 1.88"', qty: 1, unitPrice: 7.64, amount: 7.64 },
+      { description: '9" roller frame', qty: 1, unitPrice: 8.99, amount: 8.99 },
+      { description: 'Drop cloth 9x12 canvas', qty: 1, unitPrice: 14.98, amount: 14.98 },
+    ] },
   { vendor: 'Ferguson', amount: 318.0, propLabel: '440 Armstrong', note: 'furnace igniter + flame sensor', submittedBy: 'Brent Kowalski' },
   { vendor: 'Lowe\'s', amount: 449.0, propLabel: '31 Genesee', note: 'dishwasher', submittedBy: 'Luis Fernandez' },
   { vendor: 'Grainger', amount: 61.2, propLabel: '301 Central Ave', note: 'smoke detectors 4-pack', submittedBy: 'Dawn Whitfield' },

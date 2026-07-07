@@ -223,7 +223,7 @@ export async function insertTimer(orgId, operatorId, t) {
 const purFromDb = (r) => ({
   id: r.id, workOrderId: r.work_order_id, propLabel: r.property_label,
   vendor: r.vendor, amount: Number(r.amount), note: r.note,
-  receiptPath: r.receipt_path, status: r.status,
+  receiptPath: r.receipt_path, status: r.status, lineItems: r.line_items || null,
   submittedBy: r.submitted_by_label, createdAt: r.created_at,
 });
 
@@ -240,7 +240,7 @@ export async function insertPurchase(orgId, p) {
     org_id: orgId, work_order_id: p.workOrderId || null,
     property_label: p.propLabel || null, vendor: p.vendor || null,
     amount: p.amount, note: p.note || null, receipt_path: p.receiptPath || null,
-    submitted_by_label: p.submittedBy || null,
+    line_items: p.lineItems || null, submitted_by_label: p.submittedBy || null,
   }).select().single();
   if (error) throw error;
   return purFromDb(data);
