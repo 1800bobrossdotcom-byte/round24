@@ -24,7 +24,7 @@ function loadLS(key, fallback) {
 // upload, so browsers carry compounded test data that a code deploy can't
 // reach. Bump SCHEMA_VERSION to force every client to start clean on load.
 const SCHEMA_KEY = 'caliper_import_schema';
-const SCHEMA_VERSION = '2';
+const SCHEMA_VERSION = '3';   // bump: prior imports may reference gated seed operator ids
 try {
   if (typeof localStorage !== 'undefined' && localStorage.getItem(SCHEMA_KEY) !== SCHEMA_VERSION) {
     localStorage.removeItem(IMP_KEY);
@@ -107,7 +107,11 @@ export function useStore() {
       const base = base0.timers.length;
       const timers = rows.map((r, i) => {
         const nm = r.techName.trim();
-        let tech = seed.techs.find((t) => t.name.toLowerCase() === nm.toLowerCase()) || byName.get(nm.toLowerCase());
+        // only reuse seed operators in demo mode; a real org's imported
+        // operators must be self-contained (seed techs are hidden for it,
+        // so referencing a seed id would dangle and blank the Team view)
+        let tech = (demoMode ? seed.techs.find((t) => t.name.toLowerCase() === nm.toLowerCase()) : null)
+          || byName.get(nm.toLowerCase());
         if (!tech) {
           tech = { id: slugTech(nm), name: nm, rate: r.rate || 0, role: 'tech', imported: true };
           byName.set(nm.toLowerCase(), tech);
@@ -129,7 +133,7 @@ export function useStore() {
       setRange((r) => replace ? { from: min, to: max }
         : { from: min < r.from ? min : r.from, to: max > r.to ? max : r.to });
     }
-  }, []);
+  }, [demoMode]);
 
   // wipe ALL locally-imported test data: pay-log timers, discovered operators
   // and buildings, and reset the date window. Does not touch DB rows.

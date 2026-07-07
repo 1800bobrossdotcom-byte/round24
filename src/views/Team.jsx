@@ -25,7 +25,7 @@ export default function Team({ store }) {
         const tt = timers.filter((t) => t.techId === r.key);
         const periods = byPeriod(tt, grain, 6);
         const t = totals(tt);
-        const tech = techById[r.key];
+        const tech = techById[r.key] || { name: 'Unknown operator', role: 'tech', rate: 0 };
         const maxc = Math.max(...periods.map((p) => p.cost), 1);
         return (
           <div className="card" key={r.key} style={{ marginBottom: 'var(--gap)' }}>
