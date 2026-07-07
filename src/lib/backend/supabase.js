@@ -59,7 +59,7 @@ export async function fetchMembership() {
 const woFromDb = (r) => ({
   id: r.id, propLabel: r.property_label, unit: r.unit, task: r.task,
   detail: r.detail, category: r.category, assigneeLabel: r.assignee_label,
-  due: r.due_date, status: r.status, source: r.source,
+  due: r.due_date, status: r.status, source: r.source, priority: r.priority ?? 3,
   transcript: r.voice_transcript, createdAt: r.created_at,
 });
 
@@ -77,6 +77,7 @@ export async function insertWorkOrder(orgId, wo) {
     task: wo.task, detail: wo.detail || null, category: wo.category || 'general',
     assignee_label: wo.assigneeLabel || null, due_date: wo.due || null,
     status: wo.status || 'open', source: wo.source || 'manual',
+    priority: wo.priority ?? 3,
     voice_transcript: wo.transcript || null,
   }).select().single();
   if (error) throw error;
@@ -86,6 +87,21 @@ export async function insertWorkOrder(orgId, wo) {
 export async function updateWorkOrderStatus(id, status) {
   const { error } = await supabase.from('work_orders').update({ status }).eq('id', id);
   if (error) throw error;
+}
+
+export async function updateWorkOrderPriority(id, priority) {
+  const { error } = await supabase.from('work_orders').update({ priority }).eq('id', id);
+  if (error) throw error;
+}
+
+// live task-list updates — RLS scopes events to rows the caller can see
+export function subscribeWorkOrders(orgId, cb) {
+  const ch = supabase.channel('wo-live-' + orgId)
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'work_orders', filter: `org_id=eq.${orgId}` },
+      (payload) => cb(payload))
+    .subscribe();
+  return () => supabase.removeChannel(ch);
 }
 
 // ---- purchases (material receipts) ----

@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 
 // ---- voice → structured work order ----------------------------------
 // "create work order unit 4B leaking faucet for Gianni tomorrow at 301 Central"
@@ -79,6 +79,14 @@ export function parseVoice(text, properties, techs) {
 
 const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'painting', 'turn', 'general', 'inspection'];
 const STATUS_COLORS = { open: 'var(--info)', in_progress: 'var(--warn)', done: 'var(--money)', cancelled: 'var(--text-faint)' };
+export const WO_PRIORITIES = {
+  1: { label: 'urgent', color: 'var(--danger)' },
+  2: { label: 'high', color: 'var(--warn)' },
+  3: { label: 'normal', color: 'var(--info)' },
+  4: { label: 'low', color: 'var(--text-faint)' },
+};
+export const byPriority = (a, b) =>
+  (a.priority ?? 3) - (b.priority ?? 3) || String(a.due || '9999').localeCompare(String(b.due || '9999'));
 
 const inputStyle = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
@@ -86,7 +94,7 @@ const inputStyle = {
 };
 
 export default function WorkOrders({ store }) {
-  const { workOrders, addWorkOrder, setWoStatus, properties, techs, role, woBackend } = store;
+  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, properties, techs, role, woBackend } = store;
   const [draft, setDraft] = useState(null);   // form state when creating
   const [listening, setListening] = useState(false);
   const [liveText, setLiveText] = useState('');
@@ -94,8 +102,18 @@ export default function WorkOrders({ store }) {
   const recRef = useRef(null);
 
   const isStaff = role === 'admin' || role === 'manager';
-  const open = useMemo(() => workOrders.filter((w) => w.status === 'open' || w.status === 'in_progress'), [workOrders]);
+  const open = useMemo(
+    () => workOrders.filter((w) => w.status === 'open' || w.status === 'in_progress').sort(byPriority),
+    [workOrders]
+  );
   const closed = useMemo(() => workOrders.filter((w) => w.status === 'done' || w.status === 'cancelled'), [workOrders]);
+
+  // crew: ask once so priority changes can reach the phone as notifications
+  useEffect(() => {
+    if (role === 'tech' && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, [role]);
 
   const startVoice = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -212,27 +230,28 @@ export default function WorkOrders({ store }) {
 
       {/* ---- open ---- */}
       <div className="card">
-        <span className="field-label">Open ({open.length})</span>
+        <span className="field-label">Open ({open.length}) — sorted by priority</span>
         {open.length === 0 && <p className="note">Nothing open. {isStaff ? 'Create one above — or just say it out loud.' : 'Nothing assigned to you right now.'}</p>}
-        {open.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} isStaff={isStaff} />)}
+        {open.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} isStaff={isStaff} />)}
       </div>
 
       {closed.length > 0 && (
         <div className="card" style={{ marginTop: 'var(--gap)' }}>
           <span className="field-label">Closed ({closed.length})</span>
-          {closed.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} isStaff={isStaff} done />)}
+          {closed.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} isStaff={isStaff} done />)}
         </div>
       )}
     </div>
   );
 }
 
-function WoRow({ w, setWoStatus, isStaff, done }) {
+function WoRow({ w, setWoStatus, setWoPriority, isStaff, done }) {
+  const pr = WO_PRIORITIES[w.priority ?? 3];
   return (
     <div className="row">
       <div className="lead">
         <div className="t" style={done ? { color: 'var(--text-dim)', textDecoration: w.status === 'cancelled' ? 'line-through' : 'none' } : undefined}>
-          {w.task}
+          {!done && <span style={{ color: pr.color, marginRight: 6 }}>●</span>}{w.task}
         </div>
         <div className="s">
           {[w.propLabel, w.unit && `Unit ${w.unit}`, w.category, w.assigneeLabel && `→ ${w.assigneeLabel}`, w.due && `due ${w.due}`]
@@ -240,7 +259,18 @@ function WoRow({ w, setWoStatus, isStaff, done }) {
           {w.source === 'voice' && ' · 🎤'}
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        {isStaff && !done ? (
+          <select
+            value={w.priority ?? 3}
+            onChange={(e) => setWoPriority(w.id, Number(e.target.value))}
+            style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', color: pr.color,
+              fontFamily: 'var(--font)', fontWeight: 700, fontSize: 11, padding: '5px 6px', borderRadius: 8 }}>
+            {Object.entries(WO_PRIORITIES).map(([v, p]) => <option key={v} value={v}>{p.label}</option>)}
+          </select>
+        ) : !done && (
+          <span className="chip" style={{ color: pr.color }}>{pr.label}</span>
+        )}
         <span className="chip" style={{ color: STATUS_COLORS[w.status] }}>{w.status.replace('_', ' ')}</span>
         {w.status === 'open' && <button className="btn ghost sm" onClick={() => setWoStatus(w.id, 'in_progress')}>Start</button>}
         {w.status === 'in_progress' && <button className="btn ghost sm" onClick={() => setWoStatus(w.id, 'done')}>Done</button>}

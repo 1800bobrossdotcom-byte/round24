@@ -208,3 +208,14 @@
 @media (max-width: 620px) {
   .org-pill { display: none; }
 }
+
+/* ---- live notification toast ---- */
+.toast {
+  position: fixed; top: calc(var(--sat) + 12px); left: 50%; transform: translateX(-50%);
+  z-index: 200; max-width: min(92vw, 480px);
+  background: var(--surface-3); border: 1px solid var(--line); border-radius: 12px;
+  color: var(--text); font-weight: 700; font-size: 13px; padding: 12px 16px;
+  box-shadow: 0 8px 30px #000a; cursor: pointer;
+  animation: toast-in .25s var(--ease) both;
+}
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }

@@ -1,8 +1,9 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import seed from '../data/seed.json';
 import { useAuth } from '../components/AuthGate.jsx';
 import {
   isConfigured, listWorkOrders, insertWorkOrder, updateWorkOrderStatus,
+  updateWorkOrderPriority, subscribeWorkOrders,
   listPurchases, insertPurchase, setPurchaseStatus as dbSetPurchaseStatus, uploadReceipt,
   listDocuments, uploadDocument,
 } from './backend/supabase.js';
@@ -103,6 +104,57 @@ export function useStore() {
     }
   }, [woBackend]);
 
+  const setWoPriority = useCallback((id, priority) => {
+    setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, priority } : w)));
+    if (isConfigured() && woBackend === 'db' && !String(id).startsWith('wo_')) {
+      updateWorkOrderPriority(id, priority).catch(() => {});
+    }
+  }, [woBackend]);
+
+  // ---- live task list: realtime changes → state merge + notification ----
+  const [woNotice, setWoNotice] = useState(null); // { msg, ts }
+  const woRef = useRef(workOrders);
+  useEffect(() => { woRef.current = workOrders; }, [workOrders]);
+  useEffect(() => {
+    if (!isConfigured() || !orgId || woBackend !== 'db') return;
+    const PRIO = { 1: 'URGENT', 2: 'high', 3: 'normal', 4: 'low' };
+    const notify = (msg) => {
+      setWoNotice({ msg, ts: Date.now() });
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try { new Notification('Caliper', { body: msg }); } catch { /* mobile needs a SW; the in-app toast covers it */ }
+      }
+    };
+    return subscribeWorkOrders(orgId, (payload) => {
+      const { eventType } = payload;
+      if (eventType === 'INSERT') {
+        const n = payload.new;
+        const wo = {
+          id: n.id, propLabel: n.property_label, unit: n.unit, task: n.task,
+          category: n.category, assigneeLabel: n.assignee_label, due: n.due_date,
+          status: n.status, priority: n.priority ?? 3, source: n.source, createdAt: n.created_at,
+        };
+        if (!woRef.current.some((w) => w.id === wo.id)) {
+          setWorkOrders((l) => l.some((w) => w.id === wo.id) ? l : [wo, ...l]);
+          notify(`New work order: ${wo.task}`);
+        }
+      } else if (eventType === 'UPDATE') {
+        const upd = payload.new;
+        const prev = woRef.current.find((w) => w.id === upd.id);
+        // announce only changes we didn't already apply locally (someone else's edit)
+        if (prev && (upd.priority ?? 3) !== (prev.priority ?? 3)) {
+          notify(`Priority changed: “${upd.task}” is now ${PRIO[upd.priority ?? 3]}`);
+        } else if (prev && upd.status !== prev.status) {
+          notify(`“${upd.task}” is now ${upd.status.replace('_', ' ')}`);
+        }
+        setWorkOrders((l) => l.map((w) => (w.id === upd.id
+          ? { ...w, status: upd.status, priority: upd.priority ?? 3, due: upd.due_date, task: upd.task, assigneeLabel: upd.assignee_label }
+          : w)));
+      } else if (eventType === 'DELETE' && payload.old?.id) {
+        setWorkOrders((l) => l.filter((w) => w.id !== payload.old.id));
+      }
+    });
+  }, [orgId, woBackend]);
+
   // ---- purchases: DB-backed when connected, localStorage otherwise ----
   const [purchases, setPurchases] = useState(() => loadLS(PUR_KEY, []));
   const [purBackend, setPurBackend] = useState('local');
@@ -171,7 +223,8 @@ export function useStore() {
     hasImported: imported.timers.length > 0,
     importedCount: imported.timers.length,
     // work orders
-    workOrders, addWorkOrder, setWoStatus, woBackend,
+    workOrders, addWorkOrder, setWoStatus, setWoPriority, woBackend,
+    woNotice, clearWoNotice: () => setWoNotice(null),
     // purchases
     purchases, addPurchase, setPurchaseStatus, purBackend,
     // documents

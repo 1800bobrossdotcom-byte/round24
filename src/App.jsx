@@ -37,8 +37,19 @@ function Shell() {
   }, [role]); // role change (re-login) can invalidate the active tab
   const Active = (tabs.find((t) => t.id === tab) || tabs[0]).View;
 
+  // live task-list notifications (priority changes, new assignments)
+  const { woNotice, clearWoNotice } = store;
+  useEffect(() => {
+    if (!woNotice) return;
+    const t = setTimeout(clearWoNotice, 6000);
+    return () => clearTimeout(t);
+  }, [woNotice]);
+
   return (
     <div className="app desk">
+      {woNotice && (
+        <div className="toast" onClick={clearWoNotice}>📣 {woNotice.msg}</div>
+      )}
       {/* desktop side rail brand (hidden on mobile) */}
       <nav className="tabbar">
         <div className="desk-brand"><Mark /> Caliper</div>

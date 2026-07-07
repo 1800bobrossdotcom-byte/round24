@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { fmtHrs } from '../lib/rollups.js';
 import { categoryMedian } from '../lib/rollups.js';
+import { WO_PRIORITIES, byPriority } from './WorkOrders.jsx';
 
 const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'painting', 'turn', 'general', 'inspection'];
 
@@ -28,7 +29,7 @@ export default function Field({ store }) {
   const [lastNudge, setLastNudge] = useState(0);  // work-seconds when last nudged
   const [lunchNudged, setLunchNudged] = useState(false);
 
-  const myWos = workOrders.filter((w) => w.status === 'open' || w.status === 'in_progress');
+  const myWos = workOrders.filter((w) => w.status === 'open' || w.status === 'in_progress').sort(byPriority);
 
   // start the timer straight from a work order — property/unit/category prefilled
   const startFromWo = (w) => {
@@ -92,8 +93,8 @@ export default function Field({ store }) {
           {myWos.map((w) => (
             <div className="row" key={w.id}>
               <div className="lead">
-                <div className="t">{w.task}</div>
-                <div className="s">{[w.propLabel, w.unit && `Unit ${w.unit}`, w.category, w.due && `due ${w.due}`].filter(Boolean).join(' · ')}</div>
+                <div className="t"><span style={{ color: WO_PRIORITIES[w.priority ?? 3].color, marginRight: 6 }}>●</span>{w.task}</div>
+                <div className="s">{[WO_PRIORITIES[w.priority ?? 3].label, w.propLabel, w.unit && `Unit ${w.unit}`, w.category, w.due && `due ${w.due}`].filter(Boolean).join(' · ')}</div>
               </div>
               <button className="btn ghost sm" onClick={() => startFromWo(w)}>▶ Start</button>
             </div>
