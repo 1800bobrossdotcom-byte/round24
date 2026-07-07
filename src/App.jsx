@@ -39,6 +39,13 @@ function Shell() {
   const tabs = TABS.filter((t) => t.roles.includes(role));
   const [tab, setTab] = useState(tabs[0].id);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const isOffice = role === 'admin' || role === 'manager';
+  const seedDemo = async () => {
+    setSeeding(true);
+    try { await store.loadSampleData(); setTab('dash'); setMoreOpen(false); }
+    finally { setSeeding(false); }
+  };
   useEffect(() => {
     if (!tabs.some((t) => t.id === tab)) setTab(tabs[0].id);
   }, [role]); // role change (re-login) can invalidate the active tab
@@ -116,6 +123,11 @@ function Shell() {
                 </button>
               ))}
             </div>
+            {isOffice && (
+              <button className="btn grad" style={{ margin: '14px 4px 4px', width: 'auto' }} onClick={seedDemo} disabled={seeding}>
+                {seeding ? 'Filling…' : 'Load sample data'}
+              </button>
+            )}
           </div>
         </div>
       )}
