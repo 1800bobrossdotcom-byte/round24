@@ -197,6 +197,15 @@ export async function signedFileUrl(bucket, path) {
   return data.signedUrl;
 }
 
+// native buildings discovered from an Excel import (non-integrated shops)
+export async function insertProperties(orgId, props) {
+  const rows = props.map((p) => ({
+    org_id: orgId, name: p.name, city: p.city || null, units: p.units || 0, external_src: 'native',
+  }));
+  const { error } = await supabase.from('properties').insert(rows);
+  if (error) throw error;
+}
+
 // ---- Rent Manager sync ----
 export async function triggerRmSync({ mock = false } = {}) {
   const { data, error } = await supabase.functions.invoke('rm-sync', { body: { mock } });

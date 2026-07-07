@@ -35,6 +35,27 @@ function detectRate(rows) {
   return null;
 }
 
+// where does this sheet record the building each row belongs to?
+// Supports both a per-row column ("Property" / "Building" / "Location" /
+// "Address" header) and a sheet-level header ("Property: 123 Main St").
+// This is what lets a shop with NO integration and NO buildings yet import
+// — the buildings are discovered from the sheet.
+const BUILDING_HDR = /\b(propert(?:y|ies)|building|bldg|location|site|address|complex|apt\b|apartments?)\b/i;
+function detectBuilding(rows) {
+  let buildingCol = -1, sheetBuilding = null;
+  for (const row of rows.slice(0, 12)) {
+    if (!row) continue;
+    for (let i = 0; i < row.length; i++) {
+      const c = row[i];
+      if (typeof c !== 'string') continue;
+      const m = c.match(/^\s*(propert(?:y|ies)|building|bldg|location|site|complex)\s*[:=]\s*(.+)$/i);
+      if (m && m[2].trim()) { sheetBuilding = m[2].trim(); }
+      else if (buildingCol < 0 && c.length < 26 && BUILDING_HDR.test(c) && !/[:=]/.test(c)) { buildingCol = i; }
+    }
+  }
+  return { buildingCol, sheetBuilding };
+}
+
 // pull a clean tech name out of a sheet title
 function techNameFromSheet(name) {
   return name
@@ -54,6 +75,7 @@ export function parseSheet(ws, sheetName) {
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, blankrows: false });
   const headerRate = detectRate(rows);
   const techName = techNameFromSheet(sheetName);
+  const { buildingCol, sheetBuilding } = detectBuilding(rows);
 
   const entries = [];
   let periodTag = null;
@@ -103,6 +125,15 @@ export function parseSheet(ws, sheetName) {
     // pay present but wildly off implied (date-total leaked into a cell)
     if (pay != null && hours > 0 && pay / hours > RATE_MAX * 2) { pay = null; flag = flag || 'bad-pay'; }
 
+    // building this row is allocated to: explicit column value, else a
+    // sheet-level building header. null when the row names no building.
+    let building = null;
+    if (buildingCol >= 0 && typeof row[buildingCol] === 'string') {
+      const v = row[buildingCol].trim();
+      if (v && !BUILDING_HDR.test(v) && !/total/i.test(v)) building = v;
+    }
+    if (!building && sheetBuilding) building = sheetBuilding;
+
     entries.push({
       tech: techName,
       date: iso,
@@ -112,6 +143,7 @@ export function parseSheet(ws, sheetName) {
       period: periodTag,
       note,
       texts,          // all string cells — used to detect the allocated building
+      building,       // explicit building label from the sheet (may be new)
       flag,
     });
   }

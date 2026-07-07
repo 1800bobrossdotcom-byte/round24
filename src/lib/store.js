@@ -6,12 +6,13 @@ import {
   updateWorkOrderPriority, subscribeWorkOrders,
   listPurchases, insertPurchase, setPurchaseStatus as dbSetPurchaseStatus, uploadReceipt,
   listDocuments, uploadDocument,
-  fetchMyOperatorId, insertTimer,
+  fetchMyOperatorId, insertTimer, insertProperties,
 } from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
 const WO_KEY = 'caliper_workorders_v1';
 const PUR_KEY = 'caliper_purchases_v1';
+const PROP_KEY = 'caliper_props_v1';       // buildings discovered from imports (non-integrated shops)
 const TQ_KEY = 'caliper_timerqueue_v1';   // offline queue for unsynced timer entries
 
 function loadLS(key, fallback) {
@@ -21,6 +22,7 @@ function loadLS(key, fallback) {
 
 const slugTech = (name) =>
   't_imp_' + name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+const normName = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 export function useStore() {
   const { orgId, role } = useAuth();
@@ -34,21 +36,58 @@ export function useStore() {
 
   const [range, setRange] = useState({ from: '2026-05-11', to: '2026-07-05' });
 
-  const propById = useMemo(() => Object.fromEntries(seed.properties.map((p) => [p.id, p])), []);
+  // ---- buildings discovered from imports (non-integrated shops start empty) ----
+  const [impProps, setImpProps] = useState(() => loadLS(PROP_KEY, []));
+  useEffect(() => { localStorage.setItem(PROP_KEY, JSON.stringify(impProps)); }, [impProps]);
+  const impPropsRef = useRef(impProps);
+  useEffect(() => { impPropsRef.current = impProps; }, [impProps]);
+
+  const properties = useMemo(() => [...seed.properties, ...impProps], [impProps]);
+  const propById = useMemo(() => Object.fromEntries(properties.map((p) => [p.id, p])), [properties]);
   const techById = useMemo(() => Object.fromEntries(techs.map((t) => [t.id, t])), [techs]);
+
+  // resolve building labels → ids, creating a native property for any label
+  // not already known. Returns { label: id } synchronously so an import can
+  // allocate immediately. Best-effort DB insert when connected.
+  const ensureProperties = useCallback((labels) => {
+    const current = [...seed.properties, ...impPropsRef.current];
+    const byName = new Map(current.map((p) => [normName(p.name), p.id]));
+    const created = [];
+    const map = {};
+    for (const label of labels) {
+      const key = normName(label);
+      if (!key) continue;
+      let id = byName.get(key);
+      if (!id) {
+        id = 'prop_imp_' + (key.replace(/\s+/g, '_') || Math.random().toString(36).slice(2, 8));
+        byName.set(key, id);
+        created.push({ id, name: label, city: '', units: 0, external_src: 'native', imported: true });
+      }
+      map[label] = id;
+    }
+    if (created.length) {
+      impPropsRef.current = [...impPropsRef.current, ...created];
+      setImpProps(impPropsRef.current);
+      if (isConfigured() && orgId) insertProperties(orgId, created).catch(() => {});
+    }
+    return map;
+  }, [orgId]);
 
   const timers = useMemo(
     () => allTimers.filter((t) => t.date >= range.from && t.date <= range.to),
     [allTimers, range]
   );
 
-  // commit parsed pay-log entries: resolve tech names to ids (reusing seed
-  // techs on a name match), then widen the range so the data is visible
-  const addImported = useCallback((rows) => {
+  // commit parsed pay-log entries. replace (default) swaps out any previous
+  // import so uploads don't compound; add appends to what's there. resolves
+  // tech names to ids (reusing seed techs on a name match) and sets the range
+  // to the imported span.
+  const addImported = useCallback((rows, { replace = true } = {}) => {
     setImported((prev) => {
-      const byName = new Map(prev.techs.map((t) => [t.name.toLowerCase(), t]));
-      const newTechs = [...prev.techs];
-      const base = prev.timers.length;
+      const base0 = replace ? { timers: [], techs: [] } : prev;
+      const byName = new Map(base0.techs.map((t) => [t.name.toLowerCase(), t]));
+      const newTechs = [...base0.techs];
+      const base = base0.timers.length;
       const timers = rows.map((r, i) => {
         const nm = r.techName.trim();
         let tech = seed.techs.find((t) => t.name.toLowerCase() === nm.toLowerCase()) || byName.get(nm.toLowerCase());
@@ -64,16 +103,24 @@ export function useStore() {
           rate: r.rate || 0, period: r.period || null, imported: true,
         };
       });
-      return { techs: newTechs, timers: [...prev.timers, ...timers] };
+      return { techs: newTechs, timers: [...base0.timers, ...timers] };
     });
-    const dates = rows.map((r) => r.date);
-    setRange((r) => ({
-      from: dates.reduce((a, d) => (d < a ? d : a), r.from),
-      to: dates.reduce((a, d) => (d > a ? d : a), r.to),
-    }));
+    const dates = rows.map((r) => r.date).filter(Boolean);
+    if (dates.length) {
+      const min = dates.reduce((a, d) => (d < a ? d : a));
+      const max = dates.reduce((a, d) => (d > a ? d : a));
+      setRange((r) => replace ? { from: min, to: max }
+        : { from: min < r.from ? min : r.from, to: max > r.to ? max : r.to });
+    }
   }, []);
 
-  const clearImported = useCallback(() => setImported({ timers: [], techs: [] }), []);
+  // wipe ALL locally-imported test data: pay-log timers, discovered operators
+  // and buildings, and reset the date window. Does not touch DB rows.
+  const clearImported = useCallback(() => {
+    setImported({ timers: [], techs: [] });   // persistence effects write the empty state
+    setImpProps([]); impPropsRef.current = [];
+    setRange({ from: '2026-05-11', to: '2026-07-05' });
+  }, []);
 
   // ---- work orders: DB-backed when connected, localStorage otherwise ----
   const [workOrders, setWorkOrders] = useState(() => loadLS(WO_KEY, []));
@@ -254,7 +301,7 @@ export function useStore() {
 
   return {
     meta: seed.meta,
-    properties: seed.properties,
+    properties,
     techs,
     allTimers,
     timers,
@@ -262,7 +309,7 @@ export function useStore() {
     propById, techById,
     role,
     // import
-    addImported, clearImported,
+    addImported, clearImported, ensureProperties,
     hasImported: imported.timers.length > 0,
     importedCount: imported.timers.length,
     // work orders

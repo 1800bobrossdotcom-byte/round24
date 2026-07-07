@@ -38,6 +38,7 @@ export default function Import({ store }) {
   const [drag, setDrag] = useState(false);
   const [err, setErr] = useState(null);
   const [result, setResult] = useState(null);
+  const [confirmClear, setConfirmClear] = useState(false);
   const fileRef = useRef();
 
   const handleFile = async (file) => {
@@ -82,41 +83,59 @@ export default function Import({ store }) {
   }, [sheets, selected]);
 
   const matcher = useMemo(() => buildMatcher(store.properties), [store.properties]);
+  const [mode, setMode] = useState('replace'); // 'replace' | 'add'
 
-  // how many selected workdays are allocated to a building vs skipped
+  // resolve a row's building: explicit sheet building (may be new), else a
+  // text match against existing buildings. Returns { id?, label? }.
+  const resolve = (e) => {
+    if (e.building) { const id = matcher([e.building]); return id ? { id } : { label: e.building }; }
+    const id = matcher(e.texts);
+    return id ? { id } : {};
+  };
+
+  // preview: allocated vs skipped, and which brand-new buildings we'd create
   const alloc = useMemo(() => {
-    let allocated = 0, skipped = 0; const byProp = new Set();
+    let allocated = 0, skipped = 0; const known = new Set(); const newLabels = new Set();
     for (const s of sheets) {
       if (!selected.includes(s.name)) continue;
       for (const e of s.entries) {
         if (e.hours <= 0) continue;
-        const pid = matcher(e.texts);
-        if (pid) { allocated++; byProp.add(pid); } else skipped++;
+        const r = resolve(e);
+        if (r.id) { allocated++; known.add(r.id); }
+        else if (r.label) { allocated++; newLabels.add(r.label); }
+        else skipped++;
       }
     }
-    return { allocated, skipped, propCount: byProp.size };
+    return { allocated, skipped, buildingCount: known.size + newLabels.size, newBuildings: [...newLabels] };
   }, [sheets, selected, matcher]);
 
   const runImport = () => {
-    // apply assigned rates onto entries missing them
+    // create any brand-new buildings named in the sheet, then resolve ids
+    const labelMap = store.ensureProperties(alloc.newBuildings);
+    const resolveProp = (e) => {
+      const r = resolve(e);
+      return r.id || (r.label ? labelMap[r.label] : null) || null;
+    };
     const patched = sheets.map((s) => ({
       ...s,
       entries: s.entries.map((e) => ({ ...e, rate: e.rate || rates[e.tech] || 0 })),
     }));
-    const { timers, skipped } = toTimers(patched, selected, (e) => matcher(e.texts));
+    const { timers, skipped } = toTimers(patched, selected, resolveProp);
     const withRate = timers.filter((t) => t.rate > 0);
     const hrs = withRate.reduce((a, t) => a + t.durationHrs, 0);
     const cost = withRate.reduce((a, t) => a + t.durationHrs * t.rate, 0);
     const techCount = new Set(timers.map((t) => t.techName)).size;
     const propCount = new Set(timers.map((t) => t.propId)).size;
-    store.addImported(timers);     // land it on the chart spine — Dashboard/Calendar/Team pick it up
-    setResult({ count: timers.length, skipped, hrs, cost, techCount, propCount });
+    store.addImported(timers, { replace: mode === 'replace' });
+    setResult({ count: timers.length, skipped, hrs, cost, techCount, propCount, newBuildings: alloc.newBuildings.length, mode });
     setStep(3);
   };
 
   const totalMissing = techsNeeding.reduce((a, t) => a + t.missing, 0);
   const rateSet = techsNeeding.every((t) => rates[t.name] > 0);
   const canImport = rateSet && alloc.allocated > 0;
+
+  const reset = () => { setStep(0); setSheets([]); setSelected([]); setResult(null); };
 
   return (
     <div>
@@ -138,6 +157,22 @@ export default function Import({ store }) {
       {/* STEP 0 — upload */}
       {step === 0 && (
         <>
+          {store.hasImported && (
+            <div className="card" style={{ marginBottom: 'var(--gap)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{store.importedCount.toLocaleString()} imported entries in these charts</div>
+                <div className="note" style={{ margin: 0 }}>Uploading replaces this by default. Clear it to start fresh.</div>
+              </div>
+              {confirmClear ? (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn stop sm" onClick={() => { store.clearImported(); setConfirmClear(false); }}>Clear all</button>
+                  <button className="btn ghost sm" onClick={() => setConfirmClear(false)}>Cancel</button>
+                </div>
+              ) : (
+                <button className="btn ghost sm" onClick={() => setConfirmClear(true)}>Clear imported data</button>
+              )}
+            </div>
+          )}
           <div
             className={`dropzone${drag ? ' drag' : ''}`}
             onClick={() => fileRef.current.click()}
@@ -197,6 +232,22 @@ export default function Import({ store }) {
             </div>
           )}
 
+          {alloc.newBuildings.length > 0 && (
+            <div className="offline" style={{ color: 'var(--info)', borderColor: '#38bdf833', background: '#38bdf812' }}>
+              {alloc.newBuildings.length} new building{alloc.newBuildings.length > 1 ? 's' : ''} will be created: {alloc.newBuildings.slice(0, 4).join(', ')}{alloc.newBuildings.length > 4 ? '…' : ''}
+            </div>
+          )}
+
+          {store.hasImported && (
+            <div className="card" style={{ marginBottom: 'var(--gap)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <span className="field-label" style={{ margin: 0 }}>You already have {store.importedCount.toLocaleString()} imported entries</span>
+              <div className="seg">
+                <button className={mode === 'replace' ? 'on' : ''} onClick={() => setMode('replace')}>Replace them</button>
+                <button className={mode === 'add' ? 'on' : ''} onClick={() => setMode('add')}>Add to them</button>
+              </div>
+            </div>
+          )}
+
           <div className="card">
             <span className="field-label">Confirm hourly rate per operator</span>
             <p className="note" style={{ marginTop: 4, marginBottom: 12 }}>
@@ -244,16 +295,19 @@ export default function Import({ store }) {
             <div className="card"><div className="stat"><span className="k">Buildings</span><span className="v mono sm">{result.propCount}</span></div></div>
             <div className="card"><div className="stat"><span className="k">Operators</span><span className="v mono sm">{result.techCount}</span></div></div>
           </div>
+          {result.newBuildings > 0 && (
+            <p className="note" style={{ textAlign: 'center' }}>{result.newBuildings} new building{result.newBuildings > 1 ? 's' : ''} created from your sheet.</p>
+          )}
           {result.skipped > 0 && (
             <div className="offline" style={{ marginTop: 'var(--gap)' }}>
               ! {result.skipped} rows had no building and were skipped. Add a property to those rows in your sheet and re-upload to include them.
             </div>
           )}
           <div className="offline" style={{ marginTop: 'var(--gap)', color: 'var(--money)', borderColor: '#4ade8033', background: '#4ade8012' }}>
-            <IcCheck width={14} height={14} /> Allocated to buildings and live in your charts — every imported hour lands on a property. Check Dashboard, Calendar, and Properties.
+            <IcCheck width={14} height={14} /> {result.mode === 'add' ? 'Added to your existing data' : 'Replaced your previous import'} — every imported hour lands on a building. Check Dashboard, Calendar, and Properties.
           </div>
           <div className="wizard-actions">
-            <button className="btn ghost" onClick={() => { setStep(0); setSheets([]); setSelected([]); setResult(null); }}>Import another file</button>
+            <button className="btn ghost" onClick={reset}>Import another file</button>
           </div>
         </>
       )}
