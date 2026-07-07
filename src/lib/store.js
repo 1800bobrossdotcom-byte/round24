@@ -8,6 +8,7 @@ import {
   listPurchases, insertPurchase, setPurchaseStatus as dbSetPurchaseStatus, uploadReceipt,
   listDocuments, uploadDocument,
   listMessages, insertMessage, subscribeMessages, uploadVoiceNote, summarizeThread,
+  upsertChatMember, listChatMembers, listChatChannels, insertChatChannel,
   fetchMyOperatorId, insertTimer, insertProperties,
 } from './backend/supabase.js';
 
@@ -18,6 +19,7 @@ const PROP_KEY = 'caliper_props_v1';       // buildings discovered from imports 
 const TQ_KEY = 'caliper_timerqueue_v1';   // offline queue for unsynced timer entries
 const SEEN_KEY = 'caliper_seen_v1';        // per-tab "last viewed" stamps → nav badges
 const MSG_KEY = 'caliper_messages_v1';     // team comms fallback when unmigrated
+const CHAN_KEY = 'caliper_channels_v1';    // local DM/group definitions (demo mode)
 
 function loadLS(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -423,6 +425,46 @@ export function useStore() {
     return summarizeThread(msgs.map((m) => ({ sender: m.sender, role: m.senderRole, body: m.body })), workOrder);
   }, []);
 
+  // ---- chat directory + private channels (DMs / groups) ----
+  const [chatMembers, setChatMembers] = useState([]);           // real app users (db)
+  const [dbChannels, setDbChannels] = useState([]);             // my DMs/groups (db)
+  const [localChannels, setLocalChannels] = useState(() => loadLS(CHAN_KEY, [])); // demo mode
+
+  useEffect(() => {
+    if (!isConfigured() || !orgId || msgBackend !== 'db') return;
+    upsertChatMember(orgId, { label: myName, role: myCommsRole }).catch(() => {});
+    listChatMembers(orgId).then(setChatMembers).catch(() => {});
+    listChatChannels(orgId).then(setDbChannels).catch(() => {});
+  }, [orgId, msgBackend, myName, myCommsRole]);
+
+  // who you can start a conversation with. Cloud: real app users (by uid).
+  // Demo/local: the crew roster so the feature is usable without logins.
+  const roster = useMemo(() => {
+    if (isConfigured() && msgBackend === 'db') return chatMembers.filter((m) => m.id !== myId);
+    return techs.map((t) => ({ id: t.id, label: t.name, role: t.role === 'tech' ? 'crew' : 'office' }))
+      .filter((p) => p.label && p.label !== myName);
+  }, [chatMembers, techs, msgBackend, myId, myName]);
+
+  const privateChannels = isConfigured() && msgBackend === 'db' ? dbChannels : localChannels;
+
+  // create a DM (one member) or named group (several) → returns its channel id
+  const addChannel = useCallback(async ({ kind, members, name }) => {
+    const memberLabels = [myName, ...members.map((m) => m.label)];
+    if (isConfigured() && orgId && msgBackend === 'db') {
+      // only real auth-user ids are valid participants for a private channel
+      const memberIds = [myId, ...members.map((m) => m.id)].filter((id) => id && /^[0-9a-f-]{36}$/i.test(id));
+      try {
+        const ch = await insertChatChannel(orgId, { kind, name, memberIds, memberLabels });
+        setDbChannels((l) => [...l, ch]);
+        return ch.id;
+      } catch { /* fall through to a local channel */ }
+    }
+    const ch = { id: 'lch:' + Math.random().toString(36).slice(2, 9), kind, name: name || null,
+      memberIds: [myId, ...members.map((m) => m.id)], memberLabels };
+    setLocalChannels((l) => { const nl = [...l, ch]; localStorage.setItem(CHAN_KEY, JSON.stringify(nl)); return nl; });
+    return ch.id;
+  }, [orgId, msgBackend, myId, myName]);
+
   // ---- one-tap demo fill: labor spine (local) + work orders/purchases (DB) ----
   // Flows through the same write paths as real data, so what you see is exactly
   // what the app produces. Additive-safe: labor is replaced (no compounding),
@@ -483,6 +525,7 @@ export function useStore() {
     documents, addDocument, docBackend,
     // team comms
     messages, addMessage, msgBackend, summarizeMessages, myName, myId,
+    roster, privateChannels, addChannel,
     // nav notification badges
     badges, markSeen,
   };

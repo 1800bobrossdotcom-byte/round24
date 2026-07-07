@@ -145,6 +145,37 @@ export function subscribeMessages(orgId, cb) {
   return () => supabase.removeChannel(ch);
 }
 
+// ---- chat directory + private channels (DMs / groups) ----
+export async function upsertChatMember(orgId, { label, role }) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const { error } = await supabase.from('chat_members')
+    .upsert({ org_id: orgId, user_id: user.id, label, role, updated_at: new Date().toISOString() }, { onConflict: 'org_id,user_id' });
+  if (error) throw error;
+}
+
+export async function listChatMembers(orgId) {
+  const { data, error } = await supabase.from('chat_members').select('*').eq('org_id', orgId);
+  if (error) throw error;
+  return data.map((r) => ({ id: r.user_id, label: r.label, role: r.role }));
+}
+
+const chFromDb = (r) => ({ id: 'ch:' + r.id, dbId: r.id, kind: r.kind, name: r.name, memberIds: r.member_ids || [], memberLabels: r.member_labels || [] });
+
+export async function listChatChannels(orgId) {
+  const { data, error } = await supabase.from('chat_channels').select('*').eq('org_id', orgId);
+  if (error) throw error;
+  return data.map(chFromDb);
+}
+
+export async function insertChatChannel(orgId, { kind, name, memberIds, memberLabels }) {
+  const { data, error } = await supabase.from('chat_channels').insert({
+    org_id: orgId, kind, name: name || null, member_ids: memberIds, member_labels: memberLabels,
+  }).select().single();
+  if (error) throw error;
+  return chFromDb(data);
+}
+
 // upload a recorded voice note (Blob) → returns the storage object path
 export async function uploadVoiceNote(orgId, blob) {
   const ext = (blob.type.split('/')[1] || 'webm').split(';')[0];

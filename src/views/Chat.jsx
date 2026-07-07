@@ -14,15 +14,29 @@ const fmtTime = (iso) => { try { return new Date(iso).toLocaleTimeString('en-US'
 const fmtSecs = (s) => (s ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : '');
 
 export default function Chat({ store }) {
-  const { messages, addMessage, msgBackend, workOrders, summarizeMessages, myId, myName, role } = store;
+  const { messages, addMessage, msgBackend, workOrders, summarizeMessages, myId, myName, role,
+    roster, privateChannels, addChannel } = store;
   const isOffice = role === 'admin' || role === 'manager';
 
   const channels = useMemo(() => {
     const wos = workOrders.filter((w) => w.status === 'open' || w.status === 'in_progress');
-    return [{ id: 'all', label: 'Team' }, ...wos.map((w) => ({ id: 'wo:' + w.id, label: w.task.slice(0, 22), wo: w }))];
-  }, [workOrders]);
+    const priv = (privateChannels || []).map((c) => ({
+      id: c.id, kind: c.kind,
+      label: c.kind === 'dm' ? (c.memberLabels.find((l) => l !== myName) || 'Direct') : (c.name || 'Group'),
+    }));
+    return [
+      { id: 'all', label: '# Team' },
+      ...priv,
+      ...wos.map((w) => ({ id: 'wo:' + w.id, label: w.task.slice(0, 22), wo: w })),
+    ];
+  }, [workOrders, privateChannels, myName]);
   const [channel, setChannel] = useState('all');
-  const activeWo = channels.find((c) => c.id === channel)?.wo || null;
+  const [picker, setPicker] = useState(false);
+  const activeCh = channels.find((c) => c.id === channel);
+  const activeWo = activeCh?.wo || null;
+  const isWoChannel = channel.startsWith('wo:');
+  const target = channel === 'all' ? 'the team' : isWoChannel ? 'the crew on this job'
+    : activeCh?.kind === 'dm' ? activeCh.label : (activeCh?.label || 'the group');
 
   const thread = useMemo(() => messages.filter((m) => (m.channel || 'all') === channel), [messages, channel]);
 
@@ -96,16 +110,20 @@ export default function Chat({ store }) {
 
       {/* channel switcher */}
       <div className="chan-bar">
+        <button className="chan new" onClick={() => setPicker(true)} aria-label="New conversation">＋</button>
         {channels.map((c) => (
           <button key={c.id} className={'chan' + (channel === c.id ? ' on' : '')} onClick={() => { setChannel(c.id); setSummary(null); setSummErr(null); }}>
-            {c.id === 'all' ? '# Team' : c.label}
+            {c.kind === 'dm' ? '@ ' + c.label : c.label}
           </button>
         ))}
       </div>
 
+      {picker && <NewConversation roster={roster} onClose={() => setPicker(false)}
+        onCreate={async (sel, name) => { const id = await addChannel({ kind: sel.length > 1 ? 'group' : 'dm', members: sel, name }); setPicker(false); setChannel(id); }} />}
+
       {/* thread */}
       <div className="chat-thread" ref={scroller}>
-        {thread.length === 0 && <p className="note" style={{ textAlign: 'center', padding: 24 }}>No messages yet. Say something to the {channel === 'all' ? 'team' : 'crew on this job'}.</p>}
+        {thread.length === 0 && <p className="note" style={{ textAlign: 'center', padding: 24 }}>No messages yet. Say something to {target}.</p>}
         {thread.map((m) => {
           const mine = m.senderId === myId || m.sender === myName;
           return (
@@ -122,7 +140,7 @@ export default function Chat({ store }) {
       </div>
 
       {/* AI summarize (office, per-job thread) */}
-      {isOffice && channel !== 'all' && thread.length > 0 && (
+      {isOffice && isWoChannel && thread.length > 0 && (
         <div style={{ margin: '10px 0' }}>
           <button className="btn ghost sm" onClick={runSummary} disabled={summBusy}>
             <IcSparkle width={14} height={14} /> {summBusy ? 'Summarizing…' : 'Summarize thread → work-order update'}
@@ -155,12 +173,57 @@ export default function Chat({ store }) {
         </div>
       ) : (
         <div className="composer">
-          <input style={inputStyle} value={text} onChange={(e) => setText(e.target.value)} placeholder={channel === 'all' ? 'Message the team…' : 'Message this job…'}
+          <input style={inputStyle} value={text} onChange={(e) => setText(e.target.value)} placeholder={`Message ${target}…`}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} />
           <button className="btn ghost icon-btn" onClick={startRec} aria-label="Record voice note"><IcMic width={18} height={18} /></button>
           <button className="btn grad icon-btn" onClick={() => send()} disabled={busy || !text.trim()} aria-label="Send"><IcSend width={18} height={18} /></button>
         </div>
       )}
+    </div>
+  );
+}
+
+// pick one person (DM) or several (named group) to start a conversation
+function NewConversation({ roster, onClose, onCreate }) {
+  const [sel, setSel] = useState([]);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const toggle = (p) => setSel((s) => (s.some((x) => x.id === p.id) ? s.filter((x) => x.id !== p.id) : [...s, p]));
+  const isGroup = sel.length > 1;
+  const create = async () => { setBusy(true); try { await onCreate(sel, isGroup ? (name.trim() || 'Group') : null); } finally { setBusy(false); } };
+
+  return (
+    <div className="sheet-backdrop alloc-backdrop" onClick={onClose}>
+      <div className="alloc-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="alloc-head">
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 17 }}>New conversation</div>
+            <div className="note" style={{ margin: 0 }}>Pick one person for a DM, or several for a group</div>
+          </div>
+          <button className="btn ghost sm icon-btn" onClick={onClose} aria-label="Close"><IcX width={16} height={16} /></button>
+        </div>
+        {roster.length === 0 ? (
+          <p className="note" style={{ padding: '18px 0' }}>No teammates to message yet — they appear here once they've signed in on their own device.</p>
+        ) : (
+          <>
+            <div className="alloc-list" style={{ maxHeight: '46vh' }}>
+              {roster.map((p) => (
+                <label className={'alloc-row' + (sel.some((x) => x.id === p.id) ? ' on' : '')} key={p.id}>
+                  <input type="checkbox" checked={sel.some((x) => x.id === p.id)} onChange={() => toggle(p)} />
+                  <div className="lead"><div className="t">{p.label}</div><div className="s" style={{ textTransform: 'capitalize' }}>{p.role || 'crew'}</div></div>
+                </label>
+              ))}
+            </div>
+            {isGroup && (
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Group name (e.g. Rochester crew)"
+                style={{ width: '100%', marginTop: 12, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 11, borderRadius: 10 }} />
+            )}
+            <button className="btn grad" style={{ marginTop: 14 }} onClick={create} disabled={busy || sel.length === 0}>
+              {sel.length === 0 ? 'Pick someone' : isGroup ? `Create group · ${sel.length} people` : `Message ${sel[0].label}`}
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
