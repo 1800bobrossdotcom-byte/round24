@@ -1,12 +1,21 @@
 /* ===================== IMPORT WIZARD ===================== */
 .stepper { display:flex; gap:8px; margin-bottom:20px; }
-.stepper .st { flex:1; display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700;
+.stepper .st { flex:1; min-width:0; display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700;
   color:var(--text-faint); padding:10px 12px; border:1px solid var(--line-soft); border-radius:10px; }
+.stepper .st .lbl { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .stepper .st .n { width:20px; height:20px; border-radius:50%; display:grid; place-items:center;
   font-family:var(--mono); font-size:11px; background:var(--surface-3); color:var(--text-dim); flex:none; }
 .stepper .st.on { color:var(--text); border-color:transparent; background:var(--grad-soft); }
 .stepper .st.on .n { background:var(--grad); color:var(--bg); }
 .stepper .st.done .n { background:var(--money); color:var(--bg); }
+/* mobile: numbered circles only; the active step keeps its label */
+@media (max-width:560px) {
+  .stepper { gap:6px; }
+  .stepper .st { justify-content:center; padding:9px 6px; }
+  .stepper .st .lbl { display:none; }
+  .stepper .st.on { flex:2; }
+  .stepper .st.on .lbl { display:inline; }
+}
 
 .dropzone {
   border:2px dashed var(--line); border-radius:var(--r-lg); padding:44px 20px; text-align:center;

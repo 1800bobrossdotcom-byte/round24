@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { byProp, byUnit, byCategory, totals, fmtMoney, fmtHrs } from '../lib/rollups.js';
+import { IcChevron } from '../components/ui.jsx';
 
 export default function Properties({ store }) {
   const { timers, properties, propById } = store;
@@ -16,7 +17,7 @@ export default function Properties({ store }) {
     const umax = Math.max(...units.map((u) => u.cost), 1);
     return (
       <div>
-        <button className="btn ghost sm" onClick={() => setSel(null)} style={{ marginBottom: 14 }}>← All properties</button>
+        <button className="btn ghost sm" onClick={() => setSel(null)} style={{ marginBottom: 14 }}><IcChevron width={14} height={14} style={{ transform: 'rotate(180deg)' }} /> All properties</button>
         <div className="view-head"><h1>{p.name}</h1><p>{p.city} · {p.units} units</p></div>
         <div className="grid g3" style={{ marginBottom: 'var(--gap)' }}>
           <div className="card"><div className="stat"><span className="k">Labor cost</span><span className="v mono grad-text settle sm">{fmtMoney(t.cost)}</span></div></div>

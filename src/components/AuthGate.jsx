@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { supabase, isConfigured, signIn, signOut, getSession, onAuthChange, updatePassword, fetchMembership } from '../lib/backend/supabase.js';
-import { Mark } from './ui.jsx';
+import { Mark, IcGear, IcLogout, IcWrench, IcChart, IcX, IcCheck, IcChevron } from './ui.jsx';
 
 // role drives which tools are visible: admin/manager see the full suite
 // incl. financials; tech (contractors) get field tools only; viewer is
@@ -97,11 +97,13 @@ function Login() {
           <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 26 }}>Labor, measured true. Pick your door.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
             {Object.entries(PORTALS).map(([key, p]) => (
-              <button key={key} onClick={() => pick(key)} className="card" style={{
+              <button key={key} onClick={() => pick(key)} className="card portal-card" style={{
                 cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)', color: 'var(--text)',
                 border: '1px solid var(--line)', padding: 22,
               }}>
-                <div style={{ fontSize: 26, marginBottom: 8 }}>{key === 'crew' ? '🔧' : '📊'}</div>
+                <div style={{ marginBottom: 10, color: 'var(--accent)' }}>
+                  {key === 'crew' ? <IcWrench width={26} height={26} /> : <IcChart width={26} height={26} />}
+                </div>
                 <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 4 }}>{p.title}</div>
                 <div style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 12 }}>{p.tagline}</div>
                 {p.points.map((pt) => (
@@ -136,7 +138,10 @@ function LoginForm({ portal, onSwitch }) {
       <div style={{ width: '100%', maxWidth: 360 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginBottom: 8 }}>
           <Mark /> <span style={{ fontWeight: 800, fontSize: 22 }}>Caliper</span>
-          <span className="chip" style={{ marginLeft: 2 }}>{portal === 'crew' ? '🔧 crew' : '📊 office'}</span>
+          <span className="chip" style={{ marginLeft: 2, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            {portal === 'crew' ? <IcWrench width={12} height={12} /> : <IcChart width={12} height={12} />}
+            {portal === 'crew' ? 'crew' : 'office'}
+          </span>
         </div>
         <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 24 }}>{p.tagline}</p>
 
@@ -159,8 +164,9 @@ function LoginForm({ portal, onSwitch }) {
           Protected by row-level security. Sensitive data is AES-256 encrypted at rest.
         </p>
         <p className="note" style={{ textAlign: 'center', marginTop: 6 }}>
-          <a onClick={onSwitch} style={{ color: 'var(--info)', cursor: 'pointer' }}>
-            {portal === 'crew' ? 'Office staff? Switch portal →' : 'On the crew? Switch portal →'}
+          <a onClick={onSwitch} style={{ color: 'var(--info)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            {portal === 'crew' ? 'Office staff? Switch portal' : 'On the crew? Switch portal'}
+            <IcChevron width={12} height={12} />
           </a>
         </p>
       </div>
@@ -176,7 +182,9 @@ const inputStyle = {
 export function SignOutButton() {
   if (!isConfigured()) return null;
   return (
-    <button className="btn ghost sm" onClick={signOut} style={{ fontSize: 12 }}>Sign out</button>
+    <button className="btn ghost sm icon-btn" onClick={signOut} title="Sign out" aria-label="Sign out">
+      <IcLogout width={16} height={16} /> <span className="btn-label">Sign out</span>
+    </button>
   );
 }
 
@@ -185,7 +193,9 @@ export function AccountButton() {
   if (!isConfigured()) return null;
   return (
     <>
-      <button className="btn ghost sm" onClick={() => setOpen(true)} style={{ fontSize: 12 }}>Account</button>
+      <button className="btn ghost sm icon-btn" onClick={() => setOpen(true)} title="Account" aria-label="Account">
+        <IcGear width={16} height={16} /> <span className="btn-label">Account</span>
+      </button>
       {open && <ChangePasswordModal onClose={() => setOpen(false)} />}
     </>
   );
@@ -217,12 +227,12 @@ function ChangePasswordModal({ onClose }) {
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18 }}>
           <span style={{ fontWeight: 800, fontSize: 16 }}>Change password</span>
           <div style={{ flex: 1 }} />
-          <button className="btn ghost sm" onClick={onClose} style={{ fontSize: 12 }}>✕</button>
+          <button className="btn ghost sm icon-btn" onClick={onClose} aria-label="Close"><IcX width={15} height={15} /></button>
         </div>
 
         {done ? (
           <>
-            <p style={{ color: 'var(--text)', fontSize: 14, marginBottom: 20 }}>✓ Password updated.</p>
+            <p style={{ color: 'var(--text)', fontSize: 14, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}><IcCheck width={16} height={16} /> Password updated.</p>
             <button className="btn grad" onClick={onClose}>Done</button>
           </>
         ) : (

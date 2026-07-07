@@ -21,8 +21,10 @@ export default function Dashboard({ store }) {
         <p>{meta.org} · every hour allocated to a property and unit</p>
       </div>
 
-      <div className="grid g3" style={{ marginBottom: 'var(--gap)' }}>
-        <div className="card"><Stat hero grad k="True labor cost" v={fmtMoney(t.cost)} d={`${fmtHrs(t.hrs)} hrs logged`} /></div>
+      <div className="card" style={{ marginBottom: 'var(--gap)' }}>
+        <Stat hero grad k="True labor cost" v={fmtMoney(t.cost)} d={`${fmtHrs(t.hrs)} hrs logged`} />
+      </div>
+      <div className="grid g2" style={{ marginBottom: 'var(--gap)' }}>
         <div className="card"><Stat k="Work sessions" v={t.count.toLocaleString()} d="timers closed" /></div>
         <div className="card"><Stat k="Blended rate" v={'$' + (t.cost / t.hrs).toFixed(2)} d="per hour, loaded" /></div>
       </div>

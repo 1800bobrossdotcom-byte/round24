@@ -32,6 +32,21 @@ export const IcWrench = P(<><path d="M20.3 5.1a5 5 0 0 1-6.6 6.6L7 18.4a2.1 2.1 
 export const IcReceipt = P(<><path d="M5 3h14v18l-2.3-1.5L14.4 21l-2.4-1.5L9.6 21l-2.3-1.5L5 21zM9 8h6M9 12h6"/></>);
 export const IcDoc = P(<><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></>);
 export const IcPlug = P(<><path d="M9 2v6M15 2v6M7 8h10v3a5 5 0 0 1-10 0zM12 16v6"/></>);
+export const IcMore = P(<><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>);
+export const IcLogout = P(<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></>);
+export const IcGear = P(<><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></>);
+export const IcMic = P(<><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3M8 22h8"/></>);
+export const IcCoffee = P(<><path d="M4 8h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5zM17 9h2a2 2 0 0 1 0 4h-2M7 1v2M11 1v2M15 1v2"/></>);
+export const IcUtensils = P(<><path d="M4 2v7a3 3 0 0 0 3 3v10M7 2v6M10 2v6M18 2c-1.7 0-3 2-3 5.5S16.3 13 18 13v9"/></>);
+export const IcClip = P(<><path d="M21 8l-9.6 9.6a4 4 0 0 1-5.7-5.7l9.2-9.2a2.5 2.5 0 0 1 3.5 3.5l-9.1 9.1a1 1 0 0 1-1.4-1.4l8.4-8.4"/></>);
+export const IcCheck = P(<><path d="M20 6L9 17l-5-5"/></>);
+export const IcX = P(<><path d="M18 6L6 18M6 6l12 12"/></>);
+export const IcSync = P(<><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v5h-5"/></>);
+export const IcUpload = P(<><path d="M12 15V3M7 8l5-5 5 5M5 21h14"/></>);
+export const IcChart = P(<><path d="M3 3v18h18"/><path d="M8 14v4M13 9v9M18 5v13"/></>);
+export const IcBell = P(<><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></>);
+export const IcActivity = P(<><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></>);
+export const IcChevron = P(<><path d="M9 18l6-6-6-6"/></>);
 
 const PALS = ['#ff7a18', '#ff3d81', '#4ade80', '#38bdf8', '#a855f7', '#ffd21a', '#ff5a5a', '#22d3ee'];
 export function Avatar({ name, i = 0 }) {

@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
+import { IcMic, IcX, IcPlay } from '../components/ui.jsx';
 
 // ---- voice → structured work order ----------------------------------
 // "create work order unit 4B leaking faucet for Gianni tomorrow at 301 Central"
@@ -166,7 +167,7 @@ export default function WorkOrders({ store }) {
               + New work order
             </button>
             <button className={'btn ' + (listening ? 'stop' : 'ghost')} style={{ flex: 1 }} onClick={listening ? stopVoice : startVoice}>
-              {listening ? '◉ Listening… tap to finish' : '🎤 Speak a work order'}
+              <IcMic width={16} height={16} /> {listening ? 'Listening… tap to finish' : 'Speak a work order'}
             </button>
           </div>
           {listening && (
@@ -254,9 +255,9 @@ function WoRow({ w, setWoStatus, setWoPriority, isStaff, done }) {
           {!done && <span style={{ color: pr.color, marginRight: 6 }}>●</span>}{w.task}
         </div>
         <div className="s">
-          {[w.propLabel, w.unit && `Unit ${w.unit}`, w.category, w.assigneeLabel && `→ ${w.assigneeLabel}`, w.due && `due ${w.due}`]
+          {[w.propLabel, w.unit && `Unit ${w.unit}`, w.category, w.assigneeLabel && `to ${w.assigneeLabel}`, w.due && `due ${w.due}`]
             .filter(Boolean).join(' · ')}
-          {w.source === 'voice' && ' · 🎤'}
+          {w.source === 'voice' && <IcMic width={11} height={11} style={{ marginLeft: 5, verticalAlign: '-1px' }} />}
         </div>
       </div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -274,7 +275,7 @@ function WoRow({ w, setWoStatus, setWoPriority, isStaff, done }) {
         <span className="chip" style={{ color: STATUS_COLORS[w.status] }}>{w.status.replace('_', ' ')}</span>
         {w.status === 'open' && <button className="btn ghost sm" onClick={() => setWoStatus(w.id, 'in_progress')}>Start</button>}
         {w.status === 'in_progress' && <button className="btn ghost sm" onClick={() => setWoStatus(w.id, 'done')}>Done</button>}
-        {isStaff && !done && <button className="btn ghost sm" style={{ color: 'var(--text-faint)' }} onClick={() => setWoStatus(w.id, 'cancelled')}>✕</button>}
+        {isStaff && !done && <button className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)' }} onClick={() => setWoStatus(w.id, 'cancelled')} aria-label="Cancel"><IcX width={14} height={14} /></button>}
       </div>
     </div>
   );

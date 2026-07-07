@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AuthGate, SignOutButton, AccountButton, useAuth } from './components/AuthGate.jsx';
 import { useStore } from './lib/store.js';
-import { Mark, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug } from './components/ui.jsx';
+import { Mark, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX } from './components/ui.jsx';
 import Dashboard from './views/Dashboard.jsx';
 import Field from './views/Field.jsx';
 import Properties from './views/Properties.jsx';
@@ -16,11 +16,13 @@ import Integrations from './views/Integrations.jsx';
 // which roles see which tools: the Crew portal (tech) gets field work —
 // orders, timer, receipts, shared docs. The Office portal (admin/manager)
 // runs the whole operation. RLS + getdek enforce the same split server-side.
+// `primary` tabs surface directly in the mobile bottom bar; the rest fold
+// into a "More" sheet so the bar never overflows.
 const TABS = [
-  { id: 'dash', label: 'Dashboard', Icon: IcDash, View: Dashboard, roles: ['admin', 'manager', 'viewer'] },
-  { id: 'field', label: 'Field', Icon: IcClock, View: Field, roles: ['admin', 'manager', 'tech'] },
-  { id: 'wo', label: 'Work Orders', Icon: IcWrench, View: WorkOrders, roles: ['admin', 'manager', 'tech', 'viewer'] },
-  { id: 'pur', label: 'Purchases', Icon: IcReceipt, View: Purchases, roles: ['admin', 'manager', 'tech'] },
+  { id: 'dash', label: 'Dashboard', Icon: IcDash, View: Dashboard, roles: ['admin', 'manager', 'viewer'], primary: true },
+  { id: 'field', label: 'Field', Icon: IcClock, View: Field, roles: ['admin', 'manager', 'tech'], primary: true },
+  { id: 'wo', label: 'Orders', Icon: IcWrench, View: WorkOrders, roles: ['admin', 'manager', 'tech', 'viewer'], primary: true },
+  { id: 'pur', label: 'Purchases', Icon: IcReceipt, View: Purchases, roles: ['admin', 'manager', 'tech'], primary: true },
   { id: 'docs', label: 'Docs', Icon: IcDoc, View: Documents, roles: ['admin', 'manager', 'tech', 'viewer'] },
   { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, roles: ['admin', 'manager', 'viewer'] },
   { id: 'props', label: 'Properties', Icon: IcBuilding, View: Properties, roles: ['admin', 'manager', 'viewer'] },
@@ -29,35 +31,51 @@ const TABS = [
   { id: 'integrations', label: 'Integrations', Icon: IcPlug, View: Integrations, roles: ['admin', 'manager'] },
 ];
 
+const MAX_BAR = 5; // slots in the mobile bottom bar (incl. a possible "More")
+
 function Shell() {
   const store = useStore();
   const { role } = useAuth();
   const tabs = TABS.filter((t) => t.roles.includes(role));
   const [tab, setTab] = useState(tabs[0].id);
+  const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => {
     if (!tabs.some((t) => t.id === tab)) setTab(tabs[0].id);
   }, [role]); // role change (re-login) can invalidate the active tab
   const Active = (tabs.find((t) => t.id === tab) || tabs[0]).View;
 
+  // mobile bottom bar: show every tab directly if they fit; otherwise
+  // fill the first slots and fold the rest into "More" (no wasted slot
+  // for a lone overflow item).
+  const fits = tabs.length <= MAX_BAR;
+  const primary = fits ? tabs : tabs.slice(0, MAX_BAR - 1);
+  const overflow = fits ? [] : tabs.slice(MAX_BAR - 1);
+  const go = (id) => { setTab(id); setMoreOpen(false); };
+
   // live task-list notifications (priority changes, new assignments)
   const { woNotice, clearWoNotice } = store;
   useEffect(() => {
     if (!woNotice) return;
-    const t = setTimeout(clearWoNotice, 6000);
+    const t = setTimeout(clearWoNotice, 7000);
     return () => clearTimeout(t);
   }, [woNotice]);
 
   return (
     <div className="app desk">
       {woNotice && (
-        <div className="toast" onClick={clearWoNotice}>📣 {woNotice.msg}</div>
+        <div className={`toast prio-${woNotice.priority || 'info'}`} role="alert" onClick={clearWoNotice}>
+          <IcBell width={18} height={18} />
+          <span className="toast-msg">{woNotice.msg}</span>
+          <IcX width={15} height={15} className="toast-x" />
+        </div>
       )}
-      {/* desktop side rail brand (hidden on mobile) */}
-      <nav className="tabbar">
+
+      {/* desktop side rail — all tabs (vertical, scrolls) */}
+      <nav className="tabbar nav-desktop">
         <div className="desk-brand"><Mark /> Caliper</div>
         {tabs.map(({ id, label, Icon }) => (
           <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
-            <Icon /> <span>{label}</span>
+            <Icon width={22} height={22} /> <span>{label}</span>
           </button>
         ))}
       </nav>
@@ -72,6 +90,35 @@ function Shell() {
         </header>
         <main className="content"><Active store={store} /></main>
       </div>
+
+      {/* mobile bottom bar — primary tabs + More */}
+      <nav className="tabbar nav-mobile">
+        {primary.map(({ id, label, Icon }) => (
+          <button key={id} className={tab === id ? 'active' : ''} onClick={() => go(id)}>
+            <Icon width={22} height={22} /> <span>{label}</span>
+          </button>
+        ))}
+        {overflow.length > 0 && (
+          <button className={overflow.some((t) => t.id === tab) ? 'active' : ''} onClick={() => setMoreOpen(true)}>
+            <IcMore width={22} height={22} /> <span>More</span>
+          </button>
+        )}
+      </nav>
+
+      {moreOpen && (
+        <div className="sheet-backdrop" onClick={() => setMoreOpen(false)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-grip" />
+            <div className="sheet-grid">
+              {overflow.map(({ id, label, Icon }) => (
+                <button key={id} className={tab === id ? 'active' : ''} onClick={() => go(id)}>
+                  <Icon width={24} height={24} /> <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

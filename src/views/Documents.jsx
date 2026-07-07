@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { isConfigured, signedFileUrl } from '../lib/backend/supabase.js';
+import { IcUpload } from '../components/ui.jsx';
 
 // org document shelf — leases, insurance certs, W-9s, house rules.
 // staff upload (org-wide or staff-only); crew see org-visible docs.
@@ -54,7 +55,7 @@ export default function Documents({ store }) {
               <button className={visibility === 'staff' ? 'on' : ''} onClick={() => setVisibility('staff')}>office only</button>
             </div>
             <button className="btn grad sm" style={{ flex: 1 }} disabled={busy || docBackend !== 'db'} onClick={() => fileRef.current.click()}>
-              {busy ? 'Uploading…' : '⇪ Choose file'}
+              <IcUpload width={15} height={15} /> {busy ? 'Uploading…' : 'Choose file'}
             </button>
           </div>
           <input ref={fileRef} type="file" hidden onChange={(e) => { upload(e.target.files[0]); e.target.value = ''; }} />

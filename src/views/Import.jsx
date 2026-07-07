@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { parseWorkbook, toTimers } from '../lib/importParser.js';
 import { fmtMoney, fmtHrs } from '../lib/rollups.js';
+import { IcCheck, IcImport } from '../components/ui.jsx';
 
 const STEPS = ['Upload', 'Select sheets', 'Review & assign', 'Done'];
 
@@ -85,7 +86,7 @@ export default function Import({ store }) {
       <div className="stepper">
         {STEPS.map((s, i) => (
           <div key={s} className={`st${i === step ? ' on' : ''}${i < step ? ' done' : ''}`}>
-            <span className="n">{i < step ? '✓' : i + 1}</span>{s}
+            <span className="n">{i < step ? <IcCheck width={12} height={12} /> : i + 1}</span><span className="lbl">{s}</span>
           </div>
         ))}
       </div>
@@ -102,7 +103,7 @@ export default function Import({ store }) {
             onDragLeave={() => setDrag(false)}
             onDrop={(e) => { e.preventDefault(); setDrag(false); handleFile(e.dataTransfer.files[0]); }}
           >
-            <div className="ic">▤</div>
+            <div className="ic" style={{ color: 'var(--text-faint)', display: 'flex', justifyContent: 'center' }}><IcImport width={34} height={34} /></div>
             <div className="big">Drop your pay-log spreadsheet here</div>
             <div className="sm">or tap to browse · .xlsx files</div>
           </div>
@@ -119,7 +120,7 @@ export default function Import({ store }) {
           </p>
           {sheets.filter((s) => s.entryCount > 0).map((s) => (
             <div key={s.name} className={`sheet-card${selected.includes(s.name) ? ' sel' : ''}${!s.looksPayLog ? ' skip' : ''}`} onClick={() => toggle(s.name)}>
-              <div className="cb">{selected.includes(s.name) ? '✓' : ''}</div>
+              <div className="cb">{selected.includes(s.name) ? <IcCheck width={14} height={14} /> : ''}</div>
               <div className="info">
                 <div className="n">{s.techName}</div>
                 <div className="m">{s.name}{!s.looksPayLog ? ' · not a pay log?' : ''}</div>
@@ -141,10 +142,10 @@ export default function Import({ store }) {
       {step === 2 && (
         <>
           <div className="flagbar">
-            <div className="flag-pill ok">✓ {techsNeeding.reduce((a, t) => a + t.entries, 0)} workdays parsed</div>
+            <div className="flag-pill ok"><IcCheck width={13} height={13} /> {techsNeeding.reduce((a, t) => a + t.entries, 0)} workdays parsed</div>
             {totalMissing > 0
               ? <div className="flag-pill warn">! {totalMissing} entries missing a rate — set it below</div>
-              : <div className="flag-pill ok">✓ every entry has a rate</div>}
+              : <div className="flag-pill ok"><IcCheck width={13} height={13} /> every entry has a rate</div>}
           </div>
 
           <div className="card">
@@ -184,7 +185,7 @@ export default function Import({ store }) {
       {step === 3 && result && (
         <>
           <div className="card" style={{ textAlign: 'center', padding: 30 }}>
-            <div style={{ fontSize: 40 }}>✓</div>
+            <div style={{ color: 'var(--money)', display: 'flex', justifyContent: 'center' }}><IcCheck width={38} height={38} /></div>
             <div className="v mono grad-text settle" style={{ fontSize: 34, fontWeight: 700, margin: '10px 0' }}>{result.count.toLocaleString()}</div>
             <div style={{ color: 'var(--text-dim)', fontWeight: 700 }}>work entries imported</div>
           </div>
@@ -197,7 +198,7 @@ export default function Import({ store }) {
             ◑ {result.unalloc} entries are property-unallocated — the next step is tagging which building each belongs to (exactly the split Gianni does by hand). That unlocks true cost per property.
           </div>
           <div className="offline" style={{ color: 'var(--money)', borderColor: '#4ade8033', background: '#4ade8012' }}>
-            ✓ Live in your charts — check the Dashboard, Calendar, and Team views. The date range has been widened to cover the imported period.
+            <IcCheck width={14} height={14} /> Live in your charts — check the Dashboard, Calendar, and Team views. The date range has been widened to cover the imported period.
           </div>
           <div className="wizard-actions">
             <button className="btn ghost" onClick={() => { setStep(0); setSheets([]); setSelected([]); setResult(null); }}>Import another file</button>

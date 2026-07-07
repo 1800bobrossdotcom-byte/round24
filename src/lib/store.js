@@ -120,8 +120,13 @@ export function useStore() {
   useEffect(() => {
     if (!isConfigured() || !orgId || woBackend !== 'db') return;
     const PRIO = { 1: 'URGENT', 2: 'high', 3: 'normal', 4: 'low' };
-    const notify = (msg) => {
-      setWoNotice({ msg, ts: Date.now() });
+    const PRIO_KIND = { 1: 'urgent', 2: 'high', 3: 'info', 4: 'info' };
+    const notify = (msg, priority = 'info') => {
+      setWoNotice({ msg, ts: Date.now(), priority });
+      // haptic buzz on supporting devices makes it pronounced on mobile
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try { navigator.vibrate(priority === 'urgent' ? [80, 40, 80] : 40); } catch { /* unsupported */ }
+      }
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         try { new Notification('Caliper', { body: msg }); } catch { /* mobile needs a SW; the in-app toast covers it */ }
       }
@@ -137,14 +142,14 @@ export function useStore() {
         };
         if (!woRef.current.some((w) => w.id === wo.id)) {
           setWorkOrders((l) => l.some((w) => w.id === wo.id) ? l : [wo, ...l]);
-          notify(`New work order: ${wo.task}`);
+          notify(`New work order: ${wo.task}`, PRIO_KIND[wo.priority] || 'info');
         }
       } else if (eventType === 'UPDATE') {
         const upd = payload.new;
         const prev = woRef.current.find((w) => w.id === upd.id);
         // announce only changes we didn't already apply locally (someone else's edit)
         if (prev && (upd.priority ?? 3) !== (prev.priority ?? 3)) {
-          notify(`Priority changed: “${upd.task}” is now ${PRIO[upd.priority ?? 3]}`);
+          notify(`Priority changed: “${upd.task}” is now ${PRIO[upd.priority ?? 3]}`, PRIO_KIND[upd.priority ?? 3] || 'info');
         } else if (prev && upd.status !== prev.status) {
           notify(`“${upd.task}” is now ${upd.status.replace('_', ' ')}`);
         }

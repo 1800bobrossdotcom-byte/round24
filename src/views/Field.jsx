@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { fmtHrs } from '../lib/rollups.js';
 import { categoryMedian } from '../lib/rollups.js';
 import { WO_PRIORITIES, byPriority } from './WorkOrders.jsx';
+import { IcCoffee, IcUtensils, IcActivity, IcCheck, IcPlay } from '../components/ui.jsx';
 
 const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'painting', 'turn', 'general', 'inspection'];
 
@@ -124,7 +125,7 @@ export default function Field({ store }) {
                 <div className="t"><span style={{ color: WO_PRIORITIES[w.priority ?? 3].color, marginRight: 6 }}>●</span>{w.task}</div>
                 <div className="s">{[WO_PRIORITIES[w.priority ?? 3].label, w.propLabel, w.unit && `Unit ${w.unit}`, w.category, w.due && `due ${w.due}`].filter(Boolean).join(' · ')}</div>
               </div>
-              <button className="btn ghost sm" onClick={() => startFromWo(w)}>▶ Start</button>
+              <button className="btn ghost sm" onClick={() => startFromWo(w)}><IcPlay width={13} height={13} /> Start</button>
             </div>
           ))}
         </div>
@@ -132,25 +133,26 @@ export default function Field({ store }) {
 
       {running && onBreak ? (
         <div className="timer-live" style={{ borderColor: '#4ade8044' }}>
-          <div style={{ fontSize: 30 }}>☕</div>
+          <div style={{ color: 'var(--money)', display: 'flex', justifyContent: 'center', marginBottom: 4 }}><IcCoffee width={30} height={30} /></div>
           <div className="clock mono" style={{ color: 'var(--money)' }}>
             {String(Math.floor(breakNow / 60)).padStart(2, '0')}:{String(Math.floor(breakNow % 60)).padStart(2, '0')}
           </div>
           <div className="meta">On break — the job clock is paused at {hh}:{mm}:{ss}. Break time never bills.</div>
           <div style={{ height: 14 }} />
-          <a className="btn ghost" style={{ display: 'block', textDecoration: 'none', textAlign: 'center', marginBottom: 10 }}
+          <a className="btn ghost" style={{ marginBottom: 10, textDecoration: 'none' }}
             href={foodUrl(properties.find((p) => p.id === running.propId))} target="_blank" rel="noreferrer">
-            🍔 Food near the job site
+            <IcUtensils width={16} height={16} /> Food near the job site
           </a>
-          <button className="btn grad" onClick={endBreak}>▶ Back to work</button>
+          <button className="btn grad" onClick={endBreak}><IcPlay width={15} height={15} /> Back to work</button>
         </div>
       ) : running ? (
         <div className="timer-live">
           {nudge && (
             <div className="offline" style={{ textAlign: 'left', color: 'var(--money)', borderColor: '#4ade8033', background: '#4ade8012' }}>
-              {nudge === 'lunch' ? '🍔 Lunchtime — grab a bite?' : `💪 ${Math.floor(elapsed / 3600)}h straight — stretch those legs?`}
+              {nudge === 'lunch' ? <IcUtensils width={16} height={16} /> : <IcActivity width={16} height={16} />}
+              <span style={{ marginLeft: 2 }}>{nudge === 'lunch' ? 'Lunchtime — grab a bite?' : `${Math.floor(elapsed / 3600)}h straight — stretch those legs?`}</span>
               <span style={{ flex: 1 }} />
-              <button className="btn ghost sm" onClick={startBreak}>Take a break</button>
+              <button className="btn ghost sm" onClick={startBreak}>Break</button>
               <button className="btn ghost sm" style={{ color: 'var(--text-faint)' }}
                 onClick={() => { setLastNudge(elapsed); if (nudge === 'lunch') setLunchNudged(true); }}>Later</button>
             </div>
@@ -162,10 +164,10 @@ export default function Field({ store }) {
           </div>
           <div style={{ height: 18 }} />
           <button className="btn stop" onClick={stop}>Stop &amp; log to this job</button>
-          <button className="btn ghost" style={{ marginTop: 10 }} onClick={startBreak}>☕ Take a break</button>
+          <button className="btn ghost" style={{ marginTop: 10 }} onClick={startBreak}><IcCoffee width={16} height={16} /> Take a break</button>
           {running.woId && (
             <button className="btn ghost" style={{ marginTop: 10 }} onClick={() => { setWoStatus(running.woId, 'done'); stop(); }}>
-              ✓ Stop &amp; mark work order done
+              <IcCheck width={15} height={15} /> Stop &amp; mark work order done
             </button>
           )}
         </div>
@@ -188,7 +190,7 @@ export default function Field({ store }) {
           <p className="note" style={{ marginTop: 4 }}>Typical {cat} job runs {fmtHrs(median)} hrs here — you'll see this job measured against that when you stop.</p>
 
           <div style={{ height: 16 }} />
-          <button className="btn grad" onClick={start}>▶ Start timer</button>
+          <button className="btn grad" onClick={start}><IcPlay width={16} height={16} /> Start timer</button>
         </div>
       )}
 
@@ -209,8 +211,8 @@ export default function Field({ store }) {
                 <div className="val">
                   <div className="big">{fmtHrs(l.hrs)}h</div>
                   <div className="small money">${l.cost.toFixed(2)}</div>
-                  {l.sync && <div className="small" style={{ color: l.sync === 'synced' ? 'var(--money)' : 'var(--text-faint)' }}>
-                    {l.sync === 'synced' ? '✓ synced' : l.sync === 'queued' ? '◐ syncs when online' : l.sync === 'saving' ? '…' : '· this device'}
+                  {l.sync && <div className="small" style={{ color: l.sync === 'synced' ? 'var(--money)' : 'var(--text-faint)', display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end' }}>
+                    {l.sync === 'synced' ? <><IcCheck width={11} height={11} /> synced</> : l.sync === 'queued' ? 'syncs when online' : l.sync === 'saving' ? 'saving…' : 'this device'}
                   </div>}
                 </div>
               </div>

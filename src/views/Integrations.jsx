@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../components/AuthGate.jsx';
 import { isConfigured, triggerRmSync, getRmConnection, countExternal } from '../lib/backend/supabase.js';
+import { IcBuilding, IcPlug, IcSync, IcPlay, IcCheck } from '../components/ui.jsx';
 
 // office-only. Rent Manager read-only sync: preview runs the full pipeline
 // on sample data today; live sync activates when RM access lands.
@@ -47,11 +48,11 @@ export default function Integrations({ store }) {
 
       {!isConfigured() && <div className="offline">◐ Connect Supabase to enable integrations.</div>}
       {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{err}</div>}
-      {msg && <div className="offline" style={{ color: 'var(--money)', borderColor: '#4ade8033', background: '#4ade8012' }}>✓ {msg}</div>}
+      {msg && <div className="offline" style={{ color: 'var(--money)', borderColor: '#4ade8033', background: '#4ade8012' }}><IcCheck width={15} height={15} /> {msg}</div>}
 
       <div className="card">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
-          <div style={{ fontSize: 24 }}>🏢</div>
+          <div style={{ color: 'var(--accent)' }}><IcBuilding width={24} height={24} /></div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 800, fontSize: 16 }}>Rent Manager</div>
             <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>Accounting system of record · read-only property &amp; unit sync</div>
@@ -69,10 +70,10 @@ export default function Integrations({ store }) {
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="btn ghost" style={{ flex: 1, minWidth: 160 }} disabled={busy} onClick={() => sync(true)}>
-            {busy === 'mock' ? 'Running…' : '▷ Preview with sample data'}
+            <IcPlay width={15} height={15} /> {busy === 'mock' ? 'Running…' : 'Preview with sample data'}
           </button>
           <button className="btn grad" style={{ flex: 1, minWidth: 160 }} disabled={busy} onClick={() => sync(false)}>
-            {busy === 'live' ? 'Syncing…' : '↻ Sync from Rent Manager'}
+            <IcSync width={15} height={15} /> {busy === 'live' ? 'Syncing…' : 'Sync from Rent Manager'}
           </button>
         </div>
 
@@ -94,7 +95,7 @@ export default function Integrations({ store }) {
 
       <div className="card" style={{ marginTop: 'var(--gap)', opacity: .6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ fontSize: 24 }}>📇</div>
+          <div style={{ color: 'var(--text-dim)' }}><IcPlug width={24} height={24} /></div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 800, fontSize: 16 }}>Google SSO &amp; Calendar</div>
             <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>Sign-in and scheduling</div>

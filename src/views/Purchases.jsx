@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { fmtMoneyC } from '../lib/rollups.js';
 import { isConfigured, signedFileUrl } from '../lib/backend/supabase.js';
+import { IcClip, IcCheck, IcX } from '../components/ui.jsx';
 
 // crew: submit material purchases with a receipt photo → office approves.
 // materials land on the same job-cost spine as labor.
@@ -88,7 +89,7 @@ export default function Purchases({ store }) {
           <div className="field-label">Receipt photo</div>
           <input type="file" accept="image/*" capture="environment" onChange={(e) => setFile(e.target.files[0] || null)}
             style={{ ...inputStyle, padding: 9 }} />
-          {file && <p className="note" style={{ marginTop: 6 }}>📎 {file.name}</p>}
+          {file && <p className="note" style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 5 }}><IcClip width={12} height={12} /> {file.name}</p>}
           {!isConfigured() && <p className="note" style={{ marginTop: 6 }}>Photo uploads activate once connected to the cloud.</p>}
 
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
@@ -136,8 +137,8 @@ function PurRow({ p, isStaff, setPurchaseStatus, decided }) {
         <span className="chip" style={{ color: STATUS_COLORS[p.status] }}>{p.status}</span>
         {isStaff && !decided && (
           <>
-            <button className="btn ghost sm" style={{ color: 'var(--money)' }} onClick={() => setPurchaseStatus(p.id, 'approved')}>✓</button>
-            <button className="btn ghost sm" style={{ color: 'var(--danger)' }} onClick={() => setPurchaseStatus(p.id, 'rejected')}>✕</button>
+            <button className="btn ghost sm icon-btn" style={{ color: 'var(--money)' }} onClick={() => setPurchaseStatus(p.id, 'approved')} aria-label="Approve"><IcCheck width={15} height={15} /></button>
+            <button className="btn ghost sm icon-btn" style={{ color: 'var(--danger)' }} onClick={() => setPurchaseStatus(p.id, 'rejected')} aria-label="Reject"><IcX width={15} height={15} /></button>
           </>
         )}
       </div>
