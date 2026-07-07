@@ -104,6 +104,29 @@ export function subscribeWorkOrders(orgId, cb) {
   return () => supabase.removeChannel(ch);
 }
 
+// ---- cloud timers: crew hours land where management can see them ----
+// RLS: a tech can only insert timers for their own operator record.
+export async function fetchMyOperatorId() {
+  const { data, error } = await supabase
+    .from('operators').select('id, user_id').limit(10);
+  if (error) throw error;
+  const { data: { user } } = await supabase.auth.getUser();
+  return data.find((o) => o.user_id === user?.id)?.id || null;
+}
+
+export async function insertTimer(orgId, operatorId, t) {
+  const { data, error } = await supabase.from('timers').insert({
+    org_id: orgId, operator_id: operatorId,
+    property_label: t.propLabel || null, unit: t.unit || null,
+    work_date: t.date, category: t.category || 'general',
+    issue: t.issue || null, duration_hrs: t.durationHrs,
+    note: t.note || null, work_order_id: t.workOrderId || null,
+    source: 'timer',
+  }).select('id').single();
+  if (error) throw error;
+  return data.id;
+}
+
 // ---- purchases (material receipts) ----
 const purFromDb = (r) => ({
   id: r.id, workOrderId: r.work_order_id, propLabel: r.property_label,

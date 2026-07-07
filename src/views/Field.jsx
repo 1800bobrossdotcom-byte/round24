@@ -88,11 +88,20 @@ export default function Field({ store }) {
 
   const resetBreaks = () => { setOnBreak(null); setBreakMs(0); setBreakNow(0); setLastNudge(0); setLunchNudged(false); };
   const start = () => { setRunning({ propId: prop, unit: unit || '—', category: cat, start: Date.now() }); setElapsed(0); resetBreaks(); };
-  const stop = () => {
-    const hrs = Math.max(0.05, elapsed / 3600);
+  const stop = async () => {
+    const hrs = Math.round(Math.max(0.05, elapsed / 3600) * 100) / 100;
     const p = properties.find((x) => x.id === running.propId);
-    setLog([{ id: Date.now(), prop: p.name, unit: running.unit, category: running.category, hrs, cost: hrs * me.rate }, ...log]);
+    const entryId = Date.now();
+    setLog([{ id: entryId, prop: p.name, unit: running.unit, category: running.category, hrs, cost: hrs * me.rate, sync: 'saving' }, ...log]);
     setRunning(null); setElapsed(0); resetBreaks();
+    // land the hours in the cloud so management sees them — queued if offline
+    const sync = await store.addTimerEntry({
+      propLabel: p.name, unit: running.unit === '—' ? null : running.unit,
+      date: new Date().toISOString().slice(0, 10), category: running.category,
+      durationHrs: hrs, note: running.woTask || null, workOrderId: running.woId || null,
+      issue: running.woTask || null,
+    });
+    setLog((l) => l.map((e) => (e.id === entryId ? { ...e, sync } : e)));
   };
 
   const median = categoryMedian(allTimers, cat);
@@ -197,7 +206,13 @@ export default function Field({ store }) {
                     {med > 0 && <> · {delta > 0.15 ? <span style={{ color: 'var(--warn)' }}>{fmtHrs(delta)}h over normal</span> : delta < -0.15 ? <span className="money">{fmtHrs(-delta)}h under</span> : 'on pace'}</>}
                   </div>
                 </div>
-                <div className="val"><div className="big">{fmtHrs(l.hrs)}h</div><div className="small money">${l.cost.toFixed(2)}</div></div>
+                <div className="val">
+                  <div className="big">{fmtHrs(l.hrs)}h</div>
+                  <div className="small money">${l.cost.toFixed(2)}</div>
+                  {l.sync && <div className="small" style={{ color: l.sync === 'synced' ? 'var(--money)' : 'var(--text-faint)' }}>
+                    {l.sync === 'synced' ? '✓ synced' : l.sync === 'queued' ? '◐ syncs when online' : l.sync === 'saving' ? '…' : '· this device'}
+                  </div>}
+                </div>
               </div>
             );
           })}

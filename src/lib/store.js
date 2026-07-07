@@ -6,11 +6,13 @@ import {
   updateWorkOrderPriority, subscribeWorkOrders,
   listPurchases, insertPurchase, setPurchaseStatus as dbSetPurchaseStatus, uploadReceipt,
   listDocuments, uploadDocument,
+  fetchMyOperatorId, insertTimer,
 } from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
 const WO_KEY = 'caliper_workorders_v1';
 const PUR_KEY = 'caliper_purchases_v1';
+const TQ_KEY = 'caliper_timerqueue_v1';   // offline queue for unsynced timer entries
 
 function loadLS(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -193,6 +195,42 @@ export function useStore() {
     }
   }, [purBackend]);
 
+  // ---- cloud timers: sync stopped sessions; queue offline, flush later ----
+  const [operatorId, setOperatorId] = useState(null);
+  useEffect(() => {
+    if (!isConfigured() || !orgId) return;
+    fetchMyOperatorId().then(setOperatorId).catch(() => setOperatorId(null));
+  }, [orgId]);
+
+  const flushTimerQueue = useCallback(async (opId) => {
+    if (!isConfigured() || !orgId || !opId) return;
+    const queue = loadLS(TQ_KEY, []);
+    if (!queue.length) return;
+    const remaining = [];
+    for (const t of queue) {
+      try { await insertTimer(orgId, opId, t); }
+      catch { remaining.push(t); }
+    }
+    localStorage.setItem(TQ_KEY, JSON.stringify(remaining));
+  }, [orgId]);
+
+  useEffect(() => { if (operatorId) flushTimerQueue(operatorId); }, [operatorId, flushTimerQueue]);
+
+  // returns 'synced' | 'queued' | 'local'
+  const addTimerEntry = useCallback(async (t) => {
+    if (!isConfigured() || !orgId) return 'local';               // demo mode
+    if (!operatorId) {
+      // no operator record linked to this login (e.g. office staff) — queue
+      // would never flush, so don't pretend it will sync
+      return 'local';
+    }
+    try { await insertTimer(orgId, operatorId, t); flushTimerQueue(operatorId); return 'synced'; }
+    catch {
+      localStorage.setItem(TQ_KEY, JSON.stringify([...loadLS(TQ_KEY, []), t]));
+      return 'queued';
+    }
+  }, [orgId, operatorId, flushTimerQueue]);
+
   // ---- documents: DB+storage only (no meaningful local fallback for files) ----
   const [documents, setDocuments] = useState([]);
   const [docBackend, setDocBackend] = useState('none'); // 'db' | 'none'
@@ -225,6 +263,8 @@ export function useStore() {
     // work orders
     workOrders, addWorkOrder, setWoStatus, setWoPriority, woBackend,
     woNotice, clearWoNotice: () => setWoNotice(null),
+    // cloud timers
+    addTimerEntry, operatorId,
     // purchases
     purchases, addPurchase, setPurchaseStatus, purBackend,
     // documents
