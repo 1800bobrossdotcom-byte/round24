@@ -44,8 +44,12 @@ export function useStore() {
   const [imported, setImported] = useState(() => loadLS(IMP_KEY, { timers: [], techs: [] }));
   useEffect(() => { localStorage.setItem(IMP_KEY, JSON.stringify(imported)); }, [imported]);
 
-  const techs = useMemo(() => [...seed.techs, ...imported.techs], [imported.techs]);
-  const allTimers = useMemo(() => [...seed.timers, ...imported.timers], [imported.timers]);
+  // seed.json is SAMPLE data for the unconfigured demo experience only. A
+  // real, logged-in org must never see it mixed into its charts — it sees
+  // only its own imported/real data.
+  const demoMode = !isConfigured();
+  const techs = useMemo(() => [...(demoMode ? seed.techs : []), ...imported.techs], [imported.techs, demoMode]);
+  const allTimers = useMemo(() => [...(demoMode ? seed.timers : []), ...imported.timers], [imported.timers, demoMode]);
 
   const [range, setRange] = useState({ from: '2026-05-11', to: '2026-07-05' });
 
@@ -55,7 +59,7 @@ export function useStore() {
   const impPropsRef = useRef(impProps);
   useEffect(() => { impPropsRef.current = impProps; }, [impProps]);
 
-  const properties = useMemo(() => [...seed.properties, ...impProps], [impProps]);
+  const properties = useMemo(() => [...(demoMode ? seed.properties : []), ...impProps], [impProps, demoMode]);
   const propById = useMemo(() => Object.fromEntries(properties.map((p) => [p.id, p])), [properties]);
   const techById = useMemo(() => Object.fromEntries(techs.map((t) => [t.id, t])), [techs]);
 
@@ -63,7 +67,7 @@ export function useStore() {
   // not already known. Returns { label: id } synchronously so an import can
   // allocate immediately. Best-effort DB insert when connected.
   const ensureProperties = useCallback((labels) => {
-    const current = [...seed.properties, ...impPropsRef.current];
+    const current = [...(demoMode ? seed.properties : []), ...impPropsRef.current];
     const byName = new Map(current.map((p) => [normName(p.name), p.id]));
     const created = [];
     const map = {};

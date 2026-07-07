@@ -23,7 +23,7 @@ function loadTimer() {
 
 export default function Field({ store }) {
   const { properties, allTimers, workOrders, setWoStatus } = store;
-  const me = store.techs.find((t) => t.id === 't_gianni');
+  const me = store.techs.find((t) => t.id === 't_gianni') || { id: 'me', name: 'You', rate: 0 };
   const [running, setRunning] = useState(() => loadTimer().running ?? null); // {propId, unit, category, start, woId}
   const [elapsed, setElapsed] = useState(() => {
     const s = loadTimer();
@@ -31,7 +31,7 @@ export default function Field({ store }) {
     const end = s.onBreak ? s.onBreak.start : Date.now();
     return Math.max(0, (end - s.running.start - (s.breakMs || 0)) / 1000);
   });
-  const [prop, setProp] = useState(properties[0].id);
+  const [prop, setProp] = useState(properties[0]?.id || '');
   const [unit, setUnit] = useState('');
   const [cat, setCat] = useState('plumbing');
   const [log, setLog] = useState(() => loadTimer().log ?? []);
@@ -92,12 +92,13 @@ export default function Field({ store }) {
   const stop = async () => {
     const hrs = Math.round(Math.max(0.05, elapsed / 3600) * 100) / 100;
     const p = properties.find((x) => x.id === running.propId);
+    const pName = p?.name || 'Unassigned';
     const entryId = Date.now();
-    setLog([{ id: entryId, prop: p.name, unit: running.unit, category: running.category, hrs, cost: hrs * me.rate, sync: 'saving' }, ...log]);
+    setLog([{ id: entryId, prop: pName, unit: running.unit, category: running.category, hrs, cost: hrs * me.rate, sync: 'saving' }, ...log]);
     setRunning(null); setElapsed(0); resetBreaks();
     // land the hours in the cloud so management sees them — queued if offline
     const sync = await store.addTimerEntry({
-      propLabel: p.name, unit: running.unit === '—' ? null : running.unit,
+      propLabel: pName, unit: running.unit === '—' ? null : running.unit,
       date: new Date().toISOString().slice(0, 10), category: running.category,
       durationHrs: hrs, note: running.woTask || null, workOrderId: running.woId || null,
       issue: running.woTask || null,
@@ -111,7 +112,7 @@ export default function Field({ store }) {
     <div>
       <div className="view-head">
         <h1>Field</h1>
-        <p>{me.name} · ${me.rate}/hr · one timer per job</p>
+        <p>{me.name}{me.rate > 0 ? ` · $${me.rate}/hr` : ''} · one timer per job</p>
       </div>
 
       <div className="offline">◐ Offline-safe — timers and photos queue on-device, sync when signal returns.</div>

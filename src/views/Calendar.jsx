@@ -20,7 +20,8 @@ export default function Calendar({ store }) {
   }, [allTimers]);
 
   const latestDate = useMemo(
-    () => allTimers.reduce((a, t) => (t.date > a ? t.date : a), '1970-01-01'),
+    () => allTimers.reduce((a, t) => (t.date > a ? t.date : a),
+      allTimers.length ? '1970-01-01' : new Date().toISOString().slice(0, 10)),
     [allTimers]
   );
   const [ym, setYm] = useState(latestDate.slice(0, 7));

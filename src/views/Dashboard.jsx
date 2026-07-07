@@ -13,6 +13,24 @@ export default function Dashboard({ store }) {
   const props = byProp(timers).sort((a, b) => b.cost - a.cost).slice(0, 6);
   const techs = byTech(timers).sort((a, b) => b.cost - a.cost).slice(0, 5);
   const maxP = Math.max(...props.map((p) => p.cost), 1);
+  const blended = t.hrs > 0 ? '$' + (t.cost / t.hrs).toFixed(2) : '$0.00';
+
+  if (t.count === 0) {
+    return (
+      <div>
+        <div className="view-head">
+          <h1>Labor, measured true</h1>
+          <p>{meta.org} · every hour allocated to a property and unit</p>
+        </div>
+        <div className="card" style={{ textAlign: 'center', padding: 40 }}>
+          <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 6 }}>No labor data yet</div>
+          <p className="note" style={{ margin: '0 auto', maxWidth: 380 }}>
+            Import your pay logs from the <b>Import</b> tab to see true cost per building, or log time in the <b>Field</b> tab. Everything you add shows up here.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -26,7 +44,7 @@ export default function Dashboard({ store }) {
       </div>
       <div className="grid g2" style={{ marginBottom: 'var(--gap)' }}>
         <div className="card"><Stat k="Work sessions" v={t.count.toLocaleString()} d="timers closed" /></div>
-        <div className="card"><Stat k="Blended rate" v={'$' + (t.cost / t.hrs).toFixed(2)} d="per hour, loaded" /></div>
+        <div className="card"><Stat k="Blended rate" v={blended} d="per hour, loaded" /></div>
       </div>
 
       <div className="card">
