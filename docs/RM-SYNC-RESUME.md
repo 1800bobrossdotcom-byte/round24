@@ -36,6 +36,14 @@ July 2026). Preview/sample-data path is live and demoable now.
 - Multi-tenant later: move per-org creds into `rm_connections.credentials_enc`
   (encrypted via KMS DEK) instead of global secrets.
 
+## Follow-ups unblocked once RM units are synced
+- **Unit-level import allocation.** Excel import currently allocates rows to
+  a *building* (matched against the org's property list). Once RM units are
+  synced, extend the matcher in `src/views/Import.jsx` (`buildMatcher`) to
+  also resolve a **unit** from the row's text cells against the real RM unit
+  names, so imported hours land at unit level, not just building. Decision
+  (Jul 2026): deferred until RM units exist — don't guess a unit format.
+
 ## Partnership/funding note
 The preview path is deliberately demoable without RM access — it shows
 the integration producing real synced rows, useful for the RM partnership
