@@ -129,6 +129,30 @@
 .sheet-grid button.active svg { stroke: url(#cg); }
 @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @media (min-width: 900px) { .sheet-backdrop { display: none; } }
+/* allocate modal reuses the backdrop but must show on desktop too */
+.sheet-backdrop.alloc-backdrop { display: flex; align-items: flex-end; z-index: 200; }
+@media (min-width: 900px) { .sheet-backdrop.alloc-backdrop { align-items: center; justify-content: center; } }
+.alloc-modal {
+  width: 100%; max-width: 520px; max-height: 88vh; overflow-y: auto;
+  background: var(--surface); border-top: 1px solid var(--line);
+  border-top-left-radius: 18px; border-top-right-radius: 18px;
+  padding: 16px 16px calc(18px + var(--sab)); animation: sheet-up .24s var(--ease) both;
+}
+@media (min-width: 900px) { .alloc-modal { border-radius: 16px; border: 1px solid var(--line); } }
+.alloc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.alloc-controls { background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 12px; padding: 12px; }
+.alloc-list-head { display: flex; align-items: center; justify-content: space-between; margin: 14px 0 6px; }
+.alloc-list { display: flex; flex-direction: column; gap: 6px; max-height: 34vh; overflow-y: auto; }
+.alloc-row {
+  display: flex; align-items: center; gap: 11px; padding: 9px 10px;
+  border: 1px solid var(--line-soft); border-radius: 10px; cursor: pointer;
+}
+.alloc-row.on { border-color: var(--accent); background: var(--surface-2); }
+.alloc-row input { width: 17px; height: 17px; flex: none; accent-color: var(--accent); }
+.alloc-row .lead { flex: 1; min-width: 0; }
+.alloc-row .lead .t { font-weight: 700; font-size: 13px; }
+.alloc-row .lead .s { color: var(--text-dim); font-size: 11px; margin-top: 1px; }
+.alloc-row .val { font-weight: 700; font-size: 13px; }
 
 /* ---- cards ---- */
 .card {

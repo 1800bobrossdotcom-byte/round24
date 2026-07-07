@@ -136,6 +136,26 @@ export function useStore() {
     }
   }, [demoMode]);
 
+  // assign unallocated imported entries to a building (+ optional category/unit/
+  // note) so they move into the true-cost pipeline. Resolves the building label
+  // to a native property, creating it if new.
+  const allocateImported = useCallback((ids, { propLabel, category, unit, note } = {}) => {
+    const idSet = new Set(ids);
+    let propId = null;
+    if (propLabel) { const map = ensureProperties([propLabel]); propId = map[propLabel] || null; }
+    setImported((prev) => ({
+      ...prev,
+      timers: prev.timers.map((t) => (idSet.has(t.id) ? {
+        ...t,
+        propId: propId ?? t.propId,
+        unallocated: propId ? false : t.unallocated,
+        category: category || t.category,
+        unit: unit || t.unit,
+        issue: note || t.issue,
+      } : t)),
+    }));
+  }, [ensureProperties]);
+
   // wipe ALL locally-imported test data: pay-log timers, discovered operators
   // and buildings, and reset the date window. Does not touch DB rows.
   const clearImported = useCallback(() => {
@@ -354,7 +374,7 @@ export function useStore() {
     propById, techById,
     role,
     // import
-    addImported, clearImported, ensureProperties, loadSampleData,
+    addImported, clearImported, ensureProperties, loadSampleData, allocateImported,
     hasImported: imported.timers.length > 0,
     importedCount: imported.timers.length,
     // work orders

@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip, Cell } from 'recharts';
+import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip, Cell, PieChart, Pie } from 'recharts';
 import { totals, byPeriod, byProp, byTech, fmtMoney, fmtHrs } from '../lib/rollups.js';
 import { Stat, Avatar } from '../components/ui.jsx';
+import AllocateModal from '../components/AllocateModal.jsx';
 
 const GRAIN = ['week', 'month'];
 
@@ -9,6 +10,7 @@ export default function Dashboard({ store, navigate }) {
   const [grain, setGrain] = useState('week');
   const [showUnalloc, setShowUnalloc] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [allocOpen, setAllocOpen] = useState(false);
   const { timers, propById, techById, meta } = store;
   const go = navigate || (() => {}); // drill-down navigation (no-op if absent)
 
@@ -22,6 +24,11 @@ export default function Dashboard({ store, navigate }) {
   const allocated = useMemo(() => timers.filter((t) => t.propId), [timers]);
   const unalloc = useMemo(() => timers.filter((t) => !t.propId), [timers]);
   const un = totals(unalloc);
+  const allocCost = useMemo(() => totals(allocated).cost, [allocated]);
+  const splitData = [
+    { name: 'Allocated', value: Math.round(allocCost), fill: 'var(--money)' },
+    { name: 'Unallocated', value: Math.round(un.cost), fill: 'var(--warn)' },
+  ];
   const view = showUnalloc ? timers : allocated;
 
   const t = totals(view);
@@ -71,18 +78,35 @@ export default function Dashboard({ store, navigate }) {
 
       {un.count > 0 && (
         <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: '#ffb02033', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 180 }}>
+          <div style={{ width: 96, height: 96, flex: 'none', position: 'relative' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={splitData} dataKey="value" innerRadius={30} outerRadius={46} paddingAngle={2} stroke="none" startAngle={90} endAngle={-270} />
+                <Tooltip contentStyle={{ background: '#16161c', border: '1px solid #26262f', borderRadius: 10, fontFamily: 'Space Mono', fontSize: 12 }}
+                  formatter={(v, n) => [fmtMoney(v), n]} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+              <span className="mono" style={{ fontSize: 13, fontWeight: 700, color: 'var(--warn)' }}>{Math.round((un.cost / (un.cost + allocCost || 1)) * 100)}%</span>
+              <span style={{ fontSize: 8, color: 'var(--text-faint)', letterSpacing: '.05em' }}>UNALLOC</span>
+            </div>
+          </div>
+          <div style={{ flex: 1, minWidth: 160 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
               <span className="mono" style={{ fontSize: 22, fontWeight: 700, color: 'var(--warn)' }}>{fmtMoney(un.cost)}</span>
               <span style={{ color: 'var(--text-dim)', fontSize: 12, fontWeight: 700 }}>unallocated · {fmtHrs(un.hrs)} hrs</span>
             </div>
-            <div className="note" style={{ margin: '4px 0 0' }}>Not in your true-cost numbers. Assign these in <b>Properties → Unallocated</b>.</div>
+            <div className="note" style={{ margin: '4px 0 10px' }}>Not in your true-cost numbers — assign them to a building to fold them in.</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="btn grad sm" onClick={() => setAllocOpen(true)}>Allocate now</button>
+              <button className="btn ghost sm" onClick={() => setShowUnalloc((v) => !v)}>
+                {showUnalloc ? 'Hide from charts' : 'Show in charts'}
+              </button>
+            </div>
           </div>
-          <button className="btn ghost sm" onClick={() => setShowUnalloc((v) => !v)}>
-            {showUnalloc ? 'Hide from charts' : 'Show in charts'}
-          </button>
         </div>
       )}
+      {allocOpen && <AllocateModal store={store} onClose={() => setAllocOpen(false)} />}
 
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
