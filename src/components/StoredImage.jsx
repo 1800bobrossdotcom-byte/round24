@@ -4,7 +4,7 @@ import { isConfigured, signedFileUrl } from '../lib/backend/supabase.js';
 // Renders an image that lives either inline (demo: data URL) or in a private
 // storage bucket (cloud: resolve a short-lived signed URL). Click opens the
 // full image in a new tab. Used for work-order photos and chat images.
-export default function StoredImage({ bucket, path, data, alt = '', className = 'thumb', style }) {
+export default function StoredImage({ bucket, path, data, alt = '', className = 'thumb', style, onOpen }) {
   const [url, setUrl] = useState(data || null);
   const [err, setErr] = useState(false);
   useEffect(() => {
@@ -19,6 +19,6 @@ export default function StoredImage({ bucket, path, data, alt = '', className = 
   if (!url) return <div className={`${className} thumb-loading`} style={style} aria-label="loading image" />;
   return (
     <img src={url} alt={alt} className={className} style={style}
-      onClick={() => window.open(url, '_blank', 'noopener')} />
+      onClick={onOpen || (() => window.open(url, '_blank', 'noopener'))} />
   );
 }

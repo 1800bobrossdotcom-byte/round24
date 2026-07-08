@@ -231,7 +231,7 @@ const woFromDb = (r) => ({
   id: r.id, propLabel: r.property_label, unit: r.unit, task: r.task,
   detail: r.detail, category: r.category, assigneeLabel: r.assignee_label,
   due: r.due_date, status: r.status, source: r.source, priority: r.priority ?? 3,
-  transcript: r.voice_transcript, photos: r.photos || [], createdAt: r.created_at,
+  transcript: r.voice_transcript, photos: r.photos || [], files: r.files || [], createdAt: r.created_at,
 });
 
 export async function listWorkOrders(orgId) {
@@ -275,6 +275,11 @@ export async function updateWorkOrderPhotos(id, photos) {
   if (error) throw error;
 }
 
+export async function updateWorkOrderFiles(id, files) {
+  const { error } = await supabase.from('work_orders').update({ files }).eq('id', id);
+  if (error) throw error;
+}
+
 // shared upload for work-order photos + chat images → returns the object path
 export async function uploadAttachment(orgId, file) {
   const ext = (file.name?.split('.').pop() || (file.type.split('/')[1] || 'jpg')).replace(/[^\w]+/g, '').slice(0, 5);
@@ -298,6 +303,7 @@ export function subscribeWorkOrders(orgId, cb) {
 const msgFromDb = (r) => ({
   id: r.id, channel: r.channel, workOrderId: r.work_order_id,
   body: r.body, voicePath: r.voice_path, voiceSecs: r.voice_secs, imagePath: r.image_path,
+  filePath: r.file_path, fileName: r.file_name,
   senderId: r.sender_id, sender: r.sender_label, senderRole: r.sender_role,
   createdAt: r.created_at,
 });
@@ -315,7 +321,7 @@ export async function insertMessage(orgId, m) {
   const { data, error } = await supabase.from('messages').insert({
     org_id: orgId, channel: m.channel || 'all', work_order_id: m.workOrderId || null,
     body: m.body || null, voice_path: m.voicePath || null, voice_secs: m.voiceSecs || null,
-    image_path: m.imagePath || null,
+    image_path: m.imagePath || null, file_path: m.filePath || null, file_name: m.fileName || null,
     sender_id: user?.id, sender_label: m.sender || null, sender_role: m.senderRole || null,
   }).select().single();
   if (error) throw error;

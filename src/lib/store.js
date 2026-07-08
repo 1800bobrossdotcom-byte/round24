@@ -8,7 +8,7 @@ import {
   listPurchases, insertPurchase, setPurchaseStatus as dbSetPurchaseStatus, uploadReceipt,
   listDocuments, uploadDocument,
   listMessages, insertMessage, subscribeMessages, uploadVoiceNote, summarizeThread,
-  uploadAttachment, updateWorkOrderPhotos,
+  uploadAttachment, updateWorkOrderPhotos, updateWorkOrderFiles,
   upsertChatMember, listChatMembers, listChatChannels, insertChatChannel,
   listPropertyCards, insertPropertyCard, deletePropertyCard,
   listLiveTimers, upsertLiveTimer, deleteLiveTimer, subscribeLiveTimers,
@@ -274,19 +274,29 @@ export function useStore() {
     }
   }, [woBackend]);
 
-  // attach a photo to a work order. Cloud: upload to storage, append the path,
-  // persist the new array. Demo/local: keep an inline data URL so it shows too.
-  const addWoPhoto = useCallback(async (id, file) => {
+  // attach a photo or document to a work order. Images go on `photos` (rendered
+  // as thumbnails); other files go on `files` as {path,name} (rendered as cards).
+  // Cloud: upload to storage + persist. Demo/local: keep an inline data URL.
+  const addWoAttachment = useCallback(async (id, file) => {
     if (!file) return;
     const cloud = isConfigured() && orgId && woBackend === 'db' && !String(id).startsWith('wo_');
-    let photo;
-    try { photo = cloud ? await uploadAttachment(orgId, file) : await blobToDataUrl(file); }
-    catch { photo = await blobToDataUrl(file); }
-    setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, photos: [...(w.photos || []), photo] } : w)));
-    if (cloud) {
-      const cur = woRef.current.find((w) => w.id === id);
-      const next = [...(cur?.photos || []), photo];
-      updateWorkOrderPhotos(id, next).catch(() => {});
+    const isImg = (file.type || '').startsWith('image/');
+    let ref;
+    try { ref = cloud ? await uploadAttachment(orgId, file) : await blobToDataUrl(file); }
+    catch { ref = await blobToDataUrl(file); }
+    if (isImg) {
+      setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, photos: [...(w.photos || []), ref] } : w)));
+      if (cloud) {
+        const next = [...(woRef.current.find((w) => w.id === id)?.photos || []), ref];
+        updateWorkOrderPhotos(id, next).catch(() => {});
+      }
+    } else {
+      const entry = { path: ref, name: file.name || 'file' };
+      setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, files: [...(w.files || []), entry] } : w)));
+      if (cloud) {
+        const next = [...(woRef.current.find((w) => w.id === id)?.files || []), entry];
+        updateWorkOrderFiles(id, next).catch(() => {});
+      }
     }
   }, [orgId, woBackend]);
 
@@ -523,27 +533,38 @@ export function useStore() {
   }, [orgId, msgBackend]);
 
   // post a message: typed body and/or a recorded voice note (Blob).
-  const addMessage = useCallback(async ({ channel = 'all', body, voiceBlob, voiceSecs, imageFile, workOrderId } = {}) => {
+  const addMessage = useCallback(async ({ channel = 'all', body, voiceBlob, voiceSecs, attachFile, workOrderId } = {}) => {
     const base = {
       channel, body: body?.trim() || null, workOrderId: workOrderId || null,
       sender: myName, senderRole: myCommsRole, voiceSecs: voiceSecs || null,
     };
-    // local/demo: keep the voice/image inline as a data URL so it renders + persists
+    const isImg = attachFile && (attachFile.type || '').startsWith('image/');
+    // local/demo: keep the voice/attachment inline as a data URL so it renders + persists
     if (!isConfigured() || !orgId || msgBackend !== 'db') {
       const voiceData = voiceBlob ? await blobToDataUrl(voiceBlob) : null;
-      const imageData = imageFile ? await blobToDataUrl(imageFile) : null;
-      const local = { ...base, id: 'msg_' + Math.random().toString(36).slice(2, 10), senderId: myId, voiceData, imageData, createdAt: new Date().toISOString() };
+      const attData = attachFile ? await blobToDataUrl(attachFile) : null;
+      const local = {
+        ...base, id: 'msg_' + Math.random().toString(36).slice(2, 10), senderId: myId, voiceData,
+        imageData: isImg ? attData : null,
+        fileData: attachFile && !isImg ? attData : null, fileName: attachFile && !isImg ? attachFile.name : null,
+        createdAt: new Date().toISOString(),
+      };
       setMessages((l) => [...l, local]);
       return local;
     }
-    // cloud: upload the voice note / image, then insert the row
-    let voicePath = null, imagePath = null;
+    // cloud: upload the voice note / attachment, then insert the row
+    let voicePath = null, imagePath = null, filePath = null, fileName = null;
     if (voiceBlob) { try { voicePath = await uploadVoiceNote(orgId, voiceBlob); } catch { /* text still sends */ } }
-    if (imageFile) { try { imagePath = await uploadAttachment(orgId, imageFile); } catch { /* text still sends */ } }
-    const local = { ...base, id: 'msg_' + Math.random().toString(36).slice(2, 10), senderId: myId, voicePath, imagePath, createdAt: new Date().toISOString() };
+    if (attachFile) {
+      try {
+        const path = await uploadAttachment(orgId, attachFile);
+        if (isImg) imagePath = path; else { filePath = path; fileName = attachFile.name || 'file'; }
+      } catch { /* text still sends */ }
+    }
+    const local = { ...base, id: 'msg_' + Math.random().toString(36).slice(2, 10), senderId: myId, voicePath, imagePath, filePath, fileName, createdAt: new Date().toISOString() };
     setMessages((l) => [...l, local]);
     try {
-      const saved = await insertMessage(orgId, { ...base, voicePath, imagePath });
+      const saved = await insertMessage(orgId, { ...base, voicePath, imagePath, filePath, fileName });
       if (saved?.id) setMessages((l) => l.map((x) => (x.id === local.id ? saved : x)));
       return saved;
     } catch { return local; }
@@ -646,7 +667,7 @@ export function useStore() {
     hasImported: imported.timers.length > 0,
     importedCount: imported.timers.length,
     // work orders
-    workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, addWoPhoto, woBackend,
+    workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, addWoAttachment, woBackend,
     woNotice, clearWoNotice: () => setWoNotice(null),
     // cloud timers
     addTimerEntry, operatorId,

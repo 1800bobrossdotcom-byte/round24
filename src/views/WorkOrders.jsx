@@ -1,7 +1,9 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { fmtMoneyC } from '../lib/rollups.js';
-import { IcMic, IcX, IcPlay, IcReceipt, IcCamera } from '../components/ui.jsx';
+import { IcMic, IcX, IcPlay, IcReceipt, IcCamera, IcDoc } from '../components/ui.jsx';
 import StoredImage from '../components/StoredImage.jsx';
+import Lightbox from '../components/Lightbox.jsx';
+import { FileChip } from '../components/FileChip.jsx';
 
 // ---- voice → structured work order ----------------------------------
 // "create work order unit 4B leaking faucet for Gianni tomorrow at 301 Central"
@@ -97,7 +99,7 @@ const inputStyle = {
 };
 
 export default function WorkOrders({ store }) {
-  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, addWoPhoto, properties, techs, role, woBackend, purchases = [] } = store;
+  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, addWoAttachment, properties, techs, role, woBackend, purchases = [] } = store;
   const receiptsByWo = useMemo(() => {
     const m = {};
     for (const p of purchases) if (p.workOrderId) (m[p.workOrderId] ||= []).push(p);
@@ -242,30 +244,33 @@ export default function WorkOrders({ store }) {
       <div className="card">
         <span className="field-label">Open ({open.length}) — sorted by priority</span>
         {open.length === 0 && <p className="note">Nothing open. {isStaff ? 'Create one above — or just say it out loud.' : 'Nothing assigned to you right now.'}</p>}
-        {open.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} isStaff={isStaff} canRun={canRun} canAttach={isStaff || role === 'tech'} addWoPhoto={addWoPhoto} receipts={receiptsByWo[w.id]} />)}
+        {open.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} isStaff={isStaff} canRun={canRun} canAttach={isStaff || role === 'tech'} addWoAttachment={addWoAttachment} receipts={receiptsByWo[w.id]} />)}
       </div>
 
       {closed.length > 0 && (
         <div className="card" style={{ marginTop: 'var(--gap)' }}>
           <span className="field-label">Closed ({closed.length})</span>
-          {closed.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} isStaff={isStaff} canRun={canRun} canAttach={isStaff || role === 'tech'} addWoPhoto={addWoPhoto} receipts={receiptsByWo[w.id]} done />)}
+          {closed.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} isStaff={isStaff} canRun={canRun} canAttach={isStaff || role === 'tech'} addWoAttachment={addWoAttachment} receipts={receiptsByWo[w.id]} done />)}
         </div>
       )}
     </div>
   );
 }
 
-function WoRow({ w, setWoStatus, setWoPriority, isStaff, canRun, canAttach, addWoPhoto, done, receipts = [] }) {
+function WoRow({ w, setWoStatus, setWoPriority, isStaff, canRun, canAttach, addWoAttachment, done, receipts = [] }) {
   const pr = WO_PRIORITIES[w.priority ?? 3];
   const [open, setOpen] = useState(false);
   const [upBusy, setUpBusy] = useState(false);
+  const [lb, setLb] = useState(null); // lightbox start index
   const photos = w.photos || [];
+  const files = w.files || [];
+  const lbItems = photos.map((p) => ({ bucket: 'attachments', ...(/^(data:|https?:|\/)/.test(p) ? { data: p } : { path: p }), name: 'Job photo' }));
   const matTotal = receipts.filter((r) => r.status === 'approved').reduce((a, r) => a + (r.amount || 0), 0);
-  const pickPhoto = async (e) => {
+  const pickFile = async (e) => {
     const f = e.target.files?.[0]; e.target.value = '';
     if (!f) return;
     setUpBusy(true);
-    try { await addWoPhoto(w.id, f); } finally { setUpBusy(false); }
+    try { await addWoAttachment(w.id, f); } finally { setUpBusy(false); }
   };
   return (
     <div className="pur-item">
@@ -311,28 +316,37 @@ function WoRow({ w, setWoStatus, setWoPriority, isStaff, canRun, canAttach, addW
         </div>
       )}
 
-      {(photos.length > 0 || (canAttach && addWoPhoto)) && (
+      {(photos.length > 0 || files.length > 0 || (canAttach && addWoAttachment)) && (
         <div style={{ paddingBottom: 12 }}>
           {photos.length > 0 && (
             <div className="photo-strip">
               {photos.map((p, i) => {
                 const isData = /^(data:|https?:|\/)/.test(p);
-                return <StoredImage key={i} bucket="attachments" path={isData ? null : p} data={isData ? p : null} alt="Job photo" />;
+                return <StoredImage key={i} bucket="attachments" path={isData ? null : p} data={isData ? p : null} alt="Job photo" onOpen={() => setLb(i)} />;
               })}
             </div>
           )}
-          {canAttach && addWoPhoto && (
-            <label className={'upload-tile compact' + (upBusy ? ' busy' : '')} style={{ marginTop: photos.length ? 10 : 0 }}>
+          {files.length > 0 && (
+            <div className="file-list">
+              {files.map((f, i) => {
+                const isData = /^(data:|https?:|\/)/.test(f.path);
+                return <FileChip key={i} path={isData ? null : f.path} data={isData ? f.path : null} name={f.name} />;
+              })}
+            </div>
+          )}
+          {canAttach && addWoAttachment && (
+            <label className={'upload-tile compact' + (upBusy ? ' busy' : '')} style={{ marginTop: (photos.length || files.length) ? 10 : 0 }}>
               <span className="ut-ic"><IcCamera width={17} height={17} /></span>
               <span className="ut-main">
-                <span className="ut-title">{upBusy ? 'Uploading…' : photos.length ? 'Add another photo' : 'Add photo'}</span>
-                <span className="ut-sub">Document the job — before / after</span>
+                <span className="ut-title">{upBusy ? 'Uploading…' : (photos.length || files.length) ? 'Add another' : 'Add photo or file'}</span>
+                <span className="ut-sub">Photos, PDFs — document the job</span>
               </span>
-              <input type="file" accept="image/*" capture="environment" onChange={pickPhoto} />
+              <input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.heic" onChange={pickFile} />
             </label>
           )}
         </div>
       )}
+      {lb !== null && lbItems.length > 0 && <Lightbox items={lbItems} index={lb} onClose={() => setLb(null)} />}
     </div>
   );
 }

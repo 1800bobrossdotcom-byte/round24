@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { isConfigured, signedFileUrl } from '../lib/backend/supabase.js';
-import { IcMic, IcSend, IcX, IcSparkle, IcCheck, IcImage } from '../components/ui.jsx';
+import { IcMic, IcSend, IcX, IcSparkle, IcCheck, IcClip } from '../components/ui.jsx';
 import StoredImage from '../components/StoredImage.jsx';
+import Lightbox from '../components/Lightbox.jsx';
+import { FileChip } from '../components/FileChip.jsx';
 
 // Slack-style team comms: office↔crew and crew↔crew. Typed notes and voice
 // notes, live over realtime. Per-work-order threads turn a job into a running
@@ -42,9 +44,11 @@ export default function Chat({ store }) {
   const thread = useMemo(() => messages.filter((m) => (m.channel || 'all') === channel), [messages, channel]);
 
   const [text, setText] = useState('');
-  const [imageFile, setImageFile] = useState(null);
-  const imgPreview = useMemo(() => (imageFile ? URL.createObjectURL(imageFile) : null), [imageFile]);
+  const [attachFile, setAttachFile] = useState(null);
+  const isImgAttach = attachFile && (attachFile.type || '').startsWith('image/');
+  const imgPreview = useMemo(() => (attachFile && (attachFile.type || '').startsWith('image/') ? URL.createObjectURL(attachFile) : null), [attachFile]);
   useEffect(() => () => { if (imgPreview) URL.revokeObjectURL(imgPreview); }, [imgPreview]);
+  const [lb, setLb] = useState(null); // lightbox image descriptor
   const [busy, setBusy] = useState(false);
   const [summary, setSummary] = useState(null);
   const [summErr, setSummErr] = useState(null);
@@ -62,11 +66,11 @@ export default function Chat({ store }) {
   useEffect(() => { if (scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight; }, [thread.length, channel]);
 
   const send = async (voiceBlob, voiceSecs) => {
-    if (!voiceBlob && !text.trim() && !imageFile) return;
+    if (!voiceBlob && !text.trim() && !attachFile) return;
     setBusy(true);
     try {
-      await addMessage({ channel, body: text, voiceBlob, voiceSecs, imageFile, workOrderId: activeWo?.id });
-      setText(''); setImageFile(null);
+      await addMessage({ channel, body: text, voiceBlob, voiceSecs, attachFile, workOrderId: activeWo?.id });
+      setText(''); setAttachFile(null);
     } finally { setBusy(false); }
   };
 
@@ -135,7 +139,9 @@ export default function Chat({ store }) {
               {!mine && <div className="msg-who">{m.sender || 'Crew'}{m.senderRole ? ` · ${m.senderRole}` : ''}</div>}
               <div className={'bubble' + (m.senderRole === 'office' ? ' office' : '')}>
                 {m.body && <div className="msg-body">{m.body}</div>}
-                {(m.imagePath || m.imageData) && <StoredImage className="msg-img" bucket="attachments" path={m.imageData ? null : m.imagePath} data={m.imageData || null} alt="Photo" />}
+                {(m.imagePath || m.imageData) && <StoredImage className="msg-img" bucket="attachments" path={m.imageData ? null : m.imagePath} data={m.imageData || null} alt="Photo"
+                  onOpen={() => setLb({ bucket: 'attachments', ...(m.imageData ? { data: m.imageData } : { path: m.imagePath }), name: 'Photo' })} />}
+                {(m.filePath || m.fileData) && <div style={{ marginTop: m.body ? 6 : 0 }}><FileChip path={m.fileData ? null : m.filePath} data={m.fileData || null} name={m.fileName || 'file'} /></div>}
                 {(m.voicePath || m.voiceData) && <VoiceNote msg={m} />}
               </div>
               <div className="msg-time">{fmtTime(m.createdAt)}</div>
@@ -178,25 +184,27 @@ export default function Chat({ store }) {
         </div>
       ) : (
         <>
-          {imgPreview && (
+          {attachFile && (
             <div className="attach-preview">
-              <img src={imgPreview} alt="" />
-              <span className="ap-name">{imageFile?.name || 'photo'}</span>
-              <button className="btn ghost sm icon-btn" onClick={() => setImageFile(null)} aria-label="Remove photo"><IcX width={14} height={14} /></button>
+              {isImgAttach ? <img src={imgPreview} alt="" /> : <span className="ap-file"><IcClip width={16} height={16} /></span>}
+              <span className="ap-name">{attachFile.name || (isImgAttach ? 'photo' : 'file')}</span>
+              <button className="btn ghost sm icon-btn" onClick={() => setAttachFile(null)} aria-label="Remove attachment"><IcX width={14} height={14} /></button>
             </div>
           )}
           <div className="composer">
             <input style={inputStyle} value={text} onChange={(e) => setText(e.target.value)} placeholder={`Message ${target}…`}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} />
-            <label className="btn ghost icon-btn" aria-label="Attach photo" style={{ cursor: 'pointer' }}>
-              <IcImage width={18} height={18} />
-              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { setImageFile(e.target.files?.[0] || null); e.target.value = ''; }} />
+            <label className="btn ghost icon-btn" aria-label="Attach photo or file" style={{ cursor: 'pointer' }}>
+              <IcClip width={18} height={18} />
+              <input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.heic" style={{ display: 'none' }} onChange={(e) => { setAttachFile(e.target.files?.[0] || null); e.target.value = ''; }} />
             </label>
             <button className="btn ghost icon-btn" onClick={startRec} aria-label="Record voice note"><IcMic width={18} height={18} /></button>
-            <button className="btn grad icon-btn" onClick={() => send()} disabled={busy || (!text.trim() && !imageFile)} aria-label="Send"><IcSend width={18} height={18} /></button>
+            <button className="btn grad icon-btn" onClick={() => send()} disabled={busy || (!text.trim() && !attachFile)} aria-label="Send"><IcSend width={18} height={18} /></button>
           </div>
         </>
       )}
+
+      {lb && <Lightbox items={[lb]} index={0} onClose={() => setLb(null)} />}
     </div>
   );
 }
