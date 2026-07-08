@@ -510,6 +510,50 @@ audio { filter: invert(0.9) hue-rotate(180deg); }
   .brand-lockup .bl-glint { display: none; }
 }
 
+/* hero scale — full-screen intro splash */
+.brand-lockup.bl-hero { gap: 18px; }
+.brand-lockup.bl-hero .bl-mark { width: 66px; height: 66px; }
+.brand-lockup.bl-hero .bl-word { font-size: 54px; }
+@media (max-width: 480px) {
+  .brand-lockup.bl-hero { gap: 13px; }
+  .brand-lockup.bl-hero .bl-mark { width: 50px; height: 50px; }
+  .brand-lockup.bl-hero .bl-word { font-size: 40px; }
+}
+
+/* ---- intro splash: brand forms, holds, then dissolves into the app ---- */
+.splash {
+  position: fixed; inset: 0; z-index: 4000; background: var(--bg);
+  display: grid; place-items: center; cursor: pointer; overflow: hidden;
+  animation: splash-in .35s ease both;
+}
+.splash.leaving { animation: splash-out .5s var(--ease) forwards; }
+/* soft brand glow blooming behind the lockup */
+.splash::before {
+  content: ""; position: absolute; width: 560px; height: 560px; max-width: 120vw; max-height: 120vw;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, #ffd21a12, #38bdf80c 42%, transparent 70%);
+  filter: blur(24px); opacity: 0;
+  animation: splash-glow 2.7s var(--ease) .25s both;
+}
+.splash-inner {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  transform: translateY(-2%);
+}
+.splash-tag {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .3em; text-transform: uppercase;
+  color: var(--text-faint); opacity: 0;
+  animation: splash-tag .7s var(--ease) 1.2s both;
+}
+@keyframes splash-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes splash-out { to { opacity: 0; transform: scale(1.045); filter: blur(5px); } }
+@keyframes splash-glow { 0% { opacity: 0; transform: scale(.72); } 45% { opacity: 1; } 100% { opacity: .32; transform: scale(1); } }
+@keyframes splash-tag { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .splash::before, .splash-tag { animation: none; opacity: .3; }
+  .splash-tag { opacity: 1; }
+}
+
 /* recharts can report a couple px past its container — clamp it */
 .recharts-responsive-container, .recharts-wrapper, .recharts-surface { max-width: 100% !important; }
 

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AuthGate, SignOutButton, AccountButton, useAuth } from './components/AuthGate.jsx';
 import TopStrip from './components/TopStrip.jsx';
 import { useStore } from './lib/store.js';
-import { Mark, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip } from './components/ui.jsx';
+import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip } from './components/ui.jsx';
 import Dashboard from './views/Dashboard.jsx';
 import DayOverview from './views/DayOverview.jsx';
 import Chat from './views/Chat.jsx';
@@ -166,10 +166,35 @@ function Shell() {
   );
 }
 
-export default function App() {
+// Full-screen intro that plays once on load: the brand forms (~2.5s), holds,
+// then dissolves to reveal the app booting underneath. Click/tap skips it.
+function SplashIntro({ onDone }) {
+  const [leaving, setLeaving] = useState(false);
+  const doneRef = useRef(false);
+  const finish = () => { if (doneRef.current) return; doneRef.current = true; setLeaving(true); setTimeout(onDone, 480); };
+  useEffect(() => {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const t = setTimeout(finish, reduce ? 900 : 2450);
+    return () => clearTimeout(t);
+  }, []);
   return (
-    <AuthGate>
-      <Shell />
-    </AuthGate>
+    <div className={`splash ${leaving ? 'leaving' : ''}`} onClick={finish} role="img" aria-label="Caliper — labor, measured true">
+      <div className="splash-inner">
+        <BrandLockup className="bl-hero" />
+        <div className="splash-tag">labor, measured true</div>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [intro, setIntro] = useState(true);
+  return (
+    <>
+      {intro && <SplashIntro onDone={() => setIntro(false)} />}
+      <AuthGate>
+        <Shell />
+      </AuthGate>
+    </>
   );
 }
