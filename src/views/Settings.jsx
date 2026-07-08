@@ -34,7 +34,11 @@ function Row({ label, hint, children }) {
 export default function Settings({ store }) {
   const { role, orgId, orgName, session } = useAuth();
   const email = session?.user?.email || '';
+  const myId = session?.user?.id;
   const isCrew = role === 'tech';
+  const myAvail = (store.availability || []).find((a) => a.userId === myId)?.status || 'active';
+  const em = s.emergency || {};
+  const tax = s.tax || {};
 
   const [s, setS] = useState({});
   const [loaded, setLoaded] = useState(false);
@@ -97,6 +101,52 @@ export default function Settings({ store }) {
         </>}
       </div>
 
+      {/* availability */}
+      <div className="card" style={{ marginBottom: 'var(--gap)' }}>
+        <span className="field-label">Availability</span>
+        <div className="pick" style={{ marginTop: 4 }}>
+          {[['active', 'On shift'], ['off', 'Off'], ['pto', 'PTO']].map(([v, l]) => (
+            <button key={v} className={myAvail === v ? 'on' : ''} onClick={() => store.setMyAvailability(v)}>{l}</button>
+          ))}
+        </div>
+        <div className="note" style={{ margin: '6px 0 0' }}>Your status shows on the office Day board in real time.</div>
+      </div>
+
+      {/* emergency contact */}
+      <div className="card" style={{ marginBottom: 'var(--gap)' }}>
+        <span className="field-label">Emergency contact</span>
+        <div className="grid g3" style={{ gap: 8, marginTop: 4 }}>
+          <input style={{ ...inputStyle, padding: 9 }} value={em.name ?? ''} onChange={(e) => setS((x) => ({ ...x, emergency: { ...em, name: e.target.value } }))} onBlur={() => patch({ emergency: em })} placeholder="Name" />
+          <input style={{ ...inputStyle, padding: 9 }} value={em.relationship ?? ''} onChange={(e) => setS((x) => ({ ...x, emergency: { ...em, relationship: e.target.value } }))} onBlur={() => patch({ emergency: em })} placeholder="Relationship" />
+          <input style={{ ...inputStyle, padding: 9 }} value={em.phone ?? ''} onChange={(e) => setS((x) => ({ ...x, emergency: { ...em, phone: e.target.value } }))} onBlur={() => patch({ emergency: em })} placeholder="Phone" inputMode="tel" />
+        </div>
+      </div>
+
+      {/* tax / W-9 — contractors */}
+      {isCrew && (
+        <div className="card" style={{ marginBottom: 'var(--gap)' }}>
+          <span className="field-label">Tax info · 1099 / W-9</span>
+          <div className="note" style={{ margin: '2px 0 8px' }}>For year-end 1099s. We store only your legal name, classification, address, and the last 4 of your TIN — never the full number.</div>
+          <div className="grid g2" style={{ gap: 8 }}>
+            <input style={{ ...inputStyle, padding: 9 }} value={tax.legalName ?? ''} onChange={(e) => setS((x) => ({ ...x, tax: { ...tax, legalName: e.target.value } }))} onBlur={() => patch({ tax })} placeholder="Legal name" />
+            <input style={{ ...inputStyle, padding: 9 }} value={tax.businessName ?? ''} onChange={(e) => setS((x) => ({ ...x, tax: { ...tax, businessName: e.target.value } }))} onBlur={() => patch({ tax })} placeholder="Business name (opt.)" />
+            <select style={{ ...inputStyle, padding: 9 }} value={tax.classification ?? ''} onChange={(e) => { const t = { ...tax, classification: e.target.value }; setS((x) => ({ ...x, tax: t })); patch({ tax: t }); }}>
+              <option value="">Tax classification…</option>
+              {['Individual / Sole proprietor', 'Single-member LLC', 'LLC (C corp)', 'LLC (S corp)', 'Partnership', 'C corporation', 'S corporation'].map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <input style={{ ...inputStyle, padding: 9 }} value={tax.tinLast4 ?? ''} onChange={(e) => setS((x) => ({ ...x, tax: { ...tax, tinLast4: e.target.value.replace(/\D/g, '').slice(0, 4) } }))} onBlur={() => patch({ tax })} placeholder="TIN last 4" inputMode="numeric" />
+          </div>
+          <input style={{ ...inputStyle, padding: 9, marginTop: 8 }} value={tax.address ?? ''} onChange={(e) => setS((x) => ({ ...x, tax: { ...tax, address: e.target.value } }))} onBlur={() => patch({ tax })} placeholder="Mailing address" />
+          <div style={{ marginTop: 10 }}>
+            <Row label="W-9 on file" hint={tax.w9SignedAt ? `Confirmed ${new Date(tax.w9SignedAt).toLocaleDateString()}` : 'Confirm your W-9 details are current'}>
+              {tax.w9SignedAt
+                ? <span className="chip" style={{ color: 'var(--money)' }}><IcCheck width={12} height={12} /> Confirmed</span>
+                : <button className="btn ghost sm" onClick={() => { const t = { ...tax, w9SignedAt: new Date().toISOString() }; setS((x) => ({ ...x, tax: t })); patch({ tax: t }); }}>Confirm</button>}
+            </Row>
+          </div>
+        </div>
+      )}
+
       {/* security */}
       <div className="card" style={{ marginBottom: 'var(--gap)' }}>
         <span className="field-label">Security</span>
@@ -120,6 +170,7 @@ export default function Settings({ store }) {
             const data = await exportMyData(orgId);
             const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
             const a = document.createElement('a'); a.href = url; a.download = 'caliper-my-data.json'; a.click(); URL.revokeObjectURL(url);
+            store.audit && store.audit('export_data', 'my personal data');
           }}><IcDoc width={13} height={13} /> Export</button>
         </Row>
         <Row label="Terms &amp; Privacy" hint={s.consent?.acceptedAt ? `Accepted ${new Date(s.consent.acceptedAt).toLocaleDateString()}` : 'Not yet acknowledged'}>
@@ -164,7 +215,7 @@ function TwoFactor() {
   const [code, setCode] = useState(''); const [err, setErr] = useState(null); const [busy, setBusy] = useState(false);
   const load = () => mfaFactors().then((f) => setFactors(f.filter((x) => x.status === 'verified'))).catch(() => {});
   useEffect(() => { load(); }, []);
-  const start = async () => { setErr(null); try { const d = await mfaEnroll(); setEnroll({ id: d.id, secret: d.totp?.secret, uri: d.totp?.uri }); } catch (e) { setErr(e.message); } };
+  const start = async () => { setErr(null); try { const d = await mfaEnroll(); setEnroll({ id: d.id, secret: d.totp?.secret, uri: d.totp?.uri, qr: d.totp?.qr_code }); } catch (e) { setErr(e.message); } };
   const verify = async () => { setBusy(true); setErr(null); try { await mfaVerify(enroll.id, code.trim()); setEnroll(null); setCode(''); load(); } catch (e) { setErr('That code didn’t verify — try the next one.'); } finally { setBusy(false); } };
   const remove = async (id) => { await mfaUnenroll(id).catch(() => {}); load(); };
   const active = factors.length > 0;
@@ -177,8 +228,17 @@ function TwoFactor() {
       </Row>
       {enroll && (
         <div className="card" style={{ background: 'var(--surface-2)', marginTop: 4 }}>
-          <p className="note" style={{ margin: 0 }}>Add this key to your authenticator app (Google Authenticator, Authy, 1Password), then enter the 6-digit code.</p>
-          <div className="mono" style={{ margin: '8px 0', fontSize: 13, wordBreak: 'break-all', color: 'var(--text)' }}>{enroll.secret}</div>
+          <p className="note" style={{ margin: 0 }}>Scan this with your authenticator app (Google Authenticator, Authy, 1Password), then enter the 6-digit code. Can’t scan? Type the key below.</p>
+          {enroll.qr && (
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0' }}>
+              <div style={{ background: '#fff', padding: 10, borderRadius: 10, width: 172, height: 172, display: 'grid', placeItems: 'center' }}>
+                {enroll.qr.startsWith('data:')
+                  ? <img src={enroll.qr} alt="2FA QR code" style={{ width: '100%', height: '100%' }} />
+                  : <div style={{ width: '100%', height: '100%' }} dangerouslySetInnerHTML={{ __html: enroll.qr }} />}
+              </div>
+            </div>
+          )}
+          <div className="mono" style={{ margin: '8px 0', fontSize: 12, wordBreak: 'break-all', color: 'var(--text-dim)', textAlign: 'center' }}>{enroll.secret}</div>
           {err && <p className="note" style={{ color: 'var(--danger)' }}>{err}</p>}
           <div style={{ display: 'flex', gap: 8 }}>
             <input style={{ ...inputStyle, letterSpacing: '.2em', textAlign: 'center' }} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="123456" inputMode="numeric" />

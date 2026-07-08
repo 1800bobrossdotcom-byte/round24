@@ -41,15 +41,15 @@ export default function Access({ store }) {
   const linkFor = (code) => `${window.location.origin}/?invite=${code}`;
   const generate = async () => {
     setErr(null); setBusy(true);
-    try { await createInvite(orgId, { role, label: label.trim() || null }); setLabel(''); load(); }
+    try { await createInvite(orgId, { role, label: label.trim() || null }); store.audit && store.audit('create_invite', `${ROLE_LABEL[role]}${label.trim() ? ` · ${label.trim()}` : ''}`); setLabel(''); load(); }
     catch (e) { setErr(e.message || 'Could not create invite'); }
     finally { setBusy(false); }
   };
   const copy = async (code) => {
     try { await navigator.clipboard.writeText(linkFor(code)); setCopied(code); setTimeout(() => setCopied(null), 1500); } catch { /* no clipboard */ }
   };
-  const revoke = async (id) => { await revokeInvite(id); load(); };
-  const saveName = async () => { if (!wsName.trim() || wsName.trim() === orgName) return; await updateOrgName(orgId, wsName.trim()); setSavedName(true); setTimeout(() => setSavedName(false), 1500); };
+  const revoke = async (id) => { await revokeInvite(id); store.audit && store.audit('revoke_invite'); load(); };
+  const saveName = async () => { if (!wsName.trim() || wsName.trim() === orgName) return; await updateOrgName(orgId, wsName.trim()); store.audit && store.audit('rename_workspace', wsName.trim()); setSavedName(true); setTimeout(() => setSavedName(false), 1500); };
 
   const pending = invites.filter((i) => !i.usedAt);
 

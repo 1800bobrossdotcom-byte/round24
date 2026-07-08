@@ -114,6 +114,47 @@ export function onAuthChange(cb) {
   return supabase.auth.onAuthStateChange((_e, session) => cb(session));
 }
 
+// ---- availability (on shift / off / PTO) ----
+const avFromDb = (r) => ({ userId: r.user_id, label: r.label, status: r.status, note: r.note, updatedAt: r.updated_at });
+export async function listAvailability(orgId) {
+  const { data, error } = await supabase.from('availability').select('*').eq('org_id', orgId);
+  if (error) throw error;
+  return data.map(avFromDb);
+}
+export async function setAvailability(orgId, { label, status, note }) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const { error } = await supabase.from('availability').upsert(
+    { org_id: orgId, user_id: user.id, label, status, note: note || null, updated_at: new Date().toISOString() },
+    { onConflict: 'org_id,user_id' });
+  if (error) throw error;
+}
+export function subscribeAvailability(orgId, cb) {
+  const ch = supabase.channel('availability-' + orgId)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'availability', filter: `org_id=eq.${orgId}` }, () => cb())
+    .subscribe();
+  return () => supabase.removeChannel(ch);
+}
+
+// ---- audit log (sensitive actions) ----
+export async function logAudit(orgId, action, target, actor, meta) {
+  if (!orgId) return;
+  try { await supabase.rpc('log_audit', { p_org: orgId, p_action: action, p_target: target || null, p_actor: actor || null, p_meta: meta || {} }); }
+  catch { /* audit is best-effort, never blocks the action */ }
+}
+export async function listAudit(orgId, limit = 100) {
+  const { data, error } = await supabase.from('audit_log').select('*').eq('org_id', orgId).order('created_at', { ascending: false }).limit(limit);
+  if (error) throw error;
+  return (data || []).map((r) => ({ id: r.id, actor: r.actor, action: r.action, target: r.target, meta: r.meta, at: r.created_at }));
+}
+
+// ---- staff compliance view over contractor records ----
+export async function orgMemberCompliance() {
+  const { data, error } = await supabase.rpc('org_member_compliance');
+  if (error) throw error;
+  return (data || []).map((r) => ({ userId: r.user_id, email: r.email, role: r.role, certs: r.certs || [], tax: r.tax, emergency: r.emergency, updated: r.updated }));
+}
+
 // ---- invites & access management ----
 const inviteFromDb = (r) => ({
   id: r.id, code: r.code, role: r.role, label: r.label, email: r.email,

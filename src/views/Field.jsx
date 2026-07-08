@@ -105,7 +105,7 @@ export default function Field({ store }) {
     const p = properties.find((x) => x.id === running.propId);
     const pName = p?.name || 'Unassigned';
     const entryId = Date.now();
-    setLog([{ id: entryId, prop: pName, unit: running.unit, category: running.category, hrs, cost: hrs * me.rate, sync: 'saving' }, ...log]);
+    setLog([{ id: entryId, at: entryId, prop: pName, unit: running.unit, category: running.category, hrs, cost: hrs * me.rate, sync: 'saving' }, ...log]);
     setRunning(null); setElapsed(0); resetBreaks();
     // land the hours in the cloud so management sees them — queued if offline
     const sync = await store.addTimerEntry({
@@ -119,11 +119,28 @@ export default function Field({ store }) {
 
   const median = categoryMedian(allTimers, cat);
 
+  // my pay period: hours + earnings logged since the pay week started (Saturday)
+  const weekStart = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() - 6 + 7) % 7)); return d.getTime(); })();
+  const period = log.filter((e) => !e.at || e.at >= weekStart);
+  const periodHrs = Math.round(period.reduce((a, e) => a + (e.hrs || 0), 0) * 10) / 10;
+  const periodPay = period.reduce((a, e) => a + (e.cost || 0), 0);
+
   return (
     <div>
       <div className="view-head">
         <h1>Field</h1>
         <p>{me.name}{me.rate > 0 ? ` · $${me.rate}/hr` : ''} · one timer per job</p>
+      </div>
+
+      {/* my pay period — transparency, no more "PAID BY BRENT" guessing */}
+      <div className="card" style={{ marginBottom: 'var(--gap)', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ flex: 1 }}>
+          <div className="field-label" style={{ margin: 0 }}>This pay period · since Saturday</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 4 }}>
+            <span className="mono" style={{ fontSize: 24, fontWeight: 700, color: 'var(--money)' }}>${periodPay.toFixed(2)}</span>
+            <span style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 700 }}>{periodHrs} hrs · {period.length} jobs</span>
+          </div>
+        </div>
       </div>
 
       <div className="offline">◐ Offline-safe — timers and photos queue on-device, sync when signal returns.</div>

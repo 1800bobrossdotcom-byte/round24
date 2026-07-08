@@ -12,6 +12,7 @@ import {
   listPropertyCards, insertPropertyCard, deletePropertyCard,
   listLiveTimers, upsertLiveTimer, deleteLiveTimer, subscribeLiveTimers,
   getLaborState, saveLaborState,
+  listAvailability, setAvailability, subscribeAvailability, logAudit,
   fetchMyOperatorId, insertTimer, insertProperties,
 } from './backend/supabase.js';
 
@@ -315,6 +316,8 @@ export function useStore() {
   const [purchases, setPurchases] = useState(() => loadLS(PUR_KEY, []));
   const [purBackend, setPurBackend] = useState('local');
   useEffect(() => { localStorage.setItem(PUR_KEY, JSON.stringify(purchases)); }, [purchases]);
+  const purchasesRef = useRef(purchases);
+  useEffect(() => { purchasesRef.current = purchases; }, [purchases]);
 
   useEffect(() => {
     if (!isConfigured() || !orgId) return;
@@ -347,7 +350,11 @@ export function useStore() {
     if (isConfigured() && purBackend === 'db' && !String(id).startsWith('pur_')) {
       dbSetPurchaseStatus(id, status).catch(() => {});
     }
-  }, [purBackend]);
+    if (isConfigured() && orgId && (status === 'approved' || status === 'rejected')) {
+      const p = purchasesRef.current.find((x) => x.id === id);
+      logAudit(orgId, status === 'approved' ? 'approve_purchase' : 'reject_purchase', p ? `${p.vendor || 'Purchase'} $${p.amount}` : String(id), myName);
+    }
+  }, [purBackend, orgId, myName]);
 
   // ---- cloud timers: sync stopped sessions; queue offline, flush later ----
   const [operatorId, setOperatorId] = useState(null);
@@ -416,6 +423,24 @@ export function useStore() {
     if (!isConfigured() || !orgId) return;
     if (info) upsertLiveTimer(orgId, { ...info, operatorLabel: myName }).catch(() => {});
     else deleteLiveTimer(orgId).catch(() => {});
+  }, [orgId, myName]);
+
+  // ---- availability: on shift / off / PTO (feeds the Day board) ----
+  const [availability, setAvail] = useState([]);
+  useEffect(() => {
+    if (!isConfigured() || !orgId) return;
+    const refresh = () => listAvailability(orgId).then(setAvail).catch(() => {});
+    refresh();
+    return subscribeAvailability(orgId, refresh);
+  }, [orgId]);
+  const setMyAvailability = useCallback(async (status, note) => {
+    if (!isConfigured() || !orgId) return;
+    await setAvailability(orgId, { label: myName, status, note }).catch(() => {});
+  }, [orgId, myName]);
+
+  // audit: record a sensitive action (best-effort, unforgeable actor server-side)
+  const audit = useCallback((action, target, meta) => {
+    if (isConfigured() && orgId) logAudit(orgId, action, target, myName, meta);
   }, [orgId, myName]);
 
   // ---- per-property credit cards: auto-file receipts by card ----
@@ -597,8 +622,9 @@ export function useStore() {
     woNotice, clearWoNotice: () => setWoNotice(null),
     // cloud timers
     addTimerEntry, operatorId,
-    // live presence
+    // live presence + availability + audit
     liveTimers, syncLivePresence,
+    availability, setMyAvailability, audit,
     // purchases
     purchases, addPurchase, setPurchaseStatus, purBackend,
     // per-property cards

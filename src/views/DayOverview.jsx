@@ -16,8 +16,9 @@ function elapsedStr(startedAt, now) {
 const UNASSIGNED = '__unassigned__';
 
 export default function DayOverview({ store, navigate }) {
-  const { workOrders, timers, techById, techs, setWoAssignee, liveTimers = [] } = store;
+  const { workOrders, timers, techById, techs, setWoAssignee, liveTimers = [], availability = [] } = store;
   const go = navigate || (() => {});
+  const away = availability.filter((a) => a.status === 'off' || a.status === 'pto');
   // tick once a second so live stopwatches count up
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => { const id = setInterval(() => setNowMs(Date.now()), 1000); return () => clearInterval(id); }, []);
@@ -95,6 +96,19 @@ export default function DayOverview({ store, navigate }) {
           </div>
         ))}
       </div>
+
+      {/* off / PTO today */}
+      {away.length > 0 && (
+        <div className="card" style={{ marginBottom: 'var(--gap)' }}>
+          <span className="field-label">Off &amp; PTO ({away.length})</span>
+          {away.map((a) => (
+            <div className="row" key={a.userId}>
+              <div className="lead"><div className="t">{a.label || 'Operator'}</div>{a.note && <div className="s">{a.note}</div>}</div>
+              <span className="chip" style={{ color: a.status === 'pto' ? 'var(--info)' : 'var(--text-faint)' }}>{a.status === 'pto' ? 'PTO' : 'Off'}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* per-operator queues */}
       <span className="field-label" style={{ display: 'block', margin: '0 0 8px 2px' }}>Crew &amp; workloads</span>
