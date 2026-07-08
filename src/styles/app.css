@@ -501,13 +501,16 @@ audio { filter: invert(0.9) hue-rotate(180deg); }
   100% { background-position: -50% 0; opacity: 0; }
 }
 
+/* Ambient in-page lockups (login/onboarding headers) honor reduced-motion and
+   render static. The full-screen intro (.bl-hero) is a brief, one-time,
+   click-to-skip brand moment, so it always plays. */
 @media (prefers-reduced-motion: reduce) {
-  .brand-lockup .bl-mark,
-  .brand-lockup .mk-seg,
-  .brand-lockup .bl-word { animation: none; }
-  .brand-lockup .mk-seg { stroke-dashoffset: 0; }
-  .brand-lockup .bl-word { clip-path: none; background-position: 0 0; }
-  .brand-lockup .bl-glint { display: none; }
+  .brand-lockup:not(.bl-hero) .bl-mark,
+  .brand-lockup:not(.bl-hero) .mk-seg,
+  .brand-lockup:not(.bl-hero) .bl-word { animation: none; }
+  .brand-lockup:not(.bl-hero) .mk-seg { stroke-dashoffset: 0; }
+  .brand-lockup:not(.bl-hero) .bl-word { clip-path: none; background-position: 0 0; }
+  .brand-lockup:not(.bl-hero) .bl-glint { display: none; }
 }
 
 /* hero scale — full-screen intro splash */
@@ -549,10 +552,6 @@ audio { filter: invert(0.9) hue-rotate(180deg); }
 @keyframes splash-out { to { opacity: 0; transform: scale(1.045); filter: blur(5px); } }
 @keyframes splash-glow { 0% { opacity: 0; transform: scale(.72); } 45% { opacity: 1; } 100% { opacity: .32; transform: scale(1); } }
 @keyframes splash-tag { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-@media (prefers-reduced-motion: reduce) {
-  .splash::before, .splash-tag { animation: none; opacity: .3; }
-  .splash-tag { opacity: 1; }
-}
 
 /* recharts can report a couple px past its container — clamp it */
 .recharts-responsive-container, .recharts-wrapper, .recharts-surface { max-width: 100% !important; }

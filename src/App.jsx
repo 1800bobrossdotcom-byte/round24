@@ -173,8 +173,9 @@ function SplashIntro({ onDone }) {
   const doneRef = useRef(false);
   const finish = () => { if (doneRef.current) return; doneRef.current = true; setLeaving(true); setTimeout(onDone, 480); };
   useEffect(() => {
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const t = setTimeout(finish, reduce ? 900 : 2450);
+    // the intro always plays its full run (it's brief + click-to-skip); the
+    // dissolve keeps blur/scale mild so it's comfortable regardless of settings
+    const t = setTimeout(finish, 2450);
     return () => clearTimeout(t);
   }, []);
   return (
