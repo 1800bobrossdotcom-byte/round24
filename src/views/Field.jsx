@@ -6,6 +6,11 @@ import { IcCoffee, IcUtensils, IcActivity, IcCheck, IcPlay } from '../components
 
 const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'painting', 'turn', 'general', 'inspection'];
 
+const tiInput = {
+  width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 10, borderRadius: 10,
+};
+
 // contractor-friendly pacing: nudge a break after 3h straight, and around
 // lunch. breaks pause the clock — break time never bills to the job.
 const BREAK_AFTER_S = 3 * 3600;
@@ -108,13 +113,38 @@ export default function Field({ store }) {
     setLog([{ id: entryId, at: entryId, prop: pName, unit: running.unit, category: running.category, hrs, cost: hrs * me.rate, sync: 'saving' }, ...log]);
     setRunning(null); setElapsed(0); resetBreaks();
     // land the hours in the cloud so management sees them — queued if offline
-    const sync = await store.addTimerEntry({
+    const res = await store.addTimerEntry({
       propLabel: pName, unit: running.unit === '—' ? null : running.unit,
       date: new Date().toISOString().slice(0, 10), category: running.category,
       durationHrs: hrs, note: running.woTask || null, workOrderId: running.woId || null,
       issue: running.woTask || null,
     });
-    setLog((l) => l.map((e) => (e.id === entryId ? { ...e, sync } : e)));
+    setLog((l) => l.map((e) => (e.id === entryId ? { ...e, sync: res.status, dbId: res.id, note: running.woTask || null } : e)));
+  };
+
+  // ---- edit a logged entry: fix property / unit / category / hours ----
+  const [editing, setEditing] = useState(null); // { id, prop, unit, category, hrs, note }
+  const [editBusy, setEditBusy] = useState(false);
+  const beginEdit = (l) => {
+    const pid = properties.find((p) => p.name === l.prop)?.id || properties[0]?.id || '';
+    setEditing({ id: l.id, prop: pid, unit: l.unit === '—' ? '' : (l.unit || ''), category: l.category, hrs: String(l.hrs), note: l.note || '' });
+  };
+  const saveEdit = async () => {
+    const e = editing; if (!e) return;
+    setEditBusy(true);
+    const pName = properties.find((p) => p.id === e.prop)?.name || 'Unassigned';
+    const hrs = Math.round(Math.max(0.05, parseFloat(e.hrs) || 0) * 100) / 100;
+    const unit = e.unit.trim() || '—';
+    const entry = log.find((x) => x.id === e.id);
+    const res = await store.updateTimerEntry(entry, {
+      propLabel: pName, unit, date: new Date(entry.at || Date.now()).toISOString().slice(0, 10),
+      category: e.category, durationHrs: hrs, note: e.note.trim() || null,
+    });
+    setLog((l) => l.map((x) => (x.id === e.id
+      ? { ...x, prop: pName, unit, category: e.category, hrs, cost: hrs * me.rate, note: e.note.trim() || null, sync: res.status, dbId: res.id || x.dbId }
+      : x)));
+    store.audit && store.audit('edit_timer', `${pName} ${unit} · ${hrs}h`);
+    setEditBusy(false); setEditing(null);
   };
 
   const median = categoryMedian(allTimers, cat);
@@ -227,6 +257,36 @@ export default function Field({ store }) {
         <div className="card" style={{ marginTop: 'var(--gap)' }}>
           <span className="field-label">Logged this session</span>
           {log.map((l) => {
+            if (editing && editing.id === l.id) {
+              return (
+                <div className="ti-edit" key={l.id}>
+                  <div className="field-label" style={{ marginTop: 0 }}>Edit entry</div>
+                  <div className="grid g2" style={{ gap: 8 }}>
+                    <select style={tiInput} value={editing.prop} onChange={(e) => setEditing({ ...editing, prop: e.target.value })}>
+                      {properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                    <input style={tiInput} value={editing.unit} onChange={(e) => setEditing({ ...editing, unit: e.target.value })} placeholder="Unit (e.g. 4B)" />
+                  </div>
+                  <div className="pick" style={{ margin: '8px 0' }}>
+                    {CATS.map((c) => <button key={c} className={editing.category === c ? 'on' : ''} onClick={() => setEditing({ ...editing, category: c })}>{c}</button>)}
+                  </div>
+                  <div className="grid g2" style={{ gap: 8 }}>
+                    <div>
+                      <div className="field-label" style={{ marginTop: 0 }}>Hours</div>
+                      <input style={tiInput} type="number" step="0.05" min="0.05" inputMode="decimal" value={editing.hrs} onChange={(e) => setEditing({ ...editing, hrs: e.target.value })} />
+                    </div>
+                    <div>
+                      <div className="field-label" style={{ marginTop: 0 }}>Note</div>
+                      <input style={tiInput} value={editing.note} onChange={(e) => setEditing({ ...editing, note: e.target.value })} placeholder="what you did" />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                    <button className="btn ghost" style={{ flex: 1 }} onClick={() => setEditing(null)} disabled={editBusy}>Cancel</button>
+                    <button className="btn grad" style={{ flex: 2 }} onClick={saveEdit} disabled={editBusy || !(parseFloat(editing.hrs) > 0)}>{editBusy ? 'Saving…' : 'Save & resubmit'}</button>
+                  </div>
+                </div>
+              );
+            }
             const med = categoryMedian(allTimers, l.category);
             const delta = med ? l.hrs - med : 0;
             return (
@@ -244,6 +304,7 @@ export default function Field({ store }) {
                     {l.sync === 'synced' ? <><IcCheck width={11} height={11} /> synced</> : l.sync === 'queued' ? 'syncs when online' : l.sync === 'saving' ? 'saving…' : 'this device'}
                   </div>}
                 </div>
+                {l.sync !== 'saving' && <button className="btn ghost sm ti-edit-btn" onClick={() => beginEdit(l)}>Edit</button>}
               </div>
             );
           })}

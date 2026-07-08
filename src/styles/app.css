@@ -686,3 +686,8 @@ audio { filter: invert(0.9) hue-rotate(180deg); }
 .lb-open { color: #fff; font-size: 12px; font-weight: 700; opacity: .8; }
 .lb-open:hover { opacity: 1; }
 @media (max-width: 560px) { .lb-nav { width: 38px; height: 38px; } }
+
+/* timer entry editor (Field) */
+.ti-edit { padding: 12px 2px; border-bottom: 1px solid var(--line-soft); }
+.ti-edit:last-child { border-bottom: 0; }
+.ti-edit-btn { align-self: center; margin-left: 10px; flex: none; color: var(--text-dim); }

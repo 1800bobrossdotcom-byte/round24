@@ -14,7 +14,7 @@ import {
   listLiveTimers, upsertLiveTimer, deleteLiveTimer, subscribeLiveTimers,
   getLaborState, saveLaborState,
   listAvailability, setAvailability, subscribeAvailability, logAudit,
-  fetchMyOperatorId, insertTimer, insertProperties, getUserSettings,
+  fetchMyOperatorId, insertTimer, updateTimer, insertProperties, getUserSettings,
 } from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
@@ -414,20 +414,37 @@ export function useStore() {
 
   useEffect(() => { if (operatorId) flushTimerQueue(operatorId); }, [operatorId, flushTimerQueue]);
 
-  // returns 'synced' | 'queued' | 'local'
+  // returns { status: 'synced'|'queued'|'local', id } — id is the cloud row id
+  // when synced (so the entry can be edited later), null otherwise.
   const addTimerEntry = useCallback(async (t) => {
-    if (!isConfigured() || !orgId) return 'local';               // demo mode
+    if (!isConfigured() || !orgId) return { status: 'local', id: null };   // demo mode
     if (!operatorId) {
-      // no operator record linked to this login (e.g. office staff) — queue
+      // no operator record linked to this login (e.g. office staff) — a queue
       // would never flush, so don't pretend it will sync
-      return 'local';
+      return { status: 'local', id: null };
     }
-    try { await insertTimer(orgId, operatorId, t); flushTimerQueue(operatorId); return 'synced'; }
+    try { const id = await insertTimer(orgId, operatorId, t); flushTimerQueue(operatorId); return { status: 'synced', id }; }
     catch {
       localStorage.setItem(TQ_KEY, JSON.stringify([...loadLS(TQ_KEY, []), t]));
-      return 'queued';
+      return { status: 'queued', id: null };
     }
   }, [orgId, operatorId, flushTimerQueue]);
+
+  // edit a logged timer. If it made it to the cloud (has a dbId) update that
+  // row; if it never synced (queued/local), submit it fresh so the corrected
+  // entry lands. Returns { status, id } like addTimerEntry.
+  const updateTimerEntry = useCallback(async (entry, patch) => {
+    if (!isConfigured() || !orgId || !operatorId) return { status: 'local', id: null };
+    if (entry.dbId) {
+      try { await updateTimer(entry.dbId, patch); return { status: 'synced', id: entry.dbId }; }
+      catch { return { status: entry.sync || 'queued', id: entry.dbId }; }
+    }
+    return addTimerEntry({
+      propLabel: patch.propLabel, unit: patch.unit === '—' ? null : patch.unit,
+      date: patch.date, category: patch.category, durationHrs: patch.durationHrs,
+      note: patch.note || null, issue: patch.note || null,
+    });
+  }, [orgId, operatorId, addTimerEntry]);
 
   // ---- documents: DB+storage only (no meaningful local fallback for files) ----
   const [documents, setDocuments] = useState([]);
@@ -670,7 +687,7 @@ export function useStore() {
     workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, addWoAttachment, woBackend,
     woNotice, clearWoNotice: () => setWoNotice(null),
     // cloud timers
-    addTimerEntry, operatorId,
+    addTimerEntry, updateTimerEntry, operatorId,
     // live presence + availability + audit
     liveTimers, syncLivePresence,
     availability, setMyAvailability, audit,

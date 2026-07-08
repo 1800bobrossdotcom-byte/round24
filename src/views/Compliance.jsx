@@ -9,6 +9,7 @@ const ACTION_LABEL = {
   approve_purchase: 'Approved purchase', reject_purchase: 'Rejected purchase',
   export_data: 'Exported personal data', create_invite: 'Created invite',
   revoke_invite: 'Revoked invite', rename_workspace: 'Renamed workspace',
+  edit_timer: 'Edited a time entry',
 };
 
 export default function Compliance() {

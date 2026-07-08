@@ -411,6 +411,19 @@ export async function insertTimer(orgId, operatorId, t) {
   return data.id;
 }
 
+// edit a previously-logged timer (RLS: a tech may update only their own rows)
+export async function updateTimer(id, patch) {
+  const upd = {};
+  if (patch.propLabel !== undefined) upd.property_label = patch.propLabel || null;
+  if (patch.unit !== undefined) upd.unit = patch.unit || null;
+  if (patch.category !== undefined) upd.category = patch.category || 'general';
+  if (patch.durationHrs !== undefined) upd.duration_hrs = patch.durationHrs;
+  if (patch.note !== undefined) { upd.note = patch.note || null; upd.issue = patch.note || null; }
+  if (patch.date !== undefined) upd.work_date = patch.date;
+  const { error } = await supabase.from('timers').update(upd).eq('id', id);
+  if (error) throw error;
+}
+
 // ---- purchases (material receipts) ----
 const purFromDb = (r) => ({
   id: r.id, workOrderId: r.work_order_id, propLabel: r.property_label,
