@@ -13,7 +13,7 @@ import {
   listLiveTimers, upsertLiveTimer, deleteLiveTimer, subscribeLiveTimers,
   getLaborState, saveLaborState,
   listAvailability, setAvailability, subscribeAvailability, logAudit,
-  fetchMyOperatorId, insertTimer, insertProperties,
+  fetchMyOperatorId, insertTimer, insertProperties, getUserSettings,
 } from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
@@ -57,7 +57,17 @@ const normName = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 export function useStore() {
   const { orgId, role, session, orgName } = useAuth();
   const myId = session?.user?.id || null;
-  const myName = session?.user?.email?.split('@')[0] || (role === 'tech' ? 'Crew' : 'Office');
+  // prefer the display name the person set in Settings; fall back to the email
+  // handle. This is what labels their chat messages, live presence, availability,
+  // and audit entries — so the name they chose shows everywhere, not the raw email.
+  const [profileName, setProfileName] = useState('');
+  useEffect(() => {
+    if (!isConfigured() || !session) { setProfileName(''); return; }
+    let on = true;
+    getUserSettings().then((d) => { if (on) setProfileName((d?.displayName || '').trim()); }).catch(() => {});
+    return () => { on = false; };
+  }, [myId]);
+  const myName = profileName || session?.user?.email?.split('@')[0] || (role === 'tech' ? 'Crew' : 'Office');
   const myCommsRole = role === 'admin' || role === 'manager' ? 'office' : 'crew';
 
   // ---- imported pay-log data (merged into the same spine the charts read) ----
