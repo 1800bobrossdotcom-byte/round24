@@ -37,6 +37,74 @@ export async function updatePassword(newPassword) {
   if (error) throw error;
 }
 
+export async function getAuthUser() {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
+}
+
+export async function signOutEverywhere() {
+  await supabase.auth.signOut({ scope: 'global' });
+}
+
+// ---- personal settings (own-row) ----
+export async function getUserSettings() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return {};
+  const { data, error } = await supabase.from('user_settings').select('data').eq('user_id', user.id).maybeSingle();
+  if (error) throw error;
+  return data?.data || {};
+}
+
+export async function saveUserSettings(orgId, patch) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const cur = await getUserSettings();
+  const next = { ...cur, ...patch };
+  const { error } = await supabase.from('user_settings').upsert(
+    { user_id: user.id, org_id: orgId || null, data: next, updated_at: new Date().toISOString() },
+    { onConflict: 'user_id' });
+  if (error) throw error;
+  return next;
+}
+
+// ---- two-factor (TOTP) ----
+export async function mfaFactors() {
+  const { data, error } = await supabase.auth.mfa.listFactors();
+  if (error) throw error;
+  return data?.totp || [];
+}
+export async function mfaEnroll() {
+  const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp' });
+  if (error) throw error;
+  return data; // { id, totp: { qr_code, secret, uri } }
+}
+export async function mfaVerify(factorId, code) {
+  const ch = await supabase.auth.mfa.challenge({ factorId });
+  if (ch.error) throw ch.error;
+  const { error } = await supabase.auth.mfa.verify({ factorId, challengeId: ch.data.id, code });
+  if (error) throw error;
+}
+export async function mfaUnenroll(factorId) {
+  const { error } = await supabase.auth.mfa.unenroll({ factorId });
+  if (error) throw error;
+}
+
+// compliance: gather the signed-in user's own data for export
+export async function exportMyData(orgId) {
+  const user = await getAuthUser();
+  const out = { exported_at: new Date().toISOString(), account: { id: user?.id, email: user?.email }, org_id: orgId };
+  try { out.settings = await getUserSettings(); } catch { /* skip */ }
+  try {
+    const { data } = await supabase.from('messages').select('channel, body, created_at').eq('sender_id', user.id);
+    out.messages = data || [];
+  } catch { /* skip */ }
+  try {
+    const { data } = await supabase.from('purchases').select('vendor, amount, note, status, created_at').eq('created_by', user.id);
+    out.purchases = data || [];
+  } catch { /* skip */ }
+  return out;
+}
+
 export async function getSession() {
   const { data } = await supabase.auth.getSession();
   return data.session;

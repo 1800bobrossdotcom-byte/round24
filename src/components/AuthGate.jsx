@@ -283,13 +283,13 @@ export function SignOutButton() {
   );
 }
 
-export function AccountButton() {
+export function AccountButton({ onOpen }) {
   const [open, setOpen] = useState(false);
   if (!isConfigured()) return null;
   return (
     <>
-      <button className="btn ghost sm icon-btn" onClick={() => setOpen(true)} title="Account" aria-label="Account">
-        <IcGear width={16} height={16} /> <span className="btn-label">Account</span>
+      <button className="btn ghost sm icon-btn" onClick={() => (onOpen ? onOpen() : setOpen(true))} title="Settings" aria-label="Settings">
+        <IcGear width={16} height={16} /> <span className="btn-label">Settings</span>
       </button>
       {open && <ChangePasswordModal onClose={() => setOpen(false)} />}
     </>
