@@ -54,7 +54,7 @@ const slugTech = (name) =>
 const normName = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 export function useStore() {
-  const { orgId, role, session } = useAuth();
+  const { orgId, role, session, orgName } = useAuth();
   const myId = session?.user?.id || null;
   const myName = session?.user?.email?.split('@')[0] || (role === 'tech' ? 'Crew' : 'Office');
   const myCommsRole = role === 'admin' || role === 'manager' ? 'office' : 'crew';
@@ -579,7 +579,7 @@ export function useStore() {
   }, [workOrders, purchases, documents, messages, seen, myId]);
 
   return {
-    meta: seed.meta,
+    meta: { ...seed.meta, org: (isConfigured() && orgName) ? orgName : seed.meta.org },
     properties,
     techs,
     allTimers,

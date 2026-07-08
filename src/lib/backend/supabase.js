@@ -99,9 +99,22 @@ export async function listOrgMembers() {
 // RLS enforces the same boundary server-side; this is for the UI.
 export async function fetchMembership() {
   const { data, error } = await supabase
-    .from('memberships').select('org_id, role').limit(1).maybeSingle();
+    .from('memberships').select('org_id, role, orgs(name, theme)').limit(1).maybeSingle();
   if (error) throw error;
-  return data; // { org_id, role } or null
+  if (!data) return null;
+  return { org_id: data.org_id, role: data.role, orgName: data.orgs?.name || null, theme: data.orgs?.theme || null };
+}
+
+// self-serve: create a workspace and become its admin
+export async function createOrg(name, slug) {
+  const { data, error } = await supabase.rpc('create_org', { org_name: name, org_slug: slug || null });
+  if (error) throw error;
+  return data; // new org id
+}
+
+export async function updateOrgName(orgId, name) {
+  const { error } = await supabase.from('orgs').update({ name }).eq('id', orgId);
+  if (error) throw error;
 }
 
 // ---- work orders ----

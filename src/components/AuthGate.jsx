@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, fetchMembership, redeemInvite } from '../lib/backend/supabase.js';
+import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, fetchMembership, redeemInvite, createOrg } from '../lib/backend/supabase.js';
 import { Mark, IcGear, IcLogout, IcWrench, IcChart, IcX, IcCheck, IcChevron } from './ui.jsx';
 
 // invite links land as ?invite=CODE. Capture it, stash it, strip it from the
@@ -23,7 +23,7 @@ const clearPendingInvite = () => { try { localStorage.removeItem(INVITE_KEY); } 
 // role drives which tools are visible: admin/manager see the full suite
 // incl. financials; tech (contractors) get field tools only; viewer is
 // read-only. RLS + getdek enforce the same boundary server-side.
-const AuthCtx = createContext({ session: null, role: 'admin', orgId: null });
+const AuthCtx = createContext({ session: null, role: 'admin', orgId: null, orgName: null });
 export const useAuth = () => useContext(AuthCtx);
 
 // Wraps the app. Three states:
@@ -89,33 +89,57 @@ export function AuthGate({ children }) {
   if (!mem) return <NeedsAccess />;
 
   return (
-    <AuthCtx.Provider value={{ session, role: mem.role, orgId: mem.org_id }}>
+    <AuthCtx.Provider value={{ session, role: mem.role, orgId: mem.org_id, orgName: mem.orgName }}>
       {children}
     </AuthCtx.Provider>
   );
 }
 
-// signed in, no org yet — enter an invite code or ask an admin
+// signed in, no org yet — join with an invite code, or start a new workspace
 function NeedsAccess() {
+  const [tab, setTab] = useState('join');   // 'join' | 'create'
   const [code, setCode] = useState('');
+  const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
-  const redeem = async () => {
+  const run = async (fn, msg) => {
     setErr(null); setBusy(true);
-    try { await redeemInvite(code.trim().toUpperCase()); window.location.reload(); }
-    catch { setErr('That invite code isn’t valid or has been used. Ask your admin for a fresh link.'); setBusy(false); }
+    try { await fn(); window.location.reload(); }
+    catch (e) { setErr(e.message ? e.message : msg); setBusy(false); }
   };
+  const join = () => run(() => redeemInvite(code.trim().toUpperCase()), 'That invite code isn’t valid or has been used.');
+  const create = () => run(() => createOrg(name.trim()), 'Could not create the workspace.');
+
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
       <div style={{ width: '100%', maxWidth: 360, textAlign: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginBottom: 8 }}><Mark /> <span style={{ fontWeight: 800, fontSize: 22 }}>Caliper</span></div>
         <div style={{ fontWeight: 800, fontSize: 17, marginTop: 12 }}>Almost there</div>
-        <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: '6px 0 18px' }}>You’re signed in but not part of a workspace yet. Enter your invite code, or ask your admin for a link.</p>
+        <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: '6px 0 14px' }}>You’re signed in — join a workspace with an invite, or start your own.</p>
+
+        <div className="seg" style={{ marginBottom: 16 }}>
+          <button className={tab === 'join' ? 'on' : ''} onClick={() => { setTab('join'); setErr(null); }}>Join with invite</button>
+          <button className={tab === 'create' ? 'on' : ''} onClick={() => { setTab('create'); setErr(null); }}>Create workspace</button>
+        </div>
+
         {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{err}</div>}
-        <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="INVITE CODE"
-          onKeyDown={(e) => e.key === 'Enter' && code && redeem()} style={{ ...inputStyle, textAlign: 'center', letterSpacing: '.15em', fontFamily: 'var(--mono)' }} />
-        <div style={{ height: 14 }} />
-        <button className="btn grad" onClick={redeem} disabled={busy || !code}>{busy ? 'Joining…' : 'Join workspace'}</button>
+
+        {tab === 'join' ? (
+          <>
+            <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="INVITE CODE"
+              onKeyDown={(e) => e.key === 'Enter' && code && join()} style={{ ...inputStyle, textAlign: 'center', letterSpacing: '.15em', fontFamily: 'var(--mono)' }} />
+            <div style={{ height: 14 }} />
+            <button className="btn grad" onClick={join} disabled={busy || !code}>{busy ? 'Joining…' : 'Join workspace'}</button>
+          </>
+        ) : (
+          <>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Company / workspace name"
+              onKeyDown={(e) => e.key === 'Enter' && name.trim() && create()} style={inputStyle} />
+            <div style={{ height: 14 }} />
+            <button className="btn grad" onClick={create} disabled={busy || !name.trim()}>{busy ? 'Creating…' : 'Create workspace'}</button>
+            <p className="note" style={{ marginTop: 10 }}>You’ll be the admin. Invite your team and contractors from the Access tab.</p>
+          </>
+        )}
         <p className="note" style={{ marginTop: 16 }}><a onClick={signOut} style={{ color: 'var(--info)', cursor: 'pointer' }}>Sign out</a></p>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../components/AuthGate.jsx';
-import { isConfigured, createInvite, listInvites, revokeInvite, listOrgMembers } from '../lib/backend/supabase.js';
+import { isConfigured, createInvite, listInvites, revokeInvite, listOrgMembers, updateOrgName } from '../lib/backend/supabase.js';
 import { IcUsers, IcX, IcCheck, IcCopy } from '../components/ui.jsx';
 
 // office admin onboards the team: generate role-scoped invite links.
@@ -20,7 +20,9 @@ const inputStyle = {
 };
 
 export default function Access({ store }) {
-  const { orgId } = useAuth();
+  const { orgId, orgName } = useAuth();
+  const [wsName, setWsName] = useState(orgName || '');
+  const [savedName, setSavedName] = useState(false);
   const [members, setMembers] = useState([]);
   const [invites, setInvites] = useState([]);
   const [role, setRole] = useState('tech');
@@ -47,6 +49,7 @@ export default function Access({ store }) {
     try { await navigator.clipboard.writeText(linkFor(code)); setCopied(code); setTimeout(() => setCopied(null), 1500); } catch { /* no clipboard */ }
   };
   const revoke = async (id) => { await revokeInvite(id); load(); };
+  const saveName = async () => { if (!wsName.trim() || wsName.trim() === orgName) return; await updateOrgName(orgId, wsName.trim()); setSavedName(true); setTimeout(() => setSavedName(false), 1500); };
 
   const pending = invites.filter((i) => !i.usedAt);
 
@@ -62,6 +65,15 @@ export default function Access({ store }) {
   return (
     <div>
       <div className="view-head"><h1>Access</h1><p>Invite your team to the office side, contractors to the crew side</p></div>
+
+      {/* workspace name (whitelabel / tenant) */}
+      <div className="card" style={{ marginBottom: 'var(--gap)' }}>
+        <span className="field-label">Workspace name</span>
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <input style={inputStyle} value={wsName} onChange={(e) => setWsName(e.target.value)} placeholder="Company name" />
+          <button className="btn ghost sm" onClick={saveName} disabled={!wsName.trim() || wsName.trim() === orgName}>{savedName ? 'Saved' : 'Rename'}</button>
+        </div>
+      </div>
 
       {/* generate an invite */}
       <div className="card" style={{ marginBottom: 'var(--gap)' }}>
