@@ -432,6 +432,84 @@ audio { filter: invert(0.9) hue-rotate(180deg); }
 /* reserve room for a 2-line tagline so the bullet lists top-align in both cards */
 .portal-card .p-tag { min-height: 32px; }
 
+/* ============================================================
+   Animated brand lockup — login / onboarding hero.
+   Caliper jaws draw in and connect, the wordmark reveals with a
+   brushed-metal fill, and a single glint sweeps across as it forms.
+   ============================================================ */
+.brand-lockup {
+  position: relative; display: inline-flex; align-items: center; gap: 12px;
+  isolation: isolate; padding: 4px 2px;
+}
+.brand-lockup .bl-mark {
+  width: 40px; height: 40px; flex: none; overflow: visible;
+  animation: bl-glow 1.1s var(--ease) .62s both;
+}
+/* draw each caliper segment on, staggered so the crossbar "connects"
+   the two jaws after they land, then the depth slider drops in */
+.brand-lockup .mk-seg {
+  stroke-dasharray: 1; stroke-dashoffset: 1;
+  animation: bl-draw .55s var(--ease) forwards;
+}
+.brand-lockup .mk-seg:nth-of-type(1) { animation-delay: .06s; }
+.brand-lockup .mk-seg:nth-of-type(2) { animation-delay: .20s; }
+.brand-lockup .mk-seg:nth-of-type(3) { animation-delay: .44s; }
+.brand-lockup .mk-seg:nth-of-type(4) { animation-delay: .56s; }
+
+.brand-lockup .bl-word {
+  font-weight: 800; font-size: 30px; letter-spacing: -.015em; line-height: 1;
+  /* semi-metallic brushed steel with a warm brand glint baked in */
+  background: linear-gradient(96deg,
+    #eef1f8 0%, #b7bccb 16%, #ffffff 32%, #9aa0b0 46%,
+    #e6e9f2 60%, #ffe9b8 74%, #c6cad6 88%, #eef1f8 100%);
+  background-size: 260% 100%; background-position: 120% 0;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  /* reveal left-to-right as the mark finishes, then a slow metal shimmer */
+  clip-path: inset(0 100% 0 0);
+  animation:
+    bl-reveal .5s var(--ease) .40s forwards,
+    bl-sheen 5s ease-in-out 1.1s infinite;
+}
+
+/* one bright diagonal glint passing over the whole lockup after it forms */
+.brand-lockup .bl-glint {
+  position: absolute; inset: -8px -12px; z-index: 2; pointer-events: none;
+  border-radius: 12px;
+  background: linear-gradient(105deg, transparent 44%,
+    rgba(255,255,255,.6) 50%, transparent 56%);
+  background-size: 240% 100%; background-repeat: no-repeat;
+  mix-blend-mode: screen; opacity: 0;
+  animation: bl-sweep 1.15s var(--ease) 1.05s 1;
+}
+
+@keyframes bl-draw { to { stroke-dashoffset: 0; } }
+@keyframes bl-reveal { to { clip-path: inset(0 0 0 0); } }
+@keyframes bl-glow {
+  0%   { filter: drop-shadow(0 0 0 transparent); }
+  45%  { filter: drop-shadow(0 0 9px #ffd21a77) drop-shadow(0 0 4px #38bdf899); }
+  100% { filter: drop-shadow(0 0 2px #ffffff22); }
+}
+@keyframes bl-sheen {
+  0%       { background-position: 120% 0; }
+  38%,100% { background-position: -70% 0; }
+}
+@keyframes bl-sweep {
+  0%   { background-position: 150% 0; opacity: 0; }
+  22%  { opacity: 1; }
+  78%  { opacity: 1; }
+  100% { background-position: -50% 0; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-lockup .bl-mark,
+  .brand-lockup .mk-seg,
+  .brand-lockup .bl-word { animation: none; }
+  .brand-lockup .mk-seg { stroke-dashoffset: 0; }
+  .brand-lockup .bl-word { clip-path: none; background-position: 0 0; }
+  .brand-lockup .bl-glint { display: none; }
+}
+
 /* recharts can report a couple px past its container — clamp it */
 .recharts-responsive-container, .recharts-wrapper, .recharts-surface { max-width: 100% !important; }
 

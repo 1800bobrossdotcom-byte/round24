@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, fetchMembership, redeemInvite, createOrg } from '../lib/backend/supabase.js';
-import { Mark, IcGear, IcLogout, IcWrench, IcChart, IcX, IcCheck, IcChevron } from './ui.jsx';
+import { Mark, BrandLockup, IcGear, IcLogout, IcWrench, IcChart, IcX, IcCheck, IcChevron } from './ui.jsx';
 
 // invite links land as ?invite=CODE. Capture it, stash it, strip it from the
 // URL, and it gets redeemed the moment the person is authenticated.
@@ -113,7 +113,7 @@ function NeedsAccess() {
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
       <div style={{ width: '100%', maxWidth: 360, textAlign: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginBottom: 8 }}><Mark /> <span style={{ fontWeight: 800, fontSize: 22 }}>Caliper</span></div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><BrandLockup /></div>
         <div style={{ fontWeight: 800, fontSize: 17, marginTop: 12 }}>Almost there</div>
         <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: '6px 0 14px' }}>You’re signed in — join a workspace with an invite, or start your own.</p>
 
@@ -170,8 +170,8 @@ function Login({ invite }) {
     return (
       <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
         <div style={{ width: '100%', maxWidth: 640 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginBottom: 6 }}>
-            <Mark /> <span style={{ fontWeight: 800, fontSize: 22 }}>Caliper</span>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
+            <BrandLockup />
           </div>
           <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 26 }}>Labor, measured true. Pick your door.</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'stretch' }}>
@@ -223,8 +223,8 @@ function LoginForm({ portal, onSwitch, invite }) {
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
       <div style={{ width: '100%', maxWidth: 360 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginBottom: 8 }}>
-          <Mark /> <span style={{ fontWeight: 800, fontSize: 22 }}>Caliper</span>
-          <span className="chip" style={{ marginLeft: 2, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          <BrandLockup />
+          <span className="chip" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
             {portal === 'crew' ? <IcWrench width={12} height={12} /> : <IcChart width={12} height={12} />}
             {portal === 'crew' ? 'crew' : 'office'}
           </span>

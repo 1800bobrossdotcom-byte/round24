@@ -9,11 +9,27 @@ export function Mark({ className = 'mark' }) {
           <stop offset=".85" stopColor="#38bdf8" /><stop offset="1" stopColor="#a855f7" />
         </linearGradient>
       </defs>
-      <path d="M3 4v13a3 3 0 0 0 3 3h1V4H3Z" stroke="url(#cg)" strokeWidth="1.6" />
-      <path d="M21 4v9a3 3 0 0 1-3 3h-1V4h4Z" stroke="url(#cg)" strokeWidth="1.6" />
-      <path d="M7 9h10" stroke="url(#cg)" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M12 9v11" stroke="url(#cg)" strokeWidth="1.6" strokeLinecap="round" />
+      {/* pathLength=1 normalizes each stroke so the draw-in animation
+          (see .brand-lockup .mk-seg) is uniform regardless of real length */}
+      <path className="mk-seg" pathLength="1" d="M3 4v13a3 3 0 0 0 3 3h1V4H3Z" stroke="url(#cg)" strokeWidth="1.6" />
+      <path className="mk-seg" pathLength="1" d="M21 4v9a3 3 0 0 1-3 3h-1V4h4Z" stroke="url(#cg)" strokeWidth="1.6" />
+      <path className="mk-seg" pathLength="1" d="M7 9h10" stroke="url(#cg)" strokeWidth="1.6" strokeLinecap="round" />
+      <path className="mk-seg" pathLength="1" d="M12 9v11" stroke="url(#cg)" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
+  );
+}
+
+// Animated hero lockup for the login / onboarding screens: the caliper
+// strokes draw in and connect, "Caliper" reveals with a brushed-metal fill,
+// and a glint sweeps across once it forms. Purely CSS (see .brand-lockup in
+// app.css), so it replays whenever the component mounts (e.g. switching portals).
+export function BrandLockup({ className = '' }) {
+  return (
+    <div className={`brand-lockup ${className}`.trim()}>
+      <Mark className="mark bl-mark" />
+      <span className="bl-word">Caliper</span>
+      <span className="bl-glint" aria-hidden="true" />
+    </div>
   );
 }
 
