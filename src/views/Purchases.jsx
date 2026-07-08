@@ -177,9 +177,9 @@ export default function Purchases({ store }) {
             <span className="ut-ic">{file ? <IcCheck width={18} height={18} /> : <IcCamera width={18} height={18} />}</span>
             <span className="ut-main">
               <span className="ut-title">{file ? file.name : scanning ? 'Reading…' : 'Snap or upload a receipt'}</span>
-              <span className="ut-sub">{isConfigured() ? 'Tap to use your camera or pick a photo — we’ll read it' : 'Camera & AI reading activate once connected'}</span>
+              <span className="ut-sub">{isConfigured() ? 'Photo or PDF — we’ll read it for you' : 'Camera & AI reading activate once connected'}</span>
             </span>
-            <input type="file" accept="image/*" capture="environment" onChange={(e) => onPickReceipt(e.target.files[0] || null)} />
+            <input type="file" accept="image/*,application/pdf" onChange={(e) => onPickReceipt(e.target.files[0] || null)} />
           </label>
           {scanning && <p className="note" style={{ marginTop: 6 }}>◐ Reading receipt with AI…</p>}
           {scanMsg && <p className="note" style={{ marginTop: 6, color: scanMsg.kind === 'err' ? 'var(--danger)' : 'var(--money)' }}>{scanMsg.text}</p>}

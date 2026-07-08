@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { fmtMoneyC } from '../lib/rollups.js';
-import { IcMic, IcX, IcPlay, IcReceipt, IcCamera, IcDoc } from '../components/ui.jsx';
+import { IcMic, IcX, IcPlay, IcReceipt, IcCamera, IcDoc, IcClip } from '../components/ui.jsx';
 import StoredImage from '../components/StoredImage.jsx';
 import Lightbox from '../components/Lightbox.jsx';
 import { FileChip } from '../components/FileChip.jsx';
@@ -260,10 +260,12 @@ export default function WorkOrders({ store }) {
 function WoRow({ w, setWoStatus, setWoPriority, isStaff, canRun, canAttach, addWoAttachment, done, receipts = [] }) {
   const pr = WO_PRIORITIES[w.priority ?? 3];
   const [open, setOpen] = useState(false);
+  const [attOpen, setAttOpen] = useState(false);
   const [upBusy, setUpBusy] = useState(false);
   const [lb, setLb] = useState(null); // lightbox start index
   const photos = w.photos || [];
   const files = w.files || [];
+  const nAtt = photos.length + files.length;
   const lbItems = photos.map((p) => ({ bucket: 'attachments', ...(/^(data:|https?:|\/)/.test(p) ? { data: p } : { path: p }), name: 'Job photo' }));
   const matTotal = receipts.filter((r) => r.status === 'approved').reduce((a, r) => a + (r.amount || 0), 0);
   const pickFile = async (e) => {
@@ -284,6 +286,9 @@ function WoRow({ w, setWoStatus, setWoPriority, isStaff, canRun, canAttach, addW
               .filter(Boolean).join(' · ')}
             {w.source === 'voice' && <IcMic width={11} height={11} style={{ marginLeft: 5, verticalAlign: '-1px' }} />}
             {receipts.length > 0 && <> · <a onClick={() => setOpen((o) => !o)} style={{ color: 'var(--money)', cursor: 'pointer' }}><IcReceipt width={11} height={11} style={{ verticalAlign: -1 }} /> {fmtMoneyC(matTotal)} materials ({receipts.length})</a></>}
+            {nAtt > 0
+              ? <> · <a onClick={() => setAttOpen((o) => !o)} style={{ color: 'var(--info)', cursor: 'pointer' }}><IcClip width={11} height={11} style={{ verticalAlign: -1 }} /> {nAtt}</a></>
+              : (canAttach && addWoAttachment) && <> · <a onClick={() => setAttOpen(true)} style={{ color: 'var(--text-faint)', cursor: 'pointer' }}><IcClip width={11} height={11} style={{ verticalAlign: -1 }} /> add photo</a></>}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -316,7 +321,7 @@ function WoRow({ w, setWoStatus, setWoPriority, isStaff, canRun, canAttach, addW
         </div>
       )}
 
-      {(photos.length > 0 || files.length > 0 || (canAttach && addWoAttachment)) && (
+      {attOpen && (
         <div style={{ paddingBottom: 12 }}>
           {photos.length > 0 && (
             <div className="photo-strip">

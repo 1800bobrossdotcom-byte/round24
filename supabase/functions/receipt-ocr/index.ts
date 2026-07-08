@@ -87,7 +87,7 @@ const RECEIPT_TOOL = {
 
 const SYSTEM = [
   'You are a receipts clerk for a property-maintenance company.',
-  'You read a photo of a purchase receipt and return its contents via the record_receipt tool.',
+  'You read a photo or PDF of a purchase receipt and return its contents via the record_receipt tool.',
   'Transcribe exactly what is printed — never invent items or prices.',
   'Read the payment/tender line and capture the last 4 digits of the card into cardLast4 (e.g. "VISA ************4471" or "XXXXXXXXXXXX4471" → "4471"), and the brand into cardBrand. Leave them empty only if no card digits are shown.',
   'For price-matching: using your general knowledge of US hardware/supply retail prices, flag any line item whose unit price is clearly high for that item (roughly 25%+ over typical). Do not flag ordinary prices.',
@@ -123,6 +123,13 @@ Deno.serve(async (req) => {
     const comma = image.indexOf(',');
     if (image.startsWith('data:') && comma >= 0) image = image.slice(comma + 1);
 
+    // PDFs go in as a document block (Claude reads them natively); images as an
+    // image block. This lets crew upload a PDF receipt, not just a photo.
+    const isPdf = mimeType === 'application/pdf';
+    const media = isPdf
+      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: image } }
+      : { type: 'image', source: { type: 'base64', media_type: mimeType, data: image } };
+
     const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
     const resp = await anthropic.messages.create({
       model: 'claude-opus-4-8',
@@ -133,7 +140,7 @@ Deno.serve(async (req) => {
       messages: [{
         role: 'user',
         content: [
-          { type: 'image', source: { type: 'base64', media_type: mimeType, data: image } },
+          media,
           { type: 'text', text: 'Read this receipt and record it with the record_receipt tool.' },
         ],
       }],
