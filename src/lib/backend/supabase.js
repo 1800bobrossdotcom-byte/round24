@@ -231,7 +231,7 @@ const woFromDb = (r) => ({
   id: r.id, propLabel: r.property_label, unit: r.unit, task: r.task,
   detail: r.detail, category: r.category, assigneeLabel: r.assignee_label,
   due: r.due_date, status: r.status, source: r.source, priority: r.priority ?? 3,
-  transcript: r.voice_transcript, createdAt: r.created_at,
+  transcript: r.voice_transcript, photos: r.photos || [], createdAt: r.created_at,
 });
 
 export async function listWorkOrders(orgId) {
@@ -270,6 +270,20 @@ export async function updateWorkOrderAssignee(id, assigneeLabel) {
   if (error) throw error;
 }
 
+export async function updateWorkOrderPhotos(id, photos) {
+  const { error } = await supabase.from('work_orders').update({ photos }).eq('id', id);
+  if (error) throw error;
+}
+
+// shared upload for work-order photos + chat images → returns the object path
+export async function uploadAttachment(orgId, file) {
+  const ext = (file.name?.split('.').pop() || (file.type.split('/')[1] || 'jpg')).replace(/[^\w]+/g, '').slice(0, 5);
+  const path = `${orgId}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+  const { error } = await supabase.storage.from('attachments').upload(path, file, { contentType: file.type || 'image/jpeg' });
+  if (error) throw error;
+  return path;
+}
+
 // live task-list updates — RLS scopes events to rows the caller can see
 export function subscribeWorkOrders(orgId, cb) {
   const ch = supabase.channel('wo-live-' + orgId)
@@ -283,7 +297,7 @@ export function subscribeWorkOrders(orgId, cb) {
 // ---- team comms: messages + voice notes ----
 const msgFromDb = (r) => ({
   id: r.id, channel: r.channel, workOrderId: r.work_order_id,
-  body: r.body, voicePath: r.voice_path, voiceSecs: r.voice_secs,
+  body: r.body, voicePath: r.voice_path, voiceSecs: r.voice_secs, imagePath: r.image_path,
   senderId: r.sender_id, sender: r.sender_label, senderRole: r.sender_role,
   createdAt: r.created_at,
 });
@@ -301,6 +315,7 @@ export async function insertMessage(orgId, m) {
   const { data, error } = await supabase.from('messages').insert({
     org_id: orgId, channel: m.channel || 'all', work_order_id: m.workOrderId || null,
     body: m.body || null, voice_path: m.voicePath || null, voice_secs: m.voiceSecs || null,
+    image_path: m.imagePath || null,
     sender_id: user?.id, sender_label: m.sender || null, sender_role: m.senderRole || null,
   }).select().single();
   if (error) throw error;

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { isConfigured, signedFileUrl } from '../lib/backend/supabase.js';
-import { IcMic, IcSend, IcX, IcSparkle, IcCheck } from '../components/ui.jsx';
+import { IcMic, IcSend, IcX, IcSparkle, IcCheck, IcImage } from '../components/ui.jsx';
+import StoredImage from '../components/StoredImage.jsx';
 
 // Slack-style team comms: office↔crew and crew↔crew. Typed notes and voice
 // notes, live over realtime. Per-work-order threads turn a job into a running
@@ -41,6 +42,9 @@ export default function Chat({ store }) {
   const thread = useMemo(() => messages.filter((m) => (m.channel || 'all') === channel), [messages, channel]);
 
   const [text, setText] = useState('');
+  const [imageFile, setImageFile] = useState(null);
+  const imgPreview = useMemo(() => (imageFile ? URL.createObjectURL(imageFile) : null), [imageFile]);
+  useEffect(() => () => { if (imgPreview) URL.revokeObjectURL(imgPreview); }, [imgPreview]);
   const [busy, setBusy] = useState(false);
   const [summary, setSummary] = useState(null);
   const [summErr, setSummErr] = useState(null);
@@ -58,11 +62,11 @@ export default function Chat({ store }) {
   useEffect(() => { if (scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight; }, [thread.length, channel]);
 
   const send = async (voiceBlob, voiceSecs) => {
-    if (!voiceBlob && !text.trim()) return;
+    if (!voiceBlob && !text.trim() && !imageFile) return;
     setBusy(true);
     try {
-      await addMessage({ channel, body: text, voiceBlob, voiceSecs, workOrderId: activeWo?.id });
-      setText('');
+      await addMessage({ channel, body: text, voiceBlob, voiceSecs, imageFile, workOrderId: activeWo?.id });
+      setText(''); setImageFile(null);
     } finally { setBusy(false); }
   };
 
@@ -131,6 +135,7 @@ export default function Chat({ store }) {
               {!mine && <div className="msg-who">{m.sender || 'Crew'}{m.senderRole ? ` · ${m.senderRole}` : ''}</div>}
               <div className={'bubble' + (m.senderRole === 'office' ? ' office' : '')}>
                 {m.body && <div className="msg-body">{m.body}</div>}
+                {(m.imagePath || m.imageData) && <StoredImage className="msg-img" bucket="attachments" path={m.imageData ? null : m.imagePath} data={m.imageData || null} alt="Photo" />}
                 {(m.voicePath || m.voiceData) && <VoiceNote msg={m} />}
               </div>
               <div className="msg-time">{fmtTime(m.createdAt)}</div>
@@ -172,12 +177,25 @@ export default function Chat({ store }) {
           <button className="btn grad icon-btn" onClick={stopRec} aria-label="Send voice note"><IcSend width={18} height={18} /></button>
         </div>
       ) : (
-        <div className="composer">
-          <input style={inputStyle} value={text} onChange={(e) => setText(e.target.value)} placeholder={`Message ${target}…`}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} />
-          <button className="btn ghost icon-btn" onClick={startRec} aria-label="Record voice note"><IcMic width={18} height={18} /></button>
-          <button className="btn grad icon-btn" onClick={() => send()} disabled={busy || !text.trim()} aria-label="Send"><IcSend width={18} height={18} /></button>
-        </div>
+        <>
+          {imgPreview && (
+            <div className="attach-preview">
+              <img src={imgPreview} alt="" />
+              <span className="ap-name">{imageFile?.name || 'photo'}</span>
+              <button className="btn ghost sm icon-btn" onClick={() => setImageFile(null)} aria-label="Remove photo"><IcX width={14} height={14} /></button>
+            </div>
+          )}
+          <div className="composer">
+            <input style={inputStyle} value={text} onChange={(e) => setText(e.target.value)} placeholder={`Message ${target}…`}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} />
+            <label className="btn ghost icon-btn" aria-label="Attach photo" style={{ cursor: 'pointer' }}>
+              <IcImage width={18} height={18} />
+              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { setImageFile(e.target.files?.[0] || null); e.target.value = ''; }} />
+            </label>
+            <button className="btn ghost icon-btn" onClick={startRec} aria-label="Record voice note"><IcMic width={18} height={18} /></button>
+            <button className="btn grad icon-btn" onClick={() => send()} disabled={busy || (!text.trim() && !imageFile)} aria-label="Send"><IcSend width={18} height={18} /></button>
+          </div>
+        </>
       )}
     </div>
   );

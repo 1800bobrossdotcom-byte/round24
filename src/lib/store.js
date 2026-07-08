@@ -8,6 +8,7 @@ import {
   listPurchases, insertPurchase, setPurchaseStatus as dbSetPurchaseStatus, uploadReceipt,
   listDocuments, uploadDocument,
   listMessages, insertMessage, subscribeMessages, uploadVoiceNote, summarizeThread,
+  uploadAttachment, updateWorkOrderPhotos,
   upsertChatMember, listChatMembers, listChatChannels, insertChatChannel,
   listPropertyCards, insertPropertyCard, deletePropertyCard,
   listLiveTimers, upsertLiveTimer, deleteLiveTimer, subscribeLiveTimers,
@@ -273,6 +274,22 @@ export function useStore() {
     }
   }, [woBackend]);
 
+  // attach a photo to a work order. Cloud: upload to storage, append the path,
+  // persist the new array. Demo/local: keep an inline data URL so it shows too.
+  const addWoPhoto = useCallback(async (id, file) => {
+    if (!file) return;
+    const cloud = isConfigured() && orgId && woBackend === 'db' && !String(id).startsWith('wo_');
+    let photo;
+    try { photo = cloud ? await uploadAttachment(orgId, file) : await blobToDataUrl(file); }
+    catch { photo = await blobToDataUrl(file); }
+    setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, photos: [...(w.photos || []), photo] } : w)));
+    if (cloud) {
+      const cur = woRef.current.find((w) => w.id === id);
+      const next = [...(cur?.photos || []), photo];
+      updateWorkOrderPhotos(id, next).catch(() => {});
+    }
+  }, [orgId, woBackend]);
+
   // ---- live task list: realtime changes → state merge + notification ----
   const [woNotice, setWoNotice] = useState(null); // { msg, ts }
   const woRef = useRef(workOrders);
@@ -506,26 +523,27 @@ export function useStore() {
   }, [orgId, msgBackend]);
 
   // post a message: typed body and/or a recorded voice note (Blob).
-  const addMessage = useCallback(async ({ channel = 'all', body, voiceBlob, voiceSecs, workOrderId } = {}) => {
+  const addMessage = useCallback(async ({ channel = 'all', body, voiceBlob, voiceSecs, imageFile, workOrderId } = {}) => {
     const base = {
       channel, body: body?.trim() || null, workOrderId: workOrderId || null,
       sender: myName, senderRole: myCommsRole, voiceSecs: voiceSecs || null,
     };
-    // local/demo: keep the voice inline as a data URL so it plays back + persists
+    // local/demo: keep the voice/image inline as a data URL so it renders + persists
     if (!isConfigured() || !orgId || msgBackend !== 'db') {
-      let voiceData = null;
-      if (voiceBlob) voiceData = await blobToDataUrl(voiceBlob);
-      const local = { ...base, id: 'msg_' + Math.random().toString(36).slice(2, 10), senderId: myId, voiceData, createdAt: new Date().toISOString() };
+      const voiceData = voiceBlob ? await blobToDataUrl(voiceBlob) : null;
+      const imageData = imageFile ? await blobToDataUrl(imageFile) : null;
+      const local = { ...base, id: 'msg_' + Math.random().toString(36).slice(2, 10), senderId: myId, voiceData, imageData, createdAt: new Date().toISOString() };
       setMessages((l) => [...l, local]);
       return local;
     }
-    // cloud: upload the voice note, then insert the row
-    let voicePath = null;
+    // cloud: upload the voice note / image, then insert the row
+    let voicePath = null, imagePath = null;
     if (voiceBlob) { try { voicePath = await uploadVoiceNote(orgId, voiceBlob); } catch { /* text still sends */ } }
-    const local = { ...base, id: 'msg_' + Math.random().toString(36).slice(2, 10), senderId: myId, voicePath, createdAt: new Date().toISOString() };
+    if (imageFile) { try { imagePath = await uploadAttachment(orgId, imageFile); } catch { /* text still sends */ } }
+    const local = { ...base, id: 'msg_' + Math.random().toString(36).slice(2, 10), senderId: myId, voicePath, imagePath, createdAt: new Date().toISOString() };
     setMessages((l) => [...l, local]);
     try {
-      const saved = await insertMessage(orgId, { ...base, voicePath });
+      const saved = await insertMessage(orgId, { ...base, voicePath, imagePath });
       if (saved?.id) setMessages((l) => l.map((x) => (x.id === local.id ? saved : x)));
       return saved;
     } catch { return local; }
@@ -628,7 +646,7 @@ export function useStore() {
     hasImported: imported.timers.length > 0,
     importedCount: imported.timers.length,
     // work orders
-    workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, woBackend,
+    workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, addWoPhoto, woBackend,
     woNotice, clearWoNotice: () => setWoNotice(null),
     // cloud timers
     addTimerEntry, operatorId,

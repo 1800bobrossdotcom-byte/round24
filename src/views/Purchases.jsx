@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { fmtMoneyC } from '../lib/rollups.js';
 import { isConfigured, signedFileUrl, scanReceipt, checkStock } from '../lib/backend/supabase.js';
-import { IcClip, IcCheck, IcX, IcReceipt, IcSparkle, IcActivity, IcCreditCard } from '../components/ui.jsx';
+import { IcClip, IcCheck, IcX, IcReceipt, IcSparkle, IcActivity, IcCreditCard, IcCamera } from '../components/ui.jsx';
 
 // read a File into a base64 data: URL for the OCR call
 function fileToDataUrl(f) {
@@ -173,9 +173,14 @@ export default function Purchases({ store }) {
           <div className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <IcReceipt width={12} height={12} /> Receipt photo {isConfigured() && <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}>— we read it for you</span>}
           </div>
-          <input type="file" accept="image/*" capture="environment" onChange={(e) => onPickReceipt(e.target.files[0] || null)}
-            style={{ ...inputStyle, padding: 9 }} />
-          {file && <p className="note" style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 5 }}><IcClip width={12} height={12} /> {file.name}</p>}
+          <label className={'upload-tile' + (scanning ? ' busy' : '')}>
+            <span className="ut-ic">{file ? <IcCheck width={18} height={18} /> : <IcCamera width={18} height={18} />}</span>
+            <span className="ut-main">
+              <span className="ut-title">{file ? file.name : scanning ? 'Reading…' : 'Snap or upload a receipt'}</span>
+              <span className="ut-sub">{isConfigured() ? 'Tap to use your camera or pick a photo — we’ll read it' : 'Camera & AI reading activate once connected'}</span>
+            </span>
+            <input type="file" accept="image/*" capture="environment" onChange={(e) => onPickReceipt(e.target.files[0] || null)} />
+          </label>
           {scanning && <p className="note" style={{ marginTop: 6 }}>◐ Reading receipt with AI…</p>}
           {scanMsg && <p className="note" style={{ marginTop: 6, color: scanMsg.kind === 'err' ? 'var(--danger)' : 'var(--money)' }}>{scanMsg.text}</p>}
           {!isConfigured() && <p className="note" style={{ marginTop: 6 }}>Photo uploads and AI receipt reading activate once connected to the cloud.</p>}
