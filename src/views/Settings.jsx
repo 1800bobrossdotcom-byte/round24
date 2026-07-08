@@ -37,13 +37,13 @@ export default function Settings({ store }) {
   const myId = session?.user?.id;
   const isCrew = role === 'tech';
   const myAvail = (store.availability || []).find((a) => a.userId === myId)?.status || 'active';
-  const em = s.emergency || {};
-  const tax = s.tax || {};
 
   const [s, setS] = useState({});
   const [loaded, setLoaded] = useState(false);
   const [msg, setMsg] = useState(null);
   const [clock24, setClock24] = useState(() => localStorage.getItem('caliper_clock12') !== '1');
+  const em = s.emergency || {};
+  const tax = s.tax || {};
 
   useEffect(() => {
     if (!isConfigured()) { setLoaded(true); return; }
