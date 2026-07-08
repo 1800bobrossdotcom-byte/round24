@@ -250,6 +250,14 @@ function LoginForm({ portal, onSwitch, invite }) {
           {busy ? (isSignup ? 'Creating…' : 'Signing in…') : isSignup ? `Create account & join` : `Sign in to ${p.title}`}
         </button>
 
+        {isSignup && (
+          <p className="note" style={{ textAlign: 'center', marginTop: 12 }}>
+            By creating an account you agree to our{' '}
+            <a href="/legal/terms.html" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--info)' }}>Terms</a> and{' '}
+            <a href="/legal/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--info)' }}>Privacy Policy</a>.
+          </p>
+        )}
+
         <p className="note" style={{ textAlign: 'center', marginTop: 14 }}>
           <a onClick={() => { setMode(isSignup ? 'signin' : 'signup'); setErr(null); }} style={{ color: 'var(--info)', cursor: 'pointer' }}>
             {isSignup ? 'Already have an account? Sign in' : 'Have an invite? Create your account'}
@@ -263,6 +271,11 @@ function LoginForm({ portal, onSwitch, invite }) {
             {portal === 'crew' ? 'Office staff? Switch portal' : 'On the crew? Switch portal'}
             <IcChevron width={12} height={12} />
           </a>
+        </p>
+        <p className="note" style={{ textAlign: 'center', marginTop: 18, color: 'var(--text-faint)' }}>
+          <a href="/legal/terms.html" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Terms</a>
+          {'  ·  '}
+          <a href="/legal/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Privacy</a>
         </p>
       </div>
     </div>

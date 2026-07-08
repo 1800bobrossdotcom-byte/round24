@@ -173,7 +173,12 @@ export default function Settings({ store }) {
             store.audit && store.audit('export_data', 'my personal data');
           }}><IcDoc width={13} height={13} /> Export</button>
         </Row>
-        <Row label="Terms &amp; Privacy" hint={s.consent?.acceptedAt ? `Accepted ${new Date(s.consent.acceptedAt).toLocaleDateString()}` : 'Not yet acknowledged'}>
+        <Row label="Terms &amp; Privacy" hint={<>
+          <a href="/legal/terms.html" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--info)' }}>Terms</a>
+          {' · '}
+          <a href="/legal/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--info)' }}>Privacy Policy</a>
+          {s.consent?.acceptedAt ? ` · accepted ${new Date(s.consent.acceptedAt).toLocaleDateString()}` : ''}
+        </>}>
           {s.consent?.acceptedAt
             ? <span className="chip" style={{ color: 'var(--money)' }}><IcCheck width={12} height={12} /> Accepted</span>
             : <button className="btn ghost sm" onClick={() => patch({ consent: { acceptedAt: new Date().toISOString() } })}>Accept</button>}
