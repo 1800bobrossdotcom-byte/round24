@@ -31,7 +31,10 @@ export default function Leasing({ store, navigate, focus }) {
   const canEdit = role === 'admin' || role === 'manager';
   const rows = store.leasing || [];
   const [detail, setDetail] = useState(null); // unitId for the drill-down drawer
-  useEffect(() => { if (focus?.unitId) setDetail(focus.unitId); }, [focus]);
+  useEffect(() => {
+    if (focus?.unitId) setDetail(focus.unitId);
+    if (focus?.building) setQuery(focus.building);
+  }, [focus]);
   const detailUnit = detail ? rows.find((u) => u.id === detail) : null;
 
   const [query, setQuery] = useState('');

@@ -860,3 +860,9 @@ audio { filter: invert(0.9) hue-rotate(180deg); }
 .ud-row:hover .t{color:var(--accent)}
 .ud-row .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ud-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:10px}
+
+/* clickable cards (dashboard portfolio, building hub tiles) */
+.clk-card{cursor:pointer;transition:border-color .12s}
+.clk-card:hover{border-color:var(--accent)}
+button.clk-card{font:inherit;color:inherit;width:100%;text-align:left;display:block}
+.prop-tbl{min-width:520px}

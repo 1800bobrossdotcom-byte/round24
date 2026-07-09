@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip, Cell, PieChart, Pie } from 'recharts';
 import { totals, byPeriod, byProp, byTech, fmtMoney, fmtHrs } from '../lib/rollups.js';
-import { Stat, Avatar } from '../components/ui.jsx';
+import { Stat, Avatar, IcBuilding, IcChevron } from '../components/ui.jsx';
 import AllocateModal from '../components/AllocateModal.jsx';
 
 const GRAIN = ['week', 'month'];
@@ -13,6 +13,11 @@ export default function Dashboard({ store, navigate }) {
   const [allocOpen, setAllocOpen] = useState(false);
   const { timers, propById, techById, meta } = store;
   const go = navigate || (() => {}); // drill-down navigation (no-op if absent)
+  const lease = store.leasing || [];
+  const port = useMemo(() => {
+    const occ = lease.filter((u) => u.status === 'leased');
+    return { units: lease.length, occ: occ.length, occPct: lease.length ? Math.round((occ.length / lease.length) * 100) : 0, billed: occ.reduce((a, u) => a + (u.rent || 0), 0) };
+  }, [lease]);
 
   const seed = async () => {
     setSeeding(true);
@@ -75,6 +80,21 @@ export default function Dashboard({ store, navigate }) {
         <div className="card"><Stat k="Work sessions" v={t.count.toLocaleString()} d="timers closed" /></div>
         <div className="card"><Stat k="Blended rate" v={blended} d="per hour, loaded" /></div>
       </div>
+
+      {lease.length > 0 && (
+        <div className="card clk-card" onClick={() => go('leasing')} role="button" tabIndex={0}
+          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && go('leasing')}
+          style={{ marginBottom: 'var(--gap)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span className="field-label" style={{ margin: 0 }}><IcBuilding width={12} height={12} style={{ verticalAlign: -2 }} /> Portfolio revenue</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
+              <span className="mono" style={{ fontSize: 24, fontWeight: 700, color: 'var(--money)' }}>{fmtMoney(port.billed)}</span>
+              <span style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 700 }}>/mo billed · {port.occPct}% of {port.units} units leased</span>
+            </div>
+          </div>
+          <span style={{ color: 'var(--text-faint)', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4, flex: 'none' }}>Rent roll <IcChevron width={13} height={13} /></span>
+        </div>
+      )}
 
       {un.count > 0 && (
         <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: '#ffb02033', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
