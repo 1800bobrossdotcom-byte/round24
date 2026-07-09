@@ -454,7 +454,7 @@ function LoginForm({ brand, onSwitch, onBeta, invite, switchLabel }) {
         <input value={pw} onChange={(e) => setPw(e.target.value)} type="password" autoComplete={isSignup ? 'new-password' : 'current-password'}
           onKeyDown={(e) => e.key === 'Enter' && submit()} style={inputStyle} />
         <div style={{ height: 20 }} />
-        <button className="btn grad" onClick={submit} disabled={busy || !email || pw.length < 6}>
+        <button className="btn grad" onClick={submit} disabled={busy || !email || pw.length < (isSignup ? 10 : 6)}>
           {busy ? (isSignup ? 'Creating…' : 'Signing in…') : isSignup ? `Create account & join` : `Sign in`}
         </button>
 
@@ -528,8 +528,8 @@ function ChangePasswordModal({ onClose }) {
   const [done, setDone] = useState(false);
 
   const mismatch = pw2 && pw !== pw2;
-  const tooShort = pw && pw.length < 6;
-  const canSubmit = pw.length >= 6 && pw === pw2 && !busy;
+  const tooShort = pw && pw.length < 10;
+  const canSubmit = pw.length >= 10 && pw === pw2 && !busy;
 
   const submit = async () => {
     setErr(null); setBusy(true);
@@ -562,7 +562,7 @@ function ChangePasswordModal({ onClose }) {
             <div className="field-label">New password</div>
             <input value={pw} onChange={(e) => setPw(e.target.value)} type="password" autoComplete="new-password"
               style={inputStyle} />
-            {tooShort && <p className="note" style={{ color: 'var(--danger)', marginTop: 6 }}>At least 6 characters.</p>}
+            {tooShort && <p className="note" style={{ color: 'var(--danger)', marginTop: 6 }}>At least 10 characters.</p>}
             <div style={{ height: 14 }} />
             <div className="field-label">Confirm new password</div>
             <input value={pw2} onChange={(e) => setPw2(e.target.value)} type="password" autoComplete="new-password"

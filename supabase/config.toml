@@ -1,0 +1,28 @@
+# Supabase project config. The public/auth posture of every edge function is
+# declared here as code (Blue-team #4) so it can't silently drift. The project
+# ref is already public (it's in the app's VITE_SUPABASE_URL), not a secret.
+project_id = "lwijercxiobdwqxvnwyy"
+
+# unsubscribe is the ONLY public function — it's clicked straight from an inbox
+# with no session, and verifies an HMAC token itself. Everything else requires a
+# valid JWT and does its own membership / platform-admin checks.
+[functions.unsubscribe]
+verify_jwt = false
+
+[functions.email]
+verify_jwt = true
+
+[functions.getdek]
+verify_jwt = true
+
+[functions.receipt-ocr]
+verify_jwt = true
+
+[functions.chat-summary]
+verify_jwt = true
+
+[functions.stock-check]
+verify_jwt = true
+
+[functions.rm-sync]
+verify_jwt = true

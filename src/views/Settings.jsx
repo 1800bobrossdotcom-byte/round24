@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../components/AuthGate.jsx';
 import {
   isConfigured, updatePassword, getUserSettings, saveUserSettings, signOutEverywhere,
-  mfaFactors, mfaEnroll, mfaVerify, mfaUnenroll, exportMyData,
+  mfaFactors, mfaEnroll, mfaVerify, mfaUnenroll, exportMyData, requestAccountDeletion,
 } from '../lib/backend/supabase.js';
 import { IcGear, IcCheck, IcX, IcLogout, IcDoc, IcClip } from '../components/ui.jsx';
 
@@ -186,11 +186,11 @@ export default function Settings({ store }) {
         <Row label="Request account deletion" hint={s.deletionRequestedAt ? `Requested ${new Date(s.deletionRequestedAt).toLocaleDateString()} — an admin will process it` : 'Right to erasure'}>
           {s.deletionRequestedAt
             ? <span className="chip warn">Pending</span>
-            : <button className="btn ghost sm" style={{ color: 'var(--danger)' }} onClick={() => { if (confirm('Request deletion of your account and personal data? An admin will process this.')) patch({ deletionRequestedAt: new Date().toISOString() }); }}>Request</button>}
+            : <button className="btn ghost sm" style={{ color: 'var(--danger)' }} onClick={async () => { if (confirm('Request deletion of your account and personal data? An admin will process this.')) { try { await requestAccountDeletion(); } catch { /* ignore */ } patch({ deletionRequestedAt: new Date().toISOString() }); } }}>Request</button>}
         </Row>
       </div>
 
-      <p className="note">We encrypt sensitive fields (rates, PII) with AES-256 and isolate every workspace with row-level security. You control your data — export or request deletion anytime.</p>
+      <p className="note">We encrypt sensitive identity fields (legal name, tax identifiers, address, emergency contact) with AES-256 backed by AWS KMS, and isolate every workspace with row-level security. You control your data — export or request deletion anytime.</p>
     </div>
   );
 }

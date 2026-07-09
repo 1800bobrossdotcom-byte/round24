@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { isConfigured, adminListOrgs, adminCreateWorkspace, listWorkspaceRequests, decideWorkspaceRequest, sendInviteEmail } from '../lib/backend/supabase.js';
+import { isConfigured, adminListOrgs, adminCreateWorkspace, listWorkspaceRequests, decideWorkspaceRequest, sendInviteEmail, listDeletionRequests, resolveDeletionRequest } from '../lib/backend/supabase.js';
 import { IcBuilding, IcCheck, IcX, IcCopy } from '../components/ui.jsx';
 
 const inputStyle = {
@@ -11,6 +11,7 @@ const linkFor = (code) => `${window.location.origin}/?invite=${code}`;
 export default function Platform() {
   const [orgs, setOrgs] = useState([]);
   const [reqs, setReqs] = useState([]);
+  const [dels, setDels] = useState([]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [kind, setKind] = useState('company');
@@ -23,7 +24,9 @@ export default function Platform() {
     if (!isConfigured()) return;
     adminListOrgs().then(setOrgs).catch(() => {});
     listWorkspaceRequests().then(setReqs).catch(() => {});
+    listDeletionRequests().then(setDels).catch(() => {});
   };
+  const resolveDel = async (userId) => { try { await resolveDeletionRequest(userId); load(); } catch { /* ignore */ } };
   useEffect(load, []);
 
   const create = async () => {
@@ -100,6 +103,23 @@ export default function Platform() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* pending account-deletion (erasure) requests */}
+      {dels.length > 0 && (
+        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'var(--danger)' }}>
+          <span className="field-label" style={{ color: 'var(--danger)' }}>Account deletion requests ({dels.length})</span>
+          {dels.map((d) => (
+            <div className="row" key={d.userId}>
+              <div className="lead">
+                <div className="t">{d.email || d.userId}</div>
+                <div className="s">requested {new Date(d.requestedAt).toLocaleDateString()}{d.note ? ` · ${d.note}` : ''}</div>
+              </div>
+              <button className="btn ghost sm" onClick={() => resolveDel(d.userId)}>Mark handled</button>
+            </div>
+          ))}
+          <p className="note" style={{ marginTop: 6 }}>Erasure is processed manually: delete/anonymize the account, then mark it handled.</p>
         </div>
       )}
 

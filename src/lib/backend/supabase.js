@@ -323,6 +323,21 @@ export async function requestBeta({ email, contactName, orgName, kind = 'company
   if (error) throw error;
 }
 
+// ---- account deletion / erasure requests ----
+export async function requestAccountDeletion(note) {
+  const { error } = await supabase.rpc('request_account_deletion', { p_note: note || null });
+  if (error) throw error;
+}
+export async function listDeletionRequests() {
+  const { data, error } = await supabase.from('deletion_requests').select('*').eq('status', 'pending').order('requested_at');
+  if (error) throw error;
+  return (data || []).map((r) => ({ userId: r.user_id, email: r.email, note: r.note, requestedAt: r.requested_at }));
+}
+export async function resolveDeletionRequest(userId) {
+  const { error } = await supabase.from('deletion_requests').update({ status: 'resolved', resolved_at: new Date().toISOString() }).eq('user_id', userId);
+  if (error) throw error;
+}
+
 // ---- transactional email (best-effort; never blocks the app flow) ----
 // The 'email' edge function degrades gracefully when Resend isn't configured,
 // so these are fire-and-forget: a mail failure must never break signup or a
