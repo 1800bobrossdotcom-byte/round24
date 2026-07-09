@@ -172,8 +172,10 @@ function makeCode() {
 
 export async function createInvite(orgId, { role, label, email, expiresAt } = {}) {
   const code = makeCode();
+  // default to a 14-day expiry so invite codes don't live forever
+  const exp = expiresAt || new Date(Date.now() + 14 * 864e5).toISOString();
   const { data, error } = await supabase.from('invites').insert({
-    org_id: orgId, code, role, label: label || null, email: email || null, expires_at: expiresAt || null,
+    org_id: orgId, code, role, label: label || null, email: email || null, expires_at: exp,
   }).select().single();
   if (error) throw error;
   return inviteFromDb(data);
