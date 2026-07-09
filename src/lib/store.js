@@ -10,7 +10,7 @@ import {
   listDocuments, uploadDocument,
   listMessages, insertMessage, subscribeMessages, uploadVoiceNote, summarizeThread,
   uploadAttachment, updateWorkOrderPhotos, updateWorkOrderFiles,
-  listLeasing, updateLeaseRow, updateUnitRow, importLeaseBuildings,
+  listLeasing, updateLeaseRow, updateUnitRow, importLeaseBuildings, addUnitWithLease, deleteUnit,
   upsertChatMember, listChatMembers, listChatChannels, insertChatChannel,
   listPropertyCards, insertPropertyCard, deletePropertyCard,
   listLiveTimers, upsertLiveTimer, deleteLiveTimer, subscribeLiveTimers,
@@ -518,13 +518,35 @@ export function useStore() {
     if (!isConfigured() || !orgId || demoMode) return;
     const u = leaseRef.current.find((x) => x.id === unitId);
     const lp = {}, up = {};
-    for (const k of ['rent', 'renewalStatus', 'notes', 'tenant', 'phone', 'deposit']) if (k in patch) lp[k] = patch[k];
-    if ('status' in patch) up.status = patch.status;
+    for (const k of ['rent', 'renewalStatus', 'notes', 'tenant', 'phone', 'deposit', 'leaseStart', 'leaseEnd']) if (k in patch) lp[k] = patch[k];
+    for (const k of ['status', 'number', 'beds', 'type', 'furnished']) if (k in patch) up[k] = patch[k];
     try {
       if (Object.keys(lp).length && u?.leaseId) await updateLeaseRow(u.leaseId, lp);
       if (Object.keys(up).length) await updateUnitRow(unitId, up);
     } catch { /* keep local copy */ }
   }, [orgId, demoMode]);
+
+  // create a unit in a building (returns its id so the UI can open its editor)
+  const addUnit = useCallback(async (building) => {
+    const draft = {
+      id: 'nu_' + Math.random().toString(36).slice(2, 9), leaseId: null, building,
+      number: '', beds: null, type: 'residential', furnished: false, status: 'vacant',
+      tenant: '', phone: '', rent: null, fees: {}, total: null, deposit: null,
+      leaseStart: null, leaseEnd: null, renewalStatus: null, notes: '',
+    };
+    if (!isConfigured() || !orgId || demoMode) { setLeasing((l) => [...l, draft]); return draft.id; }
+    try {
+      const saved = await addUnitWithLease(orgId, draft);
+      setLeasing((l) => [...l, saved]); audit('add_unit', building); return saved.id;
+    } catch { setLeasing((l) => [...l, draft]); return draft.id; }
+  }, [orgId, demoMode, audit]);
+
+  const removeUnit = useCallback(async (unitId) => {
+    setLeasing((l) => l.filter((u) => u.id !== unitId));
+    if (isConfigured() && orgId && !demoMode && !String(unitId).startsWith('nu_')) {
+      try { await deleteUnit(unitId); audit('delete_unit', unitId); } catch { /* already gone locally */ }
+    }
+  }, [orgId, demoMode, audit]);
 
   const importLeases = useCallback(async (buildings) => {
     if (!isConfigured() || !orgId) return { buildings: 0, units: 0 };
@@ -725,7 +747,7 @@ export function useStore() {
     woNotice, clearWoNotice: () => setWoNotice(null),
     // cloud timers
     addTimerEntry, updateTimerEntry, operatorId,
-    leasing, setLeaseField, importLeases, loadLeasing, canSeeLeasing,
+    leasing, setLeaseField, importLeases, loadLeasing, canSeeLeasing, addUnit, removeUnit,
     // live presence + availability + audit
     liveTimers, syncLivePresence,
     availability, setMyAvailability, audit,

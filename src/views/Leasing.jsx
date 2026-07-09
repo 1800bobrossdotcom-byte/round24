@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, Fragment } from 'react';
 import { useAuth } from '../components/AuthGate.jsx';
 import { isConfigured } from '../lib/backend/supabase.js';
 import { parseLeaseWorkbook } from '../lib/leaseParser.js';
@@ -37,7 +37,31 @@ export default function Leasing({ store }) {
   const [dense, setDense] = useState(false);
   const [busy, setBusy] = useState(null);
   const [msg, setMsg] = useState(null);
+  const [editRow, setEditRow] = useState(null); // { id, draft }
   const fileRef = useRef(null);
+
+  const dset = (k, v) => setEditRow((e) => ({ ...e, draft: { ...e.draft, [k]: v } }));
+  const beginEdit = (u) => setEditRow({ id: u.id, draft: {
+    number: u.number || '', beds: u.beds ?? '', type: u.type || 'residential', furnished: !!u.furnished,
+    tenant: u.tenant || '', phone: u.phone || '', rent: u.rent ?? '', deposit: u.deposit ?? '',
+    leaseStart: u.leaseStart || '', leaseEnd: u.leaseEnd || '', status: u.status || 'vacant',
+  } });
+  const saveEdit = () => {
+    const d = editRow.draft;
+    store.setLeaseField(editRow.id, {
+      number: String(d.number).trim(), beds: d.beds === '' ? null : parseInt(d.beds, 10), type: d.type, furnished: !!d.furnished,
+      tenant: d.tenant.trim(), phone: d.phone.trim(),
+      rent: d.rent === '' ? null : parseFloat(d.rent), deposit: d.deposit === '' ? null : parseFloat(d.deposit),
+      leaseStart: d.leaseStart || null, leaseEnd: d.leaseEnd || null, status: d.status,
+    });
+    setEditRow(null);
+  };
+  const delRow = (u) => { if (window.confirm(`Delete unit ${u.number || ''}${u.tenant ? ` — ${u.tenant}` : ''}? This removes the unit and its lease.`)) { store.removeUnit(u.id); setEditRow(null); } };
+  const addUnitTo = async (building) => {
+    const id = await store.addUnit(building);
+    setCollapsed((s) => { const x = new Set(s); x.delete(building); return x; });
+    setEditRow({ id, draft: { number: '', beds: '', type: 'residential', furnished: false, tenant: '', phone: '', rent: '', deposit: '', leaseStart: '', leaseEnd: '', status: 'vacant' } });
+  };
 
   const kpi = useMemo(() => {
     const occ = rows.filter((u) => u.status === 'leased');
@@ -186,14 +210,18 @@ export default function Leasing({ store }) {
         const occ = units.filter((u) => u.status === 'leased').length;
         const rent = units.reduce((a, u) => a + (u.rent || 0), 0);
         const pct = units.length ? Math.round((occ / units.length) * 100) : 0;
+        const editUnit = editRow ? units.find((u) => u.id === editRow.id) : null;
         return (
           <div className={'card rr-bcard' + (dense ? ' dense' : '')} key={name} style={{ marginBottom: 'var(--gap)' }}>
-            <button className="rr-bhead" onClick={() => toggleOne(name)} aria-expanded={isOpen}>
-              <IcChevron className="rr-chev" width={14} height={14} style={{ transform: isOpen ? 'rotate(90deg)' : 'none' }} />
-              <span className="rr-bname"><IcBuilding width={13} height={13} style={{ verticalAlign: -2 }} /> {name}</span>
-              <span className="rr-occbar" title={`${pct}% leased`}><span style={{ width: pct + '%', background: pct >= 90 ? 'var(--money)' : pct >= 75 ? 'var(--warn)' : 'var(--danger)' }} /></span>
-              <span className="rr-bmeta mono">{occ}/{units.length} · {money0(rent)}/mo</span>
-            </button>
+            <div className="rr-bhead-wrap">
+              <button className="rr-bhead" onClick={() => toggleOne(name)} aria-expanded={isOpen}>
+                <IcChevron className="rr-chev" width={14} height={14} style={{ transform: isOpen ? 'rotate(90deg)' : 'none' }} />
+                <span className="rr-bname"><IcBuilding width={13} height={13} style={{ verticalAlign: -2 }} /> {name}</span>
+                <span className="rr-occbar" title={`${pct}% leased`}><span style={{ width: pct + '%', background: pct >= 90 ? 'var(--money)' : pct >= 75 ? 'var(--warn)' : 'var(--danger)' }} /></span>
+                <span className="rr-bmeta mono">{occ}/{units.length} · {money0(rent)}/mo</span>
+              </button>
+              {canEdit && <button className="rr-add" onClick={() => addUnitTo(name)} title="Add a unit">+ Unit</button>}
+            </div>
             {isOpen && (
               <div className="rr-scroll">
                 <table className="rr-tbl">
@@ -206,11 +234,13 @@ export default function Leasing({ store }) {
                     <SortTh k="total" num>Total</SortTh>
                     <SortTh k="ends">Ends</SortTh>
                     <SortTh k="status">Status</SortTh>
+                    {canEdit && <th aria-label="actions"></th>}
                   </tr></thead>
                   <tbody>
                     {units.map((u) => {
                       const d = daysTo(u.leaseEnd);
                       const vac = u.status !== 'leased';
+                      const isEd = editRow && editRow.id === u.id;
                       return (
                         <tr key={u.id} className={vac ? 'vac' : ''}>
                           <td className="mono"><span className="ustripe" style={{ background: statusMeta(u.status)[2] }} />{u.number}{u.furnished ? ' ·F' : ''}</td>
@@ -235,11 +265,36 @@ export default function Leasing({ store }) {
                                 </select>
                               : <span className="chip" style={{ color: statusMeta(u.status)[2] }}>{statusMeta(u.status)[1]}</span>}
                           </td>
+                          {canEdit && <td className="rr-actions"><button className="rr-edit" onClick={() => (isEd ? setEditRow(null) : beginEdit(u))}>{isEd ? 'Close' : 'Edit'}</button></td>}
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+            {isOpen && editUnit && (
+              <div className="rr-editpanel">
+                <div className="field-label" style={{ marginTop: 0 }}>Edit unit {editUnit.number || '(new)'}</div>
+                <div className="rr-edit-grid">
+                  <label>Unit #<input value={editRow.draft.number} onChange={(e) => dset('number', e.target.value)} autoFocus /></label>
+                  <label>Beds<input type="number" value={editRow.draft.beds} onChange={(e) => dset('beds', e.target.value)} placeholder="—" /></label>
+                  <label>Type<select value={editRow.draft.type} onChange={(e) => dset('type', e.target.value)}><option value="residential">Residential</option><option value="commercial">Commercial</option></select></label>
+                  <label className="rr-check"><input type="checkbox" checked={editRow.draft.furnished} onChange={(e) => dset('furnished', e.target.checked)} /> Furnished</label>
+                  <label className="wide">Tenant<input value={editRow.draft.tenant} onChange={(e) => dset('tenant', e.target.value)} placeholder="Vacant" /></label>
+                  <label>Phone<input value={editRow.draft.phone} onChange={(e) => dset('phone', e.target.value)} inputMode="tel" /></label>
+                  <label>Rent<input type="number" value={editRow.draft.rent} onChange={(e) => dset('rent', e.target.value)} /></label>
+                  <label>Deposit<input type="number" value={editRow.draft.deposit} onChange={(e) => dset('deposit', e.target.value)} /></label>
+                  <label>Lease start<input type="date" value={editRow.draft.leaseStart} onChange={(e) => dset('leaseStart', e.target.value)} /></label>
+                  <label>Lease end<input type="date" value={editRow.draft.leaseEnd} onChange={(e) => dset('leaseEnd', e.target.value)} /></label>
+                  <label>Status<select value={editRow.draft.status} onChange={(e) => dset('status', e.target.value)}>{UNIT_STATUS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+                </div>
+                <div className="rr-edit-actions">
+                  <button className="btn ghost sm" style={{ color: 'var(--danger)' }} onClick={() => delRow(editUnit)}>Delete unit</button>
+                  <span style={{ flex: 1 }} />
+                  <button className="btn ghost sm" onClick={() => setEditRow(null)}>Cancel</button>
+                  <button className="btn grad sm" onClick={saveEdit}>Save</button>
+                </div>
               </div>
             )}
           </div>

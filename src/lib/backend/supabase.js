@@ -491,9 +491,11 @@ export async function updateLeaseRow(leaseId, patch) {
   if (patch.rent !== undefined) upd.rent = patch.rent;
   if (patch.renewalStatus !== undefined) upd.renewal_status = patch.renewalStatus;
   if (patch.notes !== undefined) upd.notes = patch.notes;
-  if (patch.tenant !== undefined) upd.tenant_name = patch.tenant;
-  if (patch.phone !== undefined) upd.tenant_phone = patch.phone;
+  if (patch.tenant !== undefined) upd.tenant_name = patch.tenant || null;
+  if (patch.phone !== undefined) upd.tenant_phone = patch.phone || null;
   if (patch.deposit !== undefined) upd.deposit = patch.deposit;
+  if (patch.leaseStart !== undefined) upd.lease_start = patch.leaseStart || null;
+  if (patch.leaseEnd !== undefined) upd.lease_end = patch.leaseEnd || null;
   const { error } = await supabase.from('leases').update(upd).eq('id', leaseId);
   if (error) throw error;
 }
@@ -503,7 +505,36 @@ export async function updateUnitRow(unitId, patch) {
   if (patch.status !== undefined) upd.status = patch.status;
   if (patch.number !== undefined) upd.name = patch.number;
   if (patch.beds !== undefined) upd.beds = patch.beds;
+  if (patch.type !== undefined) upd.unit_type = patch.type;
+  if (patch.furnished !== undefined) upd.furnished = !!patch.furnished;
   const { error } = await supabase.from('units').update(upd).eq('id', unitId);
+  if (error) throw error;
+}
+
+// create a unit (+ its lease) in a building; resolves/creates the property
+export async function addUnitWithLease(orgId, u) {
+  let pid = u.propertyId || null;
+  if (!pid && u.building) {
+    const { data: p } = await supabase.from('properties').select('id').eq('org_id', orgId).ilike('name', u.building).limit(1).maybeSingle();
+    pid = p?.id || null;
+    if (!pid) { const { data: np } = await supabase.from('properties').insert({ org_id: orgId, name: u.building, units: 1 }).select('id').single(); pid = np?.id || null; }
+  }
+  const { data: nu, error } = await supabase.from('units').insert({
+    org_id: orgId, property_id: pid, building: u.building || null, name: u.number || 'New unit',
+    beds: u.beds ?? null, unit_type: u.type || 'residential', furnished: !!u.furnished,
+    status: u.status || 'vacant', sort: u.sort ?? 999,
+  }).select('*').single();
+  if (error) throw error;
+  const { data: nl } = await supabase.from('leases').insert({
+    org_id: orgId, unit_id: nu.id, tenant_name: u.tenant || null, tenant_phone: u.phone || null,
+    rent: u.rent ?? null, fees: u.fees || {}, deposit: u.deposit ?? null,
+    lease_start: u.leaseStart || null, lease_end: u.leaseEnd || null, active: true,
+  }).select('*').single();
+  return leaseUnitFromDb({ ...nu, leases: nl ? [nl] : [] });
+}
+
+export async function deleteUnit(unitId) {
+  const { error } = await supabase.from('units').delete().eq('id', unitId);   // leases cascade
   if (error) throw error;
 }
 
