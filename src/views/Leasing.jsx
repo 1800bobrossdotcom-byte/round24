@@ -110,6 +110,19 @@ export default function Leasing({ store, navigate, focus }) {
     return [...m.entries()].map(([name, us]) => [name, [...us].sort(cmp)]).sort((a, b) => b[1].length - a[1].length);
   }, [rows, q, filter, sort]);
 
+  // true per-building occupancy from ALL units (not the filtered view), so the
+  // header stays honest when a filter is applied.
+  const fullStats = useMemo(() => {
+    const m = new Map();
+    for (const u of rows) {
+      const k = u.building || 'Unassigned';
+      const s = m.get(k) || { units: 0, occ: 0, rent: 0 };
+      s.units++; if (u.status === 'leased') { s.occ++; s.rent += u.rent || 0; }
+      m.set(k, s);
+    }
+    return m;
+  }, [rows]);
+
   const shownUnits = buildings.reduce((a, [, us]) => a + us.length, 0);
   const renewals = useMemo(() =>
     rows.filter((u) => u.leaseEnd && daysTo(u.leaseEnd) <= 120).sort((a, b) => new Date(a.leaseEnd) - new Date(b.leaseEnd)),
@@ -154,6 +167,20 @@ export default function Leasing({ store, navigate, focus }) {
         <button className={'kpi-c clk' + (filter === 'vacant' ? ' on' : '')} onClick={() => setFilter('vacant')} title="Filter to vacant"><span className="v mono" style={{ color: 'var(--warn)' }}>{money0(kpi.loss)}</span><span className="k">vacancy loss / mo</span></button>
         <div className="kpi-c"><span className="v mono">{money0(kpi.deposits)}</span><span className="k">deposits held</span></div>
       </div>
+
+      {rows.length > 0 && (
+        <div className="rr-occsum">
+          <div className="rr-occbar-lg" role="img" aria-label={`${kpi.occPct}% leased, ${100 - kpi.occPct}% vacant`}>
+            <span className="leased" style={{ width: kpi.occPct + '%' }} />
+            <span className="vacant" style={{ width: (100 - kpi.occPct) + '%' }} />
+          </div>
+          <div className="rr-occlegend">
+            <button className="rr-occitem" onClick={() => setFilter('leased')}><i className="dot" style={{ background: 'var(--money)' }} /> Leased <b className="mono">{kpi.occ}</b> · <span className="mono" style={{ color: 'var(--money)' }}>{kpi.occPct}%</span></button>
+            <button className="rr-occitem" onClick={() => setFilter('vacant')}><i className="dot" style={{ background: 'var(--warn)' }} /> Vacant <b className="mono">{kpi.vac}</b> · <span className="mono" style={{ color: 'var(--warn)' }}>{100 - kpi.occPct}%</span></button>
+            <span className="rr-occitem" style={{ marginLeft: 'auto', cursor: 'default' }}><b className="mono">{kpi.units}</b> units total</span>
+          </div>
+        </div>
+      )}
 
       {rows.length === 0 && (
         <div className="card" style={{ textAlign: 'center', padding: 28 }}>
@@ -214,9 +241,9 @@ export default function Leasing({ store, navigate, focus }) {
       {/* rent roll by building */}
       {buildings.map(([name, units]) => {
         const isOpen = !collapsed.has(name) || !!q;
-        const occ = units.filter((u) => u.status === 'leased').length;
-        const rent = units.reduce((a, u) => a + (u.rent || 0), 0);
-        const pct = units.length ? Math.round((occ / units.length) * 100) : 0;
+        const fs = fullStats.get(name) || { units: units.length, occ: 0, rent: 0 };
+        const occ = fs.occ, rent = fs.rent;
+        const pct = fs.units ? Math.round((occ / fs.units) * 100) : 0;
         const editUnit = editRow ? units.find((u) => u.id === editRow.id) : null;
         return (
           <div className={'card rr-bcard' + (dense ? ' dense' : '')} key={name} style={{ marginBottom: 'var(--gap)' }}>
@@ -225,7 +252,7 @@ export default function Leasing({ store, navigate, focus }) {
                 <IcChevron className="rr-chev" width={14} height={14} style={{ transform: isOpen ? 'rotate(90deg)' : 'none' }} />
                 <span className="rr-bname"><IcBuilding width={13} height={13} style={{ verticalAlign: -2 }} /> {name}</span>
                 <span className="rr-occbar" title={`${pct}% leased`}><span style={{ width: pct + '%', background: pct >= 90 ? 'var(--money)' : pct >= 75 ? 'var(--warn)' : 'var(--danger)' }} /></span>
-                <span className="rr-bmeta mono">{occ}/{units.length} · {money0(rent)}/mo</span>
+                <span className="rr-bmeta mono">{occ}/{fs.units} · {pct}% · {money0(rent)}/mo</span>
               </button>
               {canEdit && <button className="rr-add" onClick={() => addUnitTo(name)} title="Add a unit">+ Unit</button>}
             </div>
