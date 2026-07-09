@@ -8,6 +8,7 @@ import DayOverview from './views/DayOverview.jsx';
 import Chat from './views/Chat.jsx';
 import Field from './views/Field.jsx';
 import Properties from './views/Properties.jsx';
+import Leasing from './views/Leasing.jsx';
 import Team from './views/Team.jsx';
 import Import from './views/Import.jsx';
 import WorkOrders from './views/WorkOrders.jsx';
@@ -34,6 +35,7 @@ const TABS = [
   { id: 'pur', label: 'Purchases', Icon: IcReceipt, View: Purchases, roles: ['admin', 'manager', 'tech'], primary: true },
   { id: 'docs', label: 'Docs', Icon: IcDoc, View: Documents, roles: ['admin', 'manager', 'tech', 'viewer'] },
   { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, roles: ['admin', 'manager', 'viewer'] },
+  { id: 'leasing', label: 'Rent Roll', Icon: IcBuilding, View: Leasing, roles: ['admin', 'manager', 'viewer'] },
   { id: 'props', label: 'Properties', Icon: IcBuilding, View: Properties, roles: ['admin', 'manager', 'viewer'] },
   { id: 'team', label: 'Team', Icon: IcUsers, View: Team, roles: ['admin', 'manager'] },
   { id: 'import', label: 'Import', Icon: IcImport, View: Import, roles: ['admin', 'manager'] },

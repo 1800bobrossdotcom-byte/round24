@@ -463,6 +463,84 @@ export async function uploadReceipt(orgId, file) {
   return path;
 }
 
+// ---- leasing: units + their current lease (the rent-roll spine) ----
+const leaseUnitFromDb = (u) => {
+  const ls = u.leases || [];
+  const l = ls.find((x) => x.active) || ls[0] || null;
+  return {
+    id: u.id, propertyId: u.property_id, building: u.building || '', number: u.name,
+    beds: u.beds != null ? Number(u.beds) : null, type: u.unit_type || 'residential',
+    sqft: u.sqft, furnished: !!u.furnished, status: u.status || 'vacant', sort: u.sort || 0,
+    leaseId: l?.id || null, tenant: l?.tenant_name || '', phone: l?.tenant_phone || '',
+    rent: l?.rent != null ? Number(l.rent) : null, fees: l?.fees || {},
+    total: l?.total != null ? Number(l.total) : null, deposit: l?.deposit != null ? Number(l.deposit) : null,
+    leaseStart: l?.lease_start || null, leaseEnd: l?.lease_end || null,
+    renewalStatus: l?.renewal_status || null, notes: l?.notes || '',
+  };
+};
+
+export async function listLeasing(orgId) {
+  const { data, error } = await supabase.from('units')
+    .select('*, leases(*)').eq('org_id', orgId).order('sort', { ascending: true });
+  if (error) throw error;
+  return (data || []).map(leaseUnitFromDb);
+}
+
+export async function updateLeaseRow(leaseId, patch) {
+  const upd = {};
+  if (patch.rent !== undefined) upd.rent = patch.rent;
+  if (patch.renewalStatus !== undefined) upd.renewal_status = patch.renewalStatus;
+  if (patch.notes !== undefined) upd.notes = patch.notes;
+  if (patch.tenant !== undefined) upd.tenant_name = patch.tenant;
+  if (patch.phone !== undefined) upd.tenant_phone = patch.phone;
+  if (patch.deposit !== undefined) upd.deposit = patch.deposit;
+  const { error } = await supabase.from('leases').update(upd).eq('id', leaseId);
+  if (error) throw error;
+}
+
+export async function updateUnitRow(unitId, patch) {
+  const upd = {};
+  if (patch.status !== undefined) upd.status = patch.status;
+  if (patch.number !== undefined) upd.name = patch.number;
+  if (patch.beds !== undefined) upd.beds = patch.beds;
+  const { error } = await supabase.from('units').update(upd).eq('id', unitId);
+  if (error) throw error;
+}
+
+// bulk import a parsed lease workbook → properties + units + leases
+export async function importLeaseBuildings(orgId, buildings) {
+  const { data: props } = await supabase.from('properties').select('id,name').eq('org_id', orgId);
+  const byName = new Map((props || []).map((p) => [p.name.toLowerCase(), p.id]));
+  let nb = 0, nu = 0;
+  for (const b of buildings) {
+    let pid = byName.get(b.name.toLowerCase());
+    if (!pid) {
+      const { data: np } = await supabase.from('properties')
+        .insert({ org_id: orgId, name: b.name, city: b.city || null, units: b.units.length }).select('id').single();
+      pid = np?.id; if (pid) byName.set(b.name.toLowerCase(), pid);
+    }
+    let sort = 0;
+    for (const u of b.units) {
+      const { data: nuRow } = await supabase.from('units').insert({
+        org_id: orgId, property_id: pid, building: b.name, name: u.number, beds: u.beds,
+        unit_type: u.type || 'residential', sqft: u.sqft || null, furnished: !!u.furnished,
+        status: u.status || 'vacant', sort: sort++,
+      }).select('id').single();
+      nu++;
+      if (nuRow?.id) {
+        await supabase.from('leases').insert({
+          org_id: orgId, unit_id: nuRow.id, tenant_name: u.tenant || null, tenant_phone: u.phone || null,
+          rent: u.rent, fees: u.fees || {}, total: u.total, deposit: u.deposit,
+          lease_start: u.leaseStart || u.lease_start || null, lease_end: u.leaseEnd || u.lease_end || null,
+          renewal_status: u.renewalStatus || null, notes: u.note || null, active: true,
+        });
+      }
+    }
+    nb++;
+  }
+  return { buildings: nb, units: nu };
+}
+
 // ---- documents ----
 const docFromDb = (r) => ({
   id: r.id, name: r.name, path: r.path, category: r.category,

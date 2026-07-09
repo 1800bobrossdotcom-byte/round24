@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import seed from '../data/seed.json';
 import { useAuth } from '../components/AuthGate.jsx';
 import { DEMO_PROPERTIES, buildDemoTimers, DEMO_WORK_ORDERS, DEMO_PURCHASES } from './demoData.js';
+import { DEMO_LEASING } from '../data/leaseDemo.js';
 import {
   isConfigured, listWorkOrders, insertWorkOrder, updateWorkOrderStatus,
   updateWorkOrderPriority, updateWorkOrderAssignee, subscribeWorkOrders,
@@ -9,6 +10,7 @@ import {
   listDocuments, uploadDocument,
   listMessages, insertMessage, subscribeMessages, uploadVoiceNote, summarizeThread,
   uploadAttachment, updateWorkOrderPhotos, updateWorkOrderFiles,
+  listLeasing, updateLeaseRow, updateUnitRow, importLeaseBuildings,
   upsertChatMember, listChatMembers, listChatChannels, insertChatChannel,
   listPropertyCards, insertPropertyCard, deletePropertyCard,
   listLiveTimers, upsertLiveTimer, deleteLiveTimer, subscribeLiveTimers,
@@ -497,6 +499,41 @@ export function useStore() {
     if (isConfigured() && orgId) logAudit(orgId, action, target, myName, meta);
   }, [orgId, myName]);
 
+  // ---- leasing spine: the rent roll that replaces the lease spreadsheet ----
+  // office (admin/manager) edits; owners (viewer) read. Field crew never see it.
+  const canSeeLeasing = role === 'admin' || role === 'manager' || role === 'viewer';
+  const [leasing, setLeasing] = useState(() => (demoMode ? DEMO_LEASING : []));
+  const leaseRef = useRef(leasing);
+  useEffect(() => { leaseRef.current = leasing; }, [leasing]);
+  const loadLeasing = useCallback(() => {
+    if (!isConfigured() || !orgId || !canSeeLeasing) return;
+    listLeasing(orgId).then(setLeasing).catch(() => {});
+  }, [orgId, canSeeLeasing]);
+  useEffect(loadLeasing, [loadLeasing]);
+
+  // edit a rent-roll cell — rent/renewal/notes/tenant live on the lease,
+  // status lives on the unit. Optimistic locally, persisted in the cloud.
+  const setLeaseField = useCallback(async (unitId, patch) => {
+    setLeasing((l) => l.map((u) => (u.id === unitId ? { ...u, ...patch } : u)));
+    if (!isConfigured() || !orgId || demoMode) return;
+    const u = leaseRef.current.find((x) => x.id === unitId);
+    const lp = {}, up = {};
+    for (const k of ['rent', 'renewalStatus', 'notes', 'tenant', 'phone', 'deposit']) if (k in patch) lp[k] = patch[k];
+    if ('status' in patch) up.status = patch.status;
+    try {
+      if (Object.keys(lp).length && u?.leaseId) await updateLeaseRow(u.leaseId, lp);
+      if (Object.keys(up).length) await updateUnitRow(unitId, up);
+    } catch { /* keep local copy */ }
+  }, [orgId, demoMode]);
+
+  const importLeases = useCallback(async (buildings) => {
+    if (!isConfigured() || !orgId) return { buildings: 0, units: 0 };
+    const res = await importLeaseBuildings(orgId, buildings);
+    loadLeasing();
+    audit('import_leases', `${res.buildings} buildings · ${res.units} units`);
+    return res;
+  }, [orgId, loadLeasing, audit]);
+
   // ---- per-property credit cards: auto-file receipts by card ----
   const [cards, setCards] = useState(() => loadLS('caliper_cards_v1', []));
   const [cardBackend, setCardBackend] = useState('local');
@@ -688,6 +725,7 @@ export function useStore() {
     woNotice, clearWoNotice: () => setWoNotice(null),
     // cloud timers
     addTimerEntry, updateTimerEntry, operatorId,
+    leasing, setLeaseField, importLeases, loadLeasing, canSeeLeasing,
     // live presence + availability + audit
     liveTimers, syncLivePresence,
     availability, setMyAvailability, audit,
