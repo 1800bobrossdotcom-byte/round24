@@ -133,7 +133,7 @@
   <h2 id="security">7. How we protect it</h2>
   <ul>
     <li><strong>Encryption in transit</strong> — all traffic is served over TLS/HTTPS.</li>
-    <li><strong>Encryption at rest</strong> — sensitive identity fields — including a contractor’s legal name, tax identifiers, mailing address, and emergency-contact details — are additionally encrypted at the application layer with AES-256-GCM, using per-workspace envelope encryption backed by AWS KMS. All data is also protected by encryption at rest provided by our infrastructure providers.</li>
+    <li><strong>Encryption at rest</strong> — sensitive personal fields — including a contractor’s legal name, tax identifiers, mailing address, and emergency-contact details; tenant names and phone numbers; and labor pay rates — are additionally encrypted at the application layer with AES-256-GCM, using per-workspace envelope encryption backed by AWS KMS (the key is unwrapped only for an authorized session and never stored in the browser). All data is also protected by encryption at rest provided by our infrastructure providers.</li>
     <li><strong>Tenant isolation</strong> — every workspace is isolated with database row-level security, so one workspace cannot access another’s data.</li>
     <li><strong>Access controls</strong> — role-based permissions, optional two-factor authentication, and an append-only audit log of sensitive actions.</li>
     <li><strong>Data minimization</strong> — for example, we store only the last four digits of a TIN/SSN, never the full number.</li>

@@ -26,6 +26,50 @@ function orgKey() {
   if (!_dekKeyPromise) _dekKeyPromise = fetchDEK().then(importKey).catch((e) => { _dekKeyPromise = null; throw e; });
   return _dekKeyPromise;
 }
+
+// ---- reusable dual-mode field encryption ----------------------------------
+// Any at-rest field can carry ciphertext ('enc1:'+base64) OR legacy plaintext.
+// encStr/decStr make wiring a NEW sensitive field a one-liner and keep old rows
+// readable until they're re-saved. Fail-SAFE: no key → store/return as-is.
+const ENC_PREFIX = 'enc1:';
+export const isEncrypted = (v) => typeof v === 'string' && v.startsWith(ENC_PREFIX);
+async function encStr(v) {
+  if (v == null || v === '') return v;
+  if (isEncrypted(v)) return v; // already encrypted
+  try { return ENC_PREFIX + await encryptField(await orgKey(), String(v)); }
+  catch { return v; } // KMS unavailable → leave plaintext rather than block the write
+}
+async function decStr(v) {
+  if (!isEncrypted(v)) return v; // legacy plaintext (or empty) — pass through
+  try { return await decryptField(await orgKey(), v.slice(ENC_PREFIX.length)); }
+  catch { return v; } // key unavailable → leave as-is (rare; KMS down)
+}
+// encrypt/decrypt several fields of a row object at once
+async function encFields(row, fields) {
+  const out = { ...row };
+  for (const f of fields) if (f in out) out[f] = await encStr(out[f]);
+  return out;
+}
+async function decFields(row, fields) {
+  const out = { ...row };
+  for (const f of fields) if (f in out) out[f] = await decStr(out[f]);
+  return out;
+}
+// sensitive at-rest fields, by table — add a field here to encrypt it going forward
+const ENC_LEASE_FIELDS = ['tenant_name', 'tenant_phone'];
+
+// whole-JSON encryption for a blob column (e.g. the labor spine, which carries
+// pay rates on every row). Dual-mode + fail-safe: no key → store the raw value.
+async function encBlob(v) {
+  if (v == null) return v;
+  try { return ENC_PREFIX + await encryptField(await orgKey(), JSON.stringify(v)); }
+  catch { return v; }
+}
+async function decBlob(v) {
+  if (!isEncrypted(v)) return v; // legacy array/object passes through
+  try { return JSON.parse(await decryptField(await orgKey(), v.slice(ENC_PREFIX.length))); }
+  catch { return v; }
+}
 async function encryptSettings(data) {
   const needs = ENC_SETTINGS_FIELDS.some((f) => data[f] != null);
   if (!needs) return data;
@@ -615,7 +659,9 @@ export async function listLeasing(orgId) {
   const { data, error } = await supabase.from('units')
     .select('*, leases(*)').eq('org_id', orgId).order('sort', { ascending: true });
   if (error) throw error;
-  return (data || []).map(leaseUnitFromDb);
+  const rows = (data || []).map(leaseUnitFromDb);
+  // decrypt tenant PII (dual-mode: legacy plaintext passes straight through)
+  return Promise.all(rows.map(async (r) => ({ ...r, tenant: await decStr(r.tenant), phone: await decStr(r.phone) })));
 }
 
 export async function updateLeaseRow(leaseId, patch) {
@@ -623,8 +669,8 @@ export async function updateLeaseRow(leaseId, patch) {
   if (patch.rent !== undefined) upd.rent = patch.rent;
   if (patch.renewalStatus !== undefined) upd.renewal_status = patch.renewalStatus;
   if (patch.notes !== undefined) upd.notes = patch.notes;
-  if (patch.tenant !== undefined) upd.tenant_name = patch.tenant || null;
-  if (patch.phone !== undefined) upd.tenant_phone = patch.phone || null;
+  if (patch.tenant !== undefined) upd.tenant_name = patch.tenant ? await encStr(patch.tenant) : null;
+  if (patch.phone !== undefined) upd.tenant_phone = patch.phone ? await encStr(patch.phone) : null;
   if (patch.deposit !== undefined) upd.deposit = patch.deposit;
   if (patch.leaseStart !== undefined) upd.lease_start = patch.leaseStart || null;
   if (patch.leaseEnd !== undefined) upd.lease_end = patch.leaseEnd || null;
@@ -658,11 +704,13 @@ export async function addUnitWithLease(orgId, u) {
   }).select('*').single();
   if (error) throw error;
   const { data: nl } = await supabase.from('leases').insert({
-    org_id: orgId, unit_id: nu.id, tenant_name: u.tenant || null, tenant_phone: u.phone || null,
+    org_id: orgId, unit_id: nu.id,
+    tenant_name: u.tenant ? await encStr(u.tenant) : null, tenant_phone: u.phone ? await encStr(u.phone) : null,
     rent: u.rent ?? null, fees: u.fees || {}, deposit: u.deposit ?? null,
     lease_start: u.leaseStart || null, lease_end: u.leaseEnd || null, active: true,
   }).select('*').single();
-  return leaseUnitFromDb({ ...nu, leases: nl ? [nl] : [] });
+  const row = leaseUnitFromDb({ ...nu, leases: nl ? [nl] : [] });
+  return { ...row, tenant: u.tenant || '', phone: u.phone || '' }; // return plaintext to the app
 }
 
 export async function deleteUnit(unitId) {
@@ -762,7 +810,8 @@ export async function importLeaseBuildings(orgId, buildings) {
       nu++;
       if (nuRow?.id) {
         await supabase.from('leases').insert({
-          org_id: orgId, unit_id: nuRow.id, tenant_name: u.tenant || null, tenant_phone: u.phone || null,
+          org_id: orgId, unit_id: nuRow.id,
+          tenant_name: u.tenant ? await encStr(u.tenant) : null, tenant_phone: u.phone ? await encStr(u.phone) : null,
           rent: u.rent, fees: u.fees || {}, total: u.total, deposit: u.deposit,
           lease_start: u.leaseStart || u.lease_start || null, lease_end: u.leaseEnd || u.lease_end || null,
           renewal_status: u.renewalStatus || null, notes: u.note || null, active: true,
@@ -811,12 +860,15 @@ export async function getLaborState(orgId) {
   const { data, error } = await supabase
     .from('labor_state').select('imported, props, range').eq('org_id', orgId).maybeSingle();
   if (error) throw error;
-  return data || null;
+  if (!data) return null;
+  // labor rows carry pay rates → imported/props blobs are encrypted at rest
+  return { imported: await decBlob(data.imported), props: await decBlob(data.props), range: data.range };
 }
 
 export async function saveLaborState(orgId, s) {
   const { error } = await supabase.from('labor_state').upsert({
-    org_id: orgId, imported: s.imported, props: s.props, range: s.range, updated_at: new Date().toISOString(),
+    org_id: orgId, imported: await encBlob(s.imported), props: await encBlob(s.props),
+    range: s.range, updated_at: new Date().toISOString(),
   }, { onConflict: 'org_id' });
   if (error) throw error;
 }
