@@ -826,3 +826,37 @@ audio { filter: invert(0.9) hue-rotate(180deg); }
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;background:var(--surface)}
 .cal-wmore{font-size:10px;color:var(--text-dim);font-weight:600}
 .cal-wlab{font-size:10px;color:var(--info);font-weight:700;margin-top:2px}
+
+/* ---- rent roll drill-down: clickable KPIs, links, unit drawer ---- */
+.kpi-c.clk{cursor:pointer;text-align:left;font:inherit}
+.kpi-c.clk:hover{border-color:var(--accent)}
+.kpi-c.clk.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.rr-link{cursor:pointer}
+.rr-link:hover{color:var(--accent)}
+
+.udrawer-back{position:fixed;inset:0;background:#000a;z-index:200;display:flex;justify-content:flex-end;animation:splash-in .16s ease both}
+.udrawer{width:100%;max-width:420px;height:100%;overflow-y:auto;background:var(--surface);border-left:1px solid var(--line);
+  padding:18px;display:flex;flex-direction:column;gap:14px;animation:udr-in .22s var(--ease) both}
+@keyframes udr-in{from{transform:translateX(26px);opacity:.4}to{transform:none;opacity:1}}
+@media(max-width:520px){
+  .udrawer-back{align-items:flex-end}
+  .udrawer{max-width:100%;height:90vh;border-left:0;border-radius:18px 18px 0 0;animation:sheet-up .24s var(--ease) both}
+}
+.udrawer-head{display:flex;align-items:flex-start;gap:10px}
+.ud-unit{font-weight:800;font-size:18px;letter-spacing:-.01em}
+.ud-bldg{font-size:12px;color:var(--text-dim);margin-top:2px}
+.ud-sec{border-top:1px solid var(--line-soft);padding-top:12px}
+.ud-label{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-faint);font-weight:600;margin-bottom:7px}
+.ud-tenant{font-weight:700;font-size:15px}
+.ud-phone{color:var(--info);font-size:13px;font-family:var(--mono)}
+.ud-money{display:flex;flex-direction:column;gap:5px;font-size:13px}
+.ud-money>div{display:flex;justify-content:space-between;color:var(--text-dim)}
+.ud-money>div b{color:var(--text)}
+.ud-money .ud-total{border-top:1px solid var(--line-soft);padding-top:5px;color:var(--text)}
+.ud-term{margin-top:8px;font-size:12px;color:var(--text-dim);font-family:var(--mono)}
+.ud-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;
+  border-bottom:1px solid var(--line-soft);cursor:pointer;font-size:13px}
+.ud-row:last-child{border-bottom:0}
+.ud-row:hover .t{color:var(--accent)}
+.ud-row .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ud-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:10px}

@@ -98,7 +98,7 @@ const inputStyle = {
   color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 11, borderRadius: 10,
 };
 
-export default function WorkOrders({ store }) {
+export default function WorkOrders({ store, focus }) {
   const { workOrders, addWorkOrder, setWoStatus, setWoPriority, addWoAttachment, properties, techs, role, woBackend, purchases = [] } = store;
   const receiptsByWo = useMemo(() => {
     const m = {};
@@ -126,6 +126,11 @@ export default function WorkOrders({ store }) {
       Notification.requestPermission().catch(() => {});
     }
   }, [role]);
+
+  // drill-down from a unit ("New work order for this unit") → open a prefilled draft
+  useEffect(() => {
+    if (focus?.newFor) setDraft({ task: '', detail: '', source: 'manual', priority: 3, ...focus.newFor });
+  }, [focus]);
 
   const startVoice = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;

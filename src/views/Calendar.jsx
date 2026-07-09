@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { fmtHrs, cost } from '../lib/rollups.js';
 import { IcBuilding, IcWrench, IcClock, IcCal } from '../components/ui.jsx';
 
@@ -42,6 +42,11 @@ export default function Calendar({ store, focus, navigate }) {
 
   const [ym, setYm] = useState(todayISO.slice(0, 7));
   const [selDay, setSelDay] = useState(todayISO);
+  // drill-in from elsewhere ("On calendar" on a unit) jumps to that day
+  useEffect(() => {
+    if (focus?.day) { setSelDay(focus.day); setYm(focus.day.slice(0, 7)); }
+    else if (focus?.month) setYm(focus.month);
+  }, [focus]);
   const [y, mo] = ym.split('-').map(Number);
   const navMonth = (d) => { const nd = new Date(y, mo - 1 + d, 1); setYm(`${nd.getFullYear()}-${String(nd.getMonth() + 1).padStart(2, '0')}`); };
 
@@ -78,6 +83,7 @@ export default function Calendar({ store, focus, navigate }) {
 
   const openEvent = (e) => {
     if (e.kind === 'wo_due') go('wo');
+    else if (e.u) go('leasing', { unitId: e.u.id });
     else go('leasing');
   };
 

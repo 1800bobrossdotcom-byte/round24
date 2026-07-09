@@ -1,8 +1,8 @@
-import { useState, useMemo, useRef, Fragment } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useAuth } from '../components/AuthGate.jsx';
 import { isConfigured } from '../lib/backend/supabase.js';
 import { parseLeaseWorkbook } from '../lib/leaseParser.js';
-import { IcBuilding, IcImport, IcChevron } from '../components/ui.jsx';
+import { IcBuilding, IcImport, IcChevron, IcX, IcWrench, IcReceipt, IcCal, IcCheck } from '../components/ui.jsx';
 
 const UNIT_STATUS = [['leased', 'Leased', 'var(--money)'], ['vacant', 'Vacant', 'var(--warn)'], ['turning', 'Turning', 'var(--info)']];
 const RENEWAL = [['undecided', 'Undecided'], ['renewed', 'Renewed'], ['not_renewing', 'Not renewing'], ['mtm', 'Month-to-month']];
@@ -25,10 +25,14 @@ function natUnit(a, b) {
 
 const FILTERS = [['all', 'All'], ['leased', 'Leased'], ['vacant', 'Vacant'], ['ending', 'Ending ≤120d'], ['commercial', 'Commercial']];
 
-export default function Leasing({ store }) {
+export default function Leasing({ store, navigate, focus }) {
   const { role } = useAuth();
+  const go = navigate || (() => {});
   const canEdit = role === 'admin' || role === 'manager';
   const rows = store.leasing || [];
+  const [detail, setDetail] = useState(null); // unitId for the drill-down drawer
+  useEffect(() => { if (focus?.unitId) setDetail(focus.unitId); }, [focus]);
+  const detailUnit = detail ? rows.find((u) => u.id === detail) : null;
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
@@ -140,11 +144,11 @@ export default function Leasing({ store }) {
       </div>
 
       <div className="rr-kpis">
-        <div className="kpi-c"><span className="v mono">{kpi.units}</span><span className="k">units</span></div>
-        <div className="kpi-c"><span className="v mono" style={{ color: 'var(--money)' }}>{kpi.occPct}%</span><span className="k">occupied · {kpi.vac} vacant</span></div>
+        <button className={'kpi-c clk' + (filter === 'all' ? ' on' : '')} onClick={() => setFilter('all')} title="Show all units"><span className="v mono">{kpi.units}</span><span className="k">units</span></button>
+        <button className={'kpi-c clk' + (filter === 'leased' ? ' on' : '')} onClick={() => setFilter('leased')} title="Filter to leased"><span className="v mono" style={{ color: 'var(--money)' }}>{kpi.occPct}%</span><span className="k">occupied · {kpi.vac} vacant</span></button>
         <div className="kpi-c"><span className="v mono">{money0(kpi.potential)}</span><span className="k">potential / mo</span></div>
-        <div className="kpi-c"><span className="v mono">{money0(kpi.billed)}</span><span className="k">billed / mo</span></div>
-        <div className="kpi-c"><span className="v mono" style={{ color: 'var(--warn)' }}>{money0(kpi.loss)}</span><span className="k">vacancy loss / mo</span></div>
+        <button className={'kpi-c clk' + (filter === 'leased' ? ' on' : '')} onClick={() => setFilter('leased')} title="Filter to billed (leased)"><span className="v mono">{money0(kpi.billed)}</span><span className="k">billed / mo</span></button>
+        <button className={'kpi-c clk' + (filter === 'vacant' ? ' on' : '')} onClick={() => setFilter('vacant')} title="Filter to vacant"><span className="v mono" style={{ color: 'var(--warn)' }}>{money0(kpi.loss)}</span><span className="k">vacancy loss / mo</span></button>
         <div className="kpi-c"><span className="v mono">{money0(kpi.deposits)}</span><span className="k">deposits held</span></div>
       </div>
 
@@ -171,7 +175,7 @@ export default function Leasing({ store }) {
             const d = daysTo(u.leaseEnd);
             return (
               <div className="row" key={u.id}>
-                <div className="lead">
+                <div className="lead rr-link" onClick={() => setDetail(u.id)}>
                   <div className="t">{u.tenant || 'Vacant'} <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}>· {u.building} {u.number}</span></div>
                   <div className="s">ends {u.leaseEnd} · <span style={{ color: d < 0 ? 'var(--danger)' : d <= 30 ? 'var(--warn)' : 'var(--text-dim)' }}>{d < 0 ? `${-d}d ago` : `${d}d`}</span></div>
                 </div>
@@ -243,8 +247,8 @@ export default function Leasing({ store }) {
                       const isEd = editRow && editRow.id === u.id;
                       return (
                         <tr key={u.id} className={vac ? 'vac' : ''}>
-                          <td className="mono"><span className="ustripe" style={{ background: statusMeta(u.status)[2] }} />{u.number}{u.furnished ? ' ·F' : ''}</td>
-                          <td>{u.type === 'commercial' ? <em style={{ color: 'var(--info)' }}>{u.tenant || 'Vacant'}</em> : (u.tenant || <span style={{ color: 'var(--text-faint)' }}>vacant</span>)}</td>
+                          <td className="mono rr-link" onClick={() => setDetail(u.id)}><span className="ustripe" style={{ background: statusMeta(u.status)[2] }} />{u.number}{u.furnished ? ' ·F' : ''}</td>
+                          <td className="rr-link" onClick={() => setDetail(u.id)}>{u.type === 'commercial' ? <em style={{ color: 'var(--info)' }}>{u.tenant || 'Vacant'}</em> : (u.tenant || <span style={{ color: 'var(--text-faint)' }}>vacant</span>)}</td>
                           <td className="mono">{u.type === 'commercial' ? 'C' : (u.beds ?? '—')}</td>
                           <td className="num">
                             {canEdit
@@ -310,6 +314,93 @@ export default function Leasing({ store }) {
         </p>
       )}
       <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={(e) => { onImport(e.target.files?.[0]); e.target.value = ''; }} />
+
+      {detailUnit && (
+        <UnitDetail u={detailUnit} store={store} canEdit={canEdit} go={go}
+          onClose={() => setDetail(null)}
+          onEdit={() => { setDetail(null); setCollapsed((s) => { const x = new Set(s); x.delete(detailUnit.building); return x; }); beginEdit(detailUnit); }}
+          onRenewal={(v) => store.setLeaseField(detailUnit.id, { renewalStatus: v })} />
+      )}
+    </div>
+  );
+}
+
+const sameBuild = (a, b) => (a || '').toLowerCase().trim() === (b || '').toLowerCase().trim();
+
+// drill-down: a unit is a doorway to its lease, work orders, purchases + actions
+function UnitDetail({ u, store, canEdit, go, onClose, onEdit, onRenewal }) {
+  const wos = (store.workOrders || []).filter((w) => sameBuild(w.propLabel, u.building) && String(w.unit || '').toLowerCase() === String(u.number).toLowerCase());
+  const purchases = (store.purchases || []).filter((p) => sameBuild(p.propLabel, u.building));
+  const d = daysTo(u.leaseEnd);
+  const fees = Object.entries(u.fees || {}).filter(([, v]) => v);
+  return (
+    <div className="udrawer-back" onClick={onClose}>
+      <div className="udrawer" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Unit ${u.number}`}>
+        <div className="udrawer-head">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="ud-unit">Unit {u.number}{u.furnished ? ' · Furnished' : ''}{u.type === 'commercial' ? ' · Commercial' : ''}</div>
+            <div className="ud-bldg"><IcBuilding width={12} height={12} style={{ verticalAlign: -2 }} /> {u.building}</div>
+          </div>
+          <span className="chip" style={{ color: statusMeta(u.status)[2] }}>{statusMeta(u.status)[1]}</span>
+          <button className="btn ghost sm icon-btn" onClick={onClose} aria-label="Close"><IcX width={16} height={16} /></button>
+        </div>
+
+        <div className="ud-sec">
+          <div className="ud-label">Tenant</div>
+          {u.tenant
+            ? <><div className="ud-tenant">{u.tenant}</div>{u.phone && <a href={`tel:${u.phone.replace(/[^0-9+]/g, '')}`} className="ud-phone">{u.phone}</a>}</>
+            : <div className="note" style={{ margin: 0 }}>Vacant — no active tenant</div>}
+        </div>
+
+        <div className="ud-sec">
+          <div className="ud-label">Lease</div>
+          <div className="ud-money">
+            <div><span>Rent</span><b className="mono">{money0(u.rent)}</b></div>
+            {fees.map(([k, v]) => <div key={k}><span style={{ textTransform: 'capitalize' }}>{k}</span><b className="mono">{money0(v)}</b></div>)}
+            <div className="ud-total"><span>Total / mo</span><b className="mono">{money0((u.rent || 0) + feeSum(u.fees))}</b></div>
+            <div><span>Deposit held</span><b className="mono">{money0(u.deposit)}</b></div>
+            <div><span>Annualized rent</span><b className="mono">{money0((u.rent || 0) * 12)}</b></div>
+          </div>
+          <div className="ud-term">
+            {(u.leaseStart || u.leaseEnd)
+              ? <>{u.leaseStart || '—'} → {u.leaseEnd || '—'} {u.leaseEnd && <span className={'ends-chip' + (d < 0 ? ' over' : d <= 60 ? ' soon' : '')} style={{ marginLeft: 6 }}>{d < 0 ? `${-d}d ago` : `${d}d left`}</span>}</>
+              : 'No lease term on file'}
+          </div>
+          {u.leaseEnd && canEdit && (
+            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="ud-label" style={{ margin: 0 }}>Renewal</span>
+              <select className="rr-sel" value={u.renewalStatus || 'undecided'} onChange={(e) => onRenewal(e.target.value)}>{RENEWAL.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+            </div>
+          )}
+        </div>
+
+        <div className="ud-sec">
+          <div className="ud-label"><IcWrench width={11} height={11} style={{ verticalAlign: -1 }} /> Work orders at this unit ({wos.length})</div>
+          {wos.length === 0 && <div className="note" style={{ margin: 0 }}>None logged for this unit yet.</div>}
+          {wos.map((w) => (
+            <div className="ud-row" key={w.id} onClick={() => { onClose(); go('wo'); }}>
+              <span className="t">{w.task}</span><span className="chip sm" style={{ color: 'var(--text-dim)' }}>{w.status.replace('_', ' ')}</span>
+            </div>
+          ))}
+        </div>
+
+        {purchases.length > 0 && (
+          <div className="ud-sec">
+            <div className="ud-label"><IcReceipt width={11} height={11} style={{ verticalAlign: -1 }} /> Purchases at {u.building} ({purchases.length})</div>
+            {purchases.slice(0, 5).map((p) => (
+              <div className="ud-row" key={p.id} onClick={() => { onClose(); go('pur'); }}>
+                <span className="t">{p.vendor || 'Purchase'}{p.note ? ` · ${p.note}` : ''}</span><span className="mono money">{money0(p.amount)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="ud-actions">
+          {canEdit && <button className="btn ghost sm" onClick={onEdit}>Edit unit</button>}
+          <button className="btn ghost sm" onClick={() => { onClose(); go('wo', { newFor: { propLabel: u.building, unit: u.number === '—' ? '' : u.number, category: 'general' } }); }}><IcWrench width={13} height={13} /> New work order</button>
+          {u.leaseEnd && <button className="btn ghost sm" onClick={() => { onClose(); go('cal', { day: u.leaseEnd }); }}><IcCal width={13} height={13} /> On calendar</button>}
+        </div>
+      </div>
     </div>
   );
 }
