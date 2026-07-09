@@ -47,15 +47,29 @@ const TABS = [
   { id: 'settings', label: 'Settings', Icon: IcGear, View: Settings, roles: ['admin', 'manager', 'tech', 'viewer'] },
 ];
 
+// Owner persona: a landlord with a handful of properties who IS the whole
+// operation. Same admin role, streamlined shell — portfolio-first, no
+// crew/dispatch/team apparatus. Labels reframed for a solo owner.
+const OWNER_TABS = [
+  { id: 'leasing', label: 'Portfolio', Icon: IcBuilding, View: Leasing, primary: true },
+  { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, primary: true },
+  { id: 'props', label: 'Buildings', Icon: IcBuilding, View: Properties, primary: true },
+  { id: 'wo', label: 'Maintenance', Icon: IcWrench, View: WorkOrders, primary: true },
+  { id: 'pur', label: 'Expenses', Icon: IcReceipt, View: Purchases },
+  { id: 'docs', label: 'Docs', Icon: IcDoc, View: Documents },
+  { id: 'settings', label: 'Settings', Icon: IcGear, View: Settings },
+];
+
 const MAX_BAR = 5; // slots in the mobile bottom bar (incl. a possible "More")
 
 function Shell() {
   const store = useStore();
-  const { role } = useAuth();
+  const { role, orgKind } = useAuth();
   const [isPlat, setIsPlat] = useState(false);
   useEffect(() => { isPlatformAdmin().then(setIsPlat).catch(() => {}); }, []);
+  const baseTabs = orgKind === 'owner' ? OWNER_TABS : TABS.filter((t) => t.roles.includes(role));
   const tabs = [
-    ...TABS.filter((t) => t.roles.includes(role)),
+    ...baseTabs,
     ...(isPlat ? [{ id: 'platform', label: 'Platform', Icon: IcShield, View: Platform }] : []),
   ];
   const [tab, setTab] = useState(tabs[0].id);
@@ -126,7 +140,7 @@ function Shell() {
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <header className="topbar">
-          <div className="brand"><Mark /> Caliper <span className="sub">{role === 'tech' ? 'crew' : role === 'viewer' ? 'viewer' : 'office'}</span></div>
+          <div className="brand"><Mark /> Caliper <span className="sub">{orgKind === 'owner' ? 'portfolio' : role === 'tech' ? 'crew' : role === 'viewer' ? 'viewer' : 'office'}</span></div>
           <div className="spacer" />
           <div className="org-pill">{store.meta.org}</div>
           <AccountButton onOpen={() => navigate('settings')} />

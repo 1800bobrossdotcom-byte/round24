@@ -13,6 +13,7 @@ export default function Platform() {
   const [reqs, setReqs] = useState([]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [kind, setKind] = useState('company');
   const [busy, setBusy] = useState(false);
   const [made, setMade] = useState(null); // { code } after creating
   const [copied, setCopied] = useState(null);
@@ -28,7 +29,7 @@ export default function Platform() {
   const create = async () => {
     setErr(null); setBusy(true); setMade(null);
     try {
-      const { code } = await adminCreateWorkspace(name.trim(), email.trim() || null);
+      const { code } = await adminCreateWorkspace(name.trim(), email.trim() || null, kind);
       setMade({ code, name: name.trim() }); setName(''); setEmail(''); load();
     } catch (e) { setErr(e.message || 'Could not create workspace'); }
     finally { setBusy(false); }
@@ -51,7 +52,11 @@ export default function Platform() {
       {/* create a workspace for someone */}
       <div className="card" style={{ marginBottom: 'var(--gap)' }}>
         <span className="field-label">Create a workspace</span>
-        <div className="grid g2" style={{ marginTop: 8, gap: 10 }}>
+        <div className="pick" style={{ marginTop: 6 }}>
+          <button className={kind === 'company' ? 'on' : ''} onClick={() => setKind('company')}>Company + crew</button>
+          <button className={kind === 'owner' ? 'on' : ''} onClick={() => setKind('owner')}>Property owner</button>
+        </div>
+        <div className="grid g2" style={{ marginTop: 10, gap: 10 }}>
           <div><div className="field-label">Company / workspace name</div>
             <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Genesee Valley Maintenance" /></div>
           <div><div className="field-label">Owner email (gets an admin invite)</div>
@@ -78,8 +83,8 @@ export default function Platform() {
           {pending.map((r) => (
             <div className="row" key={r.id}>
               <div className="lead">
-                <div className="t">{r.orgName}</div>
-                <div className="s">{[r.email, r.note].filter(Boolean).join(' · ') || 'no details'}</div>
+                <div className="t">{r.orgName} <span className="chip" style={{ color: r.kind === 'owner' ? 'var(--money)' : 'var(--info)' }}>{r.kind === 'owner' ? 'owner' : 'company'}</span></div>
+                <div className="s">{[r.contactName, r.email, r.note].filter(Boolean).join(' · ') || 'no details'}</div>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button className="btn grad sm" onClick={() => decide(r.id, true)}>Approve</button>

@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, fetchMembership, redeemInvite, requestWorkspace, isPlatformAdmin } from '../lib/backend/supabase.js';
+import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, fetchMembership, redeemInvite, requestBeta, isPlatformAdmin } from '../lib/backend/supabase.js';
 import { Mark, BrandLockup, IcGear, IcLogout, IcWrench, IcChart, IcX, IcCheck, IcChevron } from './ui.jsx';
 import Platform from '../views/Platform.jsx';
 
@@ -24,7 +24,7 @@ const clearPendingInvite = () => { try { localStorage.removeItem(INVITE_KEY); } 
 // role drives which tools are visible: admin/manager see the full suite
 // incl. financials; tech (contractors) get field tools only; viewer is
 // read-only. RLS + getdek enforce the same boundary server-side.
-const AuthCtx = createContext({ session: null, role: 'admin', orgId: null, orgName: null });
+const AuthCtx = createContext({ session: null, role: 'admin', orgId: null, orgName: null, orgKind: 'company' });
 export const useAuth = () => useContext(AuthCtx);
 
 // Wraps the app. Three states:
@@ -90,7 +90,7 @@ export function AuthGate({ children }) {
   if (!mem) return <NeedsAccess />;
 
   return (
-    <AuthCtx.Provider value={{ session, role: mem.role, orgId: mem.org_id, orgName: mem.orgName }}>
+    <AuthCtx.Provider value={{ session, role: mem.role, orgId: mem.org_id, orgName: mem.orgName, orgKind: mem.orgKind || 'company' }}>
       {children}
     </AuthCtx.Provider>
   );
@@ -104,6 +104,7 @@ function NeedsAccess() {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
+  const [kind, setKind] = useState('company');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [sent, setSent] = useState(false);
@@ -117,7 +118,7 @@ function NeedsAccess() {
   };
   const request = async () => {
     setErr(null); setBusy(true);
-    try { await requestWorkspace(name.trim(), note.trim() || null); setSent(true); }
+    try { await requestBeta({ orgName: name.trim(), note: note.trim() || null, kind }); setSent(true); }
     catch (e) { setErr(e.message || 'Could not send your request.'); }
     finally { setBusy(false); }
   };
@@ -165,12 +166,16 @@ function NeedsAccess() {
               </>
             ) : (
               <>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Company / workspace name" style={inputStyle} />
+                <div className="seg" style={{ marginBottom: 10 }}>
+                  <button className={kind === 'company' ? 'on' : ''} onClick={() => setKind('company')}>Company + crew</button>
+                  <button className={kind === 'owner' ? 'on' : ''} onClick={() => setKind('owner')}>I own properties</button>
+                </div>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder={kind === 'owner' ? 'Your name / portfolio' : 'Company name'} style={inputStyle} />
                 <div style={{ height: 10 }} />
                 <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything we should know? (optional)" style={inputStyle} />
                 <div style={{ height: 14 }} />
-                <button className="btn grad" onClick={request} disabled={busy || !name.trim()}>{busy ? 'Sending…' : 'Request access'}</button>
-                <p className="note" style={{ marginTop: 10 }}>Caliper is in private beta — new workspaces are approved by the team.</p>
+                <button className="btn grad" onClick={request} disabled={busy || !name.trim()}>{busy ? 'Sending…' : 'Request beta invite'}</button>
+                <p className="note" style={{ marginTop: 10 }}>Caliper is in private beta — we’ll send an invite once approved.</p>
               </>
             )}
           </>
@@ -199,7 +204,10 @@ const PORTALS = {
 
 function Login({ invite }) {
   const [portal, setPortal] = useState(() => localStorage.getItem('caliper_portal') || null);
+  const [beta, setBeta] = useState(false);
   const pick = (p) => { localStorage.setItem('caliper_portal', p); setPortal(p); };
+
+  if (beta) return <BetaRequest onBack={() => setBeta(false)} />;
 
   if (!portal) {
     return (
@@ -229,14 +237,72 @@ function Login({ invite }) {
               </button>
             ))}
           </div>
+          <p className="note" style={{ textAlign: 'center', marginTop: 22 }}>
+            Not invited yet? <a onClick={() => setBeta(true)} style={{ color: 'var(--info)', cursor: 'pointer', fontWeight: 700 }}>Request a beta invite →</a>
+          </p>
         </div>
       </div>
     );
   }
-  return <LoginForm portal={portal} invite={invite} onSwitch={() => { localStorage.removeItem('caliper_portal'); setPortal(null); }} />;
+  return <LoginForm portal={portal} invite={invite} onBeta={() => setBeta(true)} onSwitch={() => { localStorage.removeItem('caliper_portal'); setPortal(null); }} />;
 }
 
-function LoginForm({ portal, onSwitch, invite }) {
+// public beta-invite request — no account needed. Lands in the superadmin queue.
+function BetaRequest({ onBack }) {
+  const [f, setF] = useState({ name: '', email: '', company: '', kind: 'company', note: '' });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const [sent, setSent] = useState(false);
+  const set = (k, v) => setF((x) => ({ ...x, [k]: v }));
+  const submit = async () => {
+    setErr(null);
+    if (!f.email.trim()) { setErr('Please add an email so we can send your invite.'); return; }
+    setBusy(true);
+    try {
+      await requestBeta({ email: f.email.trim(), contactName: f.name.trim() || null, orgName: f.company.trim() || null, kind: f.kind, note: f.note.trim() || null });
+      setSent(true);
+    } catch (e) { setErr(e.message || 'Could not send your request.'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
+      <div style={{ width: '100%', maxWidth: 400 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><BrandLockup /></div>
+        <div style={{ textAlign: 'center', fontWeight: 800, fontSize: 18, marginTop: 10 }}>Request a beta invite</div>
+        <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, margin: '6px 0 16px' }}>Caliper is in private beta. Tell us a bit about you and we’ll send an invite.</p>
+
+        {sent ? (
+          <>
+            <div className="offline" style={{ color: 'var(--money)', borderColor: '#4ade8033', background: 'var(--money-dim)', display: 'flex', gap: 8 }}>
+              <IcCheck width={16} height={16} /> Thanks{f.name ? `, ${f.name.split(' ')[0]}` : ''} — you’re on the list. We’ll email an invite to <b>{f.email}</b>.
+            </div>
+            <p className="note" style={{ textAlign: 'center', marginTop: 14 }}><a onClick={onBack} style={{ color: 'var(--info)', cursor: 'pointer' }}>← Back to sign in</a></p>
+          </>
+        ) : (
+          <>
+            <div className="seg" style={{ marginBottom: 12 }}>
+              <button className={f.kind === 'company' ? 'on' : ''} onClick={() => set('kind', 'company')}>Company + crew</button>
+              <button className={f.kind === 'owner' ? 'on' : ''} onClick={() => set('kind', 'owner')}>I own properties</button>
+            </div>
+            {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{err}</div>}
+            <input value={f.email} onChange={(e) => set('email', e.target.value)} placeholder="Email *" type="email" autoComplete="email" style={inputStyle} />
+            <div style={{ height: 10 }} />
+            <input value={f.name} onChange={(e) => set('name', e.target.value)} placeholder="Your name" style={inputStyle} />
+            <div style={{ height: 10 }} />
+            <input value={f.company} onChange={(e) => set('company', e.target.value)} placeholder={f.kind === 'owner' ? 'Portfolio name (optional)' : 'Company name (optional)'} style={inputStyle} />
+            <div style={{ height: 10 }} />
+            <input value={f.note} onChange={(e) => set('note', e.target.value)} placeholder="How many properties? Anything else? (optional)" style={inputStyle} />
+            <div style={{ height: 16 }} />
+            <button className="btn grad" onClick={submit} disabled={busy}>{busy ? 'Sending…' : 'Request invite'}</button>
+            <p className="note" style={{ textAlign: 'center', marginTop: 12 }}><a onClick={onBack} style={{ color: 'var(--info)', cursor: 'pointer' }}>← Back to sign in</a></p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LoginForm({ portal, onSwitch, onBeta, invite }) {
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [mode, setMode] = useState(invite ? 'signup' : 'signin'); // invited → create account
@@ -298,6 +364,9 @@ function LoginForm({ portal, onSwitch, invite }) {
             {isSignup ? 'Already have an account? Sign in' : 'Have an invite? Create your account'}
           </a>
         </p>
+        {onBeta && <p className="note" style={{ textAlign: 'center', marginTop: 6 }}>
+          No invite? <a onClick={onBeta} style={{ color: 'var(--info)', cursor: 'pointer', fontWeight: 700 }}>Request beta access</a>
+        </p>}
         <p className="note" style={{ textAlign: 'center', marginTop: 6 }}>
           Protected by row-level security. Sensitive data is AES-256 encrypted at rest.
         </p>

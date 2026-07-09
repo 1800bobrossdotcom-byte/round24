@@ -208,10 +208,10 @@ export async function listOrgMembers() {
 // RLS enforces the same boundary server-side; this is for the UI.
 export async function fetchMembership() {
   const { data, error } = await supabase
-    .from('memberships').select('org_id, role, orgs(name, theme)').limit(1).maybeSingle();
+    .from('memberships').select('org_id, role, orgs(name, theme, kind)').limit(1).maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  return { org_id: data.org_id, role: data.role, orgName: data.orgs?.name || null, theme: data.orgs?.theme || null };
+  return { org_id: data.org_id, role: data.role, orgName: data.orgs?.name || null, theme: data.orgs?.theme || null, orgKind: data.orgs?.kind || 'company' };
 }
 
 // self-serve: create a workspace and become its admin
@@ -238,8 +238,8 @@ export async function adminListOrgs() {
   if (error) throw error;
   return (data || []).map((o) => ({ id: o.id, name: o.name, createdAt: o.created_at, members: Number(o.members) }));
 }
-export async function adminCreateWorkspace(name, ownerEmail) {
-  const { data, error } = await supabase.rpc('admin_create_workspace', { p_name: name, p_owner_email: ownerEmail || null });
+export async function adminCreateWorkspace(name, ownerEmail, kind = 'company') {
+  const { data, error } = await supabase.rpc('admin_create_workspace', { p_name: name, p_owner_email: ownerEmail || null, p_kind: kind });
   if (error) throw error;
   const r = Array.isArray(data) ? data[0] : data;
   return { orgId: r?.org_id, code: r?.invite_code };
@@ -247,7 +247,7 @@ export async function adminCreateWorkspace(name, ownerEmail) {
 export async function listWorkspaceRequests() {
   const { data, error } = await supabase.from('workspace_requests').select('*').order('created_at', { ascending: false });
   if (error) throw error;
-  return (data || []).map((r) => ({ id: r.id, email: r.email, orgName: r.org_name, note: r.note, status: r.status, code: r.invite_code, createdAt: r.created_at, decidedBy: r.decided_by }));
+  return (data || []).map((r) => ({ id: r.id, email: r.email, contactName: r.contact_name, orgName: r.org_name, note: r.note, kind: r.kind || 'company', status: r.status, code: r.invite_code, createdAt: r.created_at, decidedBy: r.decided_by }));
 }
 export async function decideWorkspaceRequest(id, approve) {
   const { data, error } = await supabase.rpc('admin_decide_request', { p_id: id, p_approve: approve });
@@ -255,9 +255,14 @@ export async function decideWorkspaceRequest(id, approve) {
   const r = Array.isArray(data) ? data[0] : data;
   return r?.org_id ? { orgId: r.org_id, code: r.invite_code } : null;
 }
-export async function requestWorkspace(orgName, note) {
-  const { data: { user } } = await supabase.auth.getUser();
-  const { error } = await supabase.from('workspace_requests').insert({ org_name: orgName, note: note || null, email: user?.email || null });
+// public beta-invite request — works pre-auth (anon). Email required.
+export async function requestBeta({ email, contactName, orgName, kind = 'company', note } = {}) {
+  let mail = email;
+  if (!mail) { try { const { data: { user } } = await supabase.auth.getUser(); mail = user?.email || null; } catch { /* anon */ } }
+  const { error } = await supabase.from('workspace_requests').insert({
+    email: mail, contact_name: contactName || null, org_name: orgName || (contactName ? `${contactName}'s workspace` : 'New workspace'),
+    kind, note: note || null,
+  });
   if (error) throw error;
 }
 
