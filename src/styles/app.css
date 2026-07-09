@@ -771,3 +771,58 @@ audio { filter: invert(0.9) hue-rotate(180deg); }
 .rr-edit-actions{display:flex;align-items:center;gap:8px;margin-top:12px}
 .rr-editpanel{margin-top:10px;padding:14px;background:var(--surface-2);border:1px solid var(--line);
   border-top:2px solid var(--accent);border-radius:12px}
+
+/* ============ portfolio calendar: day / week / month panels ============ */
+.cal-summary{display:grid;grid-template-columns:1fr 1.5fr;gap:12px;margin-bottom:var(--gap)}
+@media(max-width:760px){.cal-summary{grid-template-columns:1fr}}
+.cal-chips{display:grid;grid-template-rows:repeat(3,1fr);gap:8px}
+.cal-chip{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 13px;display:flex;align-items:baseline;gap:9px}
+.cal-chip .v{font-size:21px;font-weight:800;letter-spacing:-.02em}
+.cal-chip .k{font-size:12px;color:var(--text-dim);font-weight:600}
+.cal-expchart{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.cal-bars{display:flex;gap:8px;align-items:stretch;height:112px}
+.cal-bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:0;cursor:pointer;padding:0}
+.cal-bar-track{width:100%;max-width:36px;flex:1;display:flex;align-items:flex-end;background:var(--surface-2);border-radius:6px 6px 0 0;overflow:hidden;margin:0 auto}
+.cal-bar-track>span{width:100%;background:var(--warn);border-radius:6px 6px 0 0;min-height:3px;transition:height .25s}
+.cal-bar.on .cal-bar-track>span{background:var(--accent)}
+.cal-bar-n{font-size:12px;font-weight:700}
+.cal-bar-m{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em}
+
+.cal-layout{display:grid;grid-template-columns:1.35fr 1fr;gap:var(--gap)}
+@media(max-width:820px){.cal-layout{grid-template-columns:1fr}}
+.cal-monthhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-cell2{position:relative;aspect-ratio:1/1;min-height:42px;border:1px solid var(--line-soft);border-radius:9px;
+  background:color-mix(in srgb, var(--info) calc(var(--heat,0)*26%), var(--surface-2));
+  display:flex;align-items:flex-start;padding:5px 6px;cursor:pointer;color:var(--text);transition:border-color .1s}
+.cal-cell2:hover{border-color:var(--line)}
+.cal-cell2 .d{font-size:12px;font-weight:700;font-family:var(--mono)}
+.cal-cell2.sel{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.cal-cell2.today{border-color:var(--accent)}
+.cal-cell2.today .d{color:var(--accent)}
+.cal-dots{position:absolute;top:6px;right:6px;display:flex;gap:2px}
+.cal-dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex:none}
+.cal-cnt{position:absolute;bottom:4px;right:6px;font-size:10px;color:var(--text-dim);font-weight:600}
+.cal-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:11px;color:var(--text-dim);align-items:center}
+.cal-legend .cal-dot{vertical-align:0;margin-right:5px}
+.cal-heatnote{color:var(--text-faint)}
+
+.cal-daycard{display:flex;flex-direction:column}
+.cal-dayhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.cal-evrow{position:relative;padding-left:13px !important}
+.cal-evbar{position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:2px}
+
+.cal-week{display:flex;gap:8px;overflow-x:auto;margin-top:8px;padding-bottom:4px}
+.cal-wday{flex:1;min-width:118px;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;
+  padding:9px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:7px;min-height:104px}
+.cal-wday:hover{border-color:var(--line)}
+.cal-wday.sel{border-color:var(--accent)}
+.cal-wday.today{background:var(--surface)}
+.cal-wtop{display:flex;justify-content:space-between;align-items:baseline}
+.cal-wtop .dow{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);font-weight:700}
+.cal-wtop .dnum{font-size:16px;font-weight:800}
+.cal-wday.today .dnum{color:var(--accent)}
+.cal-wbody{display:flex;flex-direction:column;gap:4px}
+.cal-wchip{font-size:10.5px;font-weight:600;border:1px solid var(--line);border-radius:5px;padding:2px 6px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;background:var(--surface)}
+.cal-wmore{font-size:10px;color:var(--text-dim);font-weight:600}
+.cal-wlab{font-size:10px;color:var(--info);font-weight:700;margin-top:2px}
