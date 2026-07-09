@@ -244,7 +244,7 @@ export default function Leasing({ store, navigate, focus }) {
         </div>
       )}
       {rows.length > 0 && (q || filter !== 'all') && (
-        <p className="note" style={{ margin: '0 0 10px 2px' }}>{shownUnits} of {rows.length} units{filter !== 'all' ? ` · ${(FILTERS.find((f) => f[0] === filter) || [])[1]}` : ''}{q ? ` · “${query}”` : ''}</p>
+        <p className="note" style={{ margin: '0 0 10px 2px' }}>{shownUnits} of {rows.length} {rows.some(isLand) ? 'items' : 'units'}{filter !== 'all' ? ` · ${(FILTERS.find((f) => f[0] === filter) || [])[1]}` : ''}{q ? ` · “${query}”` : ''}</p>
       )}
 
       {/* rent roll by building */}
@@ -313,7 +313,9 @@ export default function Leasing({ store, navigate, focus }) {
                                 </select>
                               : <span className="chip" style={{ color: statusMeta(u.status)[2] }}>{statusMeta(u.status)[1]}</span>}
                           </td>
-                          {canEdit && <td className="rr-actions"><button className="rr-edit" onClick={() => (isEd ? setEditRow(null) : beginEdit(u))}>{isEd ? 'Close' : 'Edit'}</button></td>}
+                          {canEdit && (land
+                            ? <td className="rr-actions" />
+                            : <td className="rr-actions"><button className="rr-edit" onClick={() => (isEd ? setEditRow(null) : beginEdit(u))}>{isEd ? 'Close' : 'Edit'}</button></td>)}
                         </tr>
                       );
                     })}

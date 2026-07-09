@@ -566,6 +566,8 @@ export function useStore() {
   const [vendorProducts, setVendorProducts] = useState(() => (demoMode ? DEMO_VENDOR_PRODUCTS : []));
   const vendorsRef = useRef(vendors);
   useEffect(() => { vendorsRef.current = vendors; }, [vendors]);
+  const vendorProductsRef = useRef(vendorProducts);
+  useEffect(() => { vendorProductsRef.current = vendorProducts; }, [vendorProducts]);
   const loadVendors = useCallback(() => {
     if (!isConfigured() || !orgId) return;
     listVendors(orgId).then(setVendors).catch(() => {});
@@ -593,8 +595,12 @@ export function useStore() {
     if (isConfigured() && orgId && !demoMode && !String(id).startsWith('nv_')) { try { await deleteVendor(id); audit('delete_vendor', id); } catch { /* gone */ } }
   }, [orgId, demoMode, audit]);
   const setVendorField = useCallback(async (id, patch) => {
-    let next; setVendors((l) => { next = l.map((x) => (x.id === id ? { ...x, ...patch } : x)); return next; });
-    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('nv_')) { try { await updateVendor(id, { ...(next?.find((x) => x.id === id)) }); } catch { /* keep */ } }
+    // updateVendor writes every column, so send the full merged record. Build it
+    // from the ref (always current) — NOT from a setState side-effect, which only
+    // runs on React's eager path and is undefined mid-reload → would blank the row.
+    setVendors((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+    const merged = { ...vendorsRef.current.find((x) => x.id === id), ...patch };
+    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('nv_')) { try { await updateVendor(id, merged); } catch { /* keep */ } }
   }, [orgId, demoMode]);
 
   const saveProduct = useCallback(async (p) => {
@@ -613,8 +619,9 @@ export function useStore() {
     if (isConfigured() && orgId && !demoMode && !String(id).startsWith('np_')) { try { await deleteVendorProduct(id); } catch { /* gone */ } }
   }, [orgId, demoMode]);
   const setProductField = useCallback(async (id, patch) => {
-    let next; setVendorProducts((l) => { next = l.map((x) => (x.id === id ? { ...x, ...patch } : x)); return next; });
-    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('np_')) { try { await updateVendorProduct(id, { ...(next?.find((x) => x.id === id)) }); } catch { /* keep */ } }
+    setVendorProducts((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+    const merged = { ...vendorProductsRef.current.find((x) => x.id === id), ...patch };
+    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('np_')) { try { await updateVendorProduct(id, merged); } catch { /* keep */ } }
   }, [orgId, demoMode]);
 
   // ---- per-property credit cards: auto-file receipts by card ----

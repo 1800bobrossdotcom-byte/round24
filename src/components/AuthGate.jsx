@@ -46,6 +46,18 @@ export function AuthGate({ children }) {
     return () => data?.subscription?.unsubscribe();
   }, []);
 
+  // welcome email: fire once, on the first session after signup (works whether
+  // or not email confirmation delays the session). Flag set by the signup form.
+  useEffect(() => {
+    if (!session) return;
+    try {
+      if (localStorage.getItem('caliper_pending_welcome')) {
+        localStorage.removeItem('caliper_pending_welcome');
+        sendWelcomeEmail().catch(() => {});
+      }
+    } catch { /* ignore */ }
+  }, [session]);
+
   useEffect(() => {
     if (!isConfigured() || !session) { setMem(null); setMemReady(false); return; }
     let on = true;
@@ -407,7 +419,9 @@ function LoginForm({ brand, onSwitch, onBeta, invite, switchLabel }) {
     try {
       if (isSignup) {
         await signUp(email, pw);   // invite is redeemed post-auth by AuthGate
-        sendWelcomeEmail().catch(() => {}); // best-effort welcome; never blocks signup
+        // mark for a welcome email on first authenticated session — sending now
+        // would 401 when email confirmation is on (no session yet).
+        try { localStorage.setItem('caliper_pending_welcome', '1'); } catch { /* ignore */ }
       } else await signIn(email, pw);
     } catch (e) { setErr(e.message || (isSignup ? 'Could not create account' : 'Sign-in failed')); }
     finally { setBusy(false); }
