@@ -58,11 +58,14 @@ Deno.serve(async (req) => {
     if (uErr || !user) return json({ error: 'unauthorized' }, 401);
     const { data: mem } = await supabase.from('memberships').select('org_id').limit(1).single();
     if (!mem) return json({ error: 'no org' }, 403);
+    const { data: q } = await supabase.rpc('ai_quota_bump', { p_limit: 200 });
+    const quota = Array.isArray(q) ? q[0] : q;
+    if (quota && quota.allowed === false) return json({ error: 'Daily AI limit reached. Try again tomorrow.' }, 429);
 
     if (!ANTHROPIC_API_KEY) return json({ error: 'Stock check not configured. Set the ANTHROPIC_API_KEY secret.' }, 400);
 
     const body = await req.json().catch(() => ({}));
-    const items = Array.isArray(body.items) ? body.items : [];
+    const items = (Array.isArray(body.items) ? body.items : []).slice(0, 100); // cap list length
     if (!items.length) return json({ error: 'no items' }, 400);
     const location = body.location ? ` The property is in ${body.location}.` : '';
 
@@ -88,8 +91,8 @@ Deno.serve(async (req) => {
     if (!block) return json({ error: 'model returned no structured result' }, 502);
     const r = block.input as any;
     return json({ ok: true, items: Array.isArray(r.items) ? r.items : [] });
-  } catch (e) {
-    return json({ error: String(e?.message || e) }, 500);
+  } catch (_e) {
+    return json({ error: 'internal error' }, 500);
   }
 });
 

@@ -111,14 +111,21 @@ Deno.serve(async (req) => {
     const { data: mem } = await supabase.from('memberships').select('org_id').limit(1).single();
     if (!mem) return json({ error: 'no org' }, 403);
 
+    // per-org daily quota — caps runaway Anthropic spend
+    const { data: q } = await supabase.rpc('ai_quota_bump', { p_limit: 200 });
+    const quota = Array.isArray(q) ? q[0] : q;
+    if (quota && quota.allowed === false) return json({ error: 'Daily AI limit reached. Try again tomorrow.' }, 429);
+
     if (!ANTHROPIC_API_KEY) {
       return json({ error: 'Receipt scanning not configured. Set the ANTHROPIC_API_KEY secret to enable AI OCR.' }, 400);
     }
 
     const body = await req.json().catch(() => ({}));
     let image: string = body.image || '';
-    const mimeType: string = body.mimeType || 'image/jpeg';
+    const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'];
+    const mimeType: string = ALLOWED_MIME.includes(body.mimeType) ? body.mimeType : 'image/jpeg';
     if (!image) return json({ error: 'no image' }, 400);
+    if (image.length > 14_000_000) return json({ error: 'file too large' }, 413); // ~10MB decoded
     // accept a full data: URL or a bare base64 payload
     const comma = image.indexOf(',');
     if (image.startsWith('data:') && comma >= 0) image = image.slice(comma + 1);
@@ -167,8 +174,8 @@ Deno.serve(async (req) => {
       })) : [],
     };
     return json({ ok: true, receipt: result });
-  } catch (e) {
-    return json({ error: String(e?.message || e) }, 500);
+  } catch (_e) {
+    return json({ error: 'internal error' }, 500);
   }
 });
 
