@@ -9,7 +9,22 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const SUPA_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const UNSUB_SECRET = Deno.env.get('UNSUB_SECRET') || SERVICE;
 const APP = 'https://caliper.solutions';
+
+// verify the HMAC token minted by the email function — only links WE sent can
+// suppress an address, so no one can unsubscribe an arbitrary third party.
+async function validToken(email: string, t: string): Promise<boolean> {
+  if (!t) return false;
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(UNSUB_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(email.trim().toLowerCase()));
+  const expected = [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  // constant-time-ish compare
+  if (expected.length !== t.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ t.charCodeAt(i);
+  return diff === 0;
+}
 
 const esc = (s = '') => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
 
@@ -34,6 +49,7 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     let email = url.searchParams.get('email') || '';
+    const t = url.searchParams.get('t') || '';
     if (!email && req.method === 'POST') {
       const ct = req.headers.get('content-type') || '';
       if (ct.includes('application/json')) email = ((await req.json().catch(() => ({}))).email) || '';
@@ -43,9 +59,13 @@ Deno.serve(async (req) => {
     if (!email || !email.includes('@')) {
       return html(page('That link looks off', 'We couldn’t read an email address from this link. If you keep getting mail you don’t want, reach out and we’ll sort it out.'), 400);
     }
+    // the address must carry a valid signature from a link we actually sent
+    if (!(await validToken(email, t))) {
+      return html(page('That link looks off', 'This unsubscribe link is missing or invalid. Please use the link from a Caliper email, or reach out and we’ll sort it out.'), 400);
+    }
     const svc = createClient(SUPA_URL, SERVICE);
     await svc.from('email_unsub').upsert({ email }, { onConflict: 'email' });
-    return html(page('You’re unsubscribed', `<b>${esc(email)}</b> won’t receive non-essential email from Caliper anymore. You’ll still get security and account notices tied to your account. Changed your mind? You can re-enable email anytime in Settings.`));
+    return html(page('You’re unsubscribed', `<b>${esc(email)}</b> won’t receive non-essential email from Caliper anymore. You’ll still get security and account notices tied to your account. Changed your mind? Reach out and we’ll turn it back on.`));
   } catch (_e) {
     return html(page('Something went wrong', 'We hit a snag recording that. Please try the link again in a moment.'), 500);
   }
