@@ -10,11 +10,12 @@ export function applyTheme(t) {
 }
 
 export function initTheme() {
-  let t = 'dark';
-  try { t = localStorage.getItem(KEY) || 'dark'; } catch { /* ignore */ }
+  let t = 'light'; // light is the default; a saved choice overrides it
+  try { t = localStorage.getItem(KEY) || 'light'; } catch { /* ignore */ }
   document.documentElement.setAttribute('data-theme', t);
+  const m = meta(); if (m) m.setAttribute('content', t === 'light' ? '#f4f5f2' : '#08080a');
 }
 
 export function getTheme() {
-  return document.documentElement.getAttribute('data-theme') || 'dark';
+  return document.documentElement.getAttribute('data-theme') || 'light';
 }

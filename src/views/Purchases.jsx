@@ -24,7 +24,8 @@ const inputStyle = {
 
 export default function Purchases({ store }) {
   const { purchases, addPurchase, setPurchaseStatus, properties, workOrders, role, purBackend,
-    cards, addCard, removeCard, matchCard } = store;
+    cards, addCard, removeCard, matchCard, vendors = [], vendorProducts = [] } = store;
+  const vName = (id) => vendors.find((v) => v.id === id)?.name || '';
   const isStaff = role === 'admin' || role === 'manager';
   const [showCards, setShowCards] = useState(false);
   const [matched, setMatched] = useState(null);       // auto-filed via a known card
@@ -142,10 +143,29 @@ export default function Purchases({ store }) {
       {draft && (
         <div className="card" style={{ marginBottom: 'var(--gap)' }}>
           <span className="field-label">New purchase</span>
+
+          {/* quick-pick from favorite products — fills vendor, amount, note, category */}
+          {vendorProducts.filter((p) => p.favorite).length > 0 && (
+            <div style={{ marginTop: 8, marginBottom: 4 }}>
+              <div className="field-label" style={{ marginBottom: 4 }}>Reorder a favorite</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {vendorProducts.filter((p) => p.favorite).slice(0, 12).map((p) => (
+                  <button key={p.id} className="chip" style={{ cursor: 'pointer', border: '1px solid var(--line)' }}
+                    onClick={() => setDraft({ ...draft, vendor: vName(p.vendorId) || draft.vendor, amount: p.price != null ? String(p.price) : draft.amount, note: p.name, category: p.category || draft.category })}>
+                    ★ {p.name}{p.price != null ? ` · $${Number(p.price).toFixed(2)}` : ''}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid g2" style={{ marginTop: 8 }}>
             <div>
               <div className="field-label">Vendor</div>
-              <input style={inputStyle} value={draft.vendor} onChange={(e) => setDraft({ ...draft, vendor: e.target.value })} placeholder="Home Depot" />
+              <input style={inputStyle} list="fav-vendors" value={draft.vendor} onChange={(e) => setDraft({ ...draft, vendor: e.target.value })} placeholder="Home Depot" />
+              <datalist id="fav-vendors">
+                {vendors.slice().sort((a, b) => (Number(b.favorite) - Number(a.favorite)) || a.name.localeCompare(b.name)).map((v) => <option key={v.id} value={v.name} />)}
+              </datalist>
             </div>
             <div>
               <div className="field-label">Amount</div>

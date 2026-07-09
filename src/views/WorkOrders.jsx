@@ -99,7 +99,7 @@ const inputStyle = {
 };
 
 export default function WorkOrders({ store, focus }) {
-  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, addWoAttachment, properties, techs, role, woBackend, purchases = [] } = store;
+  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, addWoAttachment, properties, techs, role, woBackend, purchases = [], vendors = [] } = store;
   const receiptsByWo = useMemo(() => {
     const m = {};
     for (const p of purchases) if (p.workOrderId) (m[p.workOrderId] ||= []).push(p);
@@ -221,7 +221,22 @@ export default function WorkOrders({ store, focus }) {
               <div className="field-label">Assign to</div>
               <select style={inputStyle} value={draft.assigneeLabel || ''} onChange={(e) => setDraft({ ...draft, assigneeLabel: e.target.value || null })}>
                 <option value="">— unassigned —</option>
-                {techs.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
+                {techs.length > 0 && (
+                  <optgroup label="Crew">
+                    {techs.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
+                  </optgroup>
+                )}
+                {(() => {
+                  // approved contractors, trade-matching the chosen category first
+                  const want = draft.category === 'painting' ? 'paint' : draft.category;
+                  const cons = vendors.filter((v) => v.approved && v.kind === 'contractor')
+                    .sort((a, b) => (Number(b.trade === want) - Number(a.trade === want)) || a.name.localeCompare(b.name));
+                  return cons.length > 0 && (
+                    <optgroup label="Approved contractors">
+                      {cons.map((v) => <option key={v.id} value={v.name}>{v.name}{v.trade ? ` · ${v.trade}` : ''}</option>)}
+                    </optgroup>
+                  );
+                })()}
               </select>
             </div>
             <div>
