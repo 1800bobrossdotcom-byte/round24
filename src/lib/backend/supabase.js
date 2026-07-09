@@ -197,6 +197,17 @@ export async function redeemInvite(code) {
   const row = Array.isArray(data) ? data[0] : data;
   return row ? { orgId: row.org_id, role: row.role } : null;
 }
+// pre-auth peek at an invite so the login can brand itself (Portfolio vs Pro).
+// Returns null on any error / not configured — the UI just falls back to Pro.
+export async function inviteInfo(code) {
+  if (!isConfigured() || !code) return null;
+  try {
+    const { data, error } = await supabase.rpc('invite_info', { p_code: code });
+    if (error) return null;
+    const row = Array.isArray(data) ? data[0] : data;
+    return row ? { valid: !!row.valid, kind: row.kind || 'company', orgName: row.org_name || null } : null;
+  } catch { return null; }
+}
 
 export async function listOrgMembers() {
   const { data, error } = await supabase.rpc('org_members');

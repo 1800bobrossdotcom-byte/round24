@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, fetchMembership, redeemInvite, requestBeta, isPlatformAdmin, sendWelcomeEmail } from '../lib/backend/supabase.js';
-import { Mark, BrandLockup, IcGear, IcLogout, IcWrench, IcChart, IcX, IcCheck, IcChevron } from './ui.jsx';
+import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, fetchMembership, redeemInvite, inviteInfo, requestBeta, isPlatformAdmin, sendWelcomeEmail } from '../lib/backend/supabase.js';
+import { Mark, BrandLockup, IcGear, IcLogout, IcWrench, IcChart, IcBuilding, IcX, IcCheck, IcChevron } from './ui.jsx';
 import Platform from '../views/Platform.jsx';
 
 // invite links land as ?invite=CODE. Capture it, stash it, strip it from the
@@ -186,9 +186,11 @@ function NeedsAccess() {
   );
 }
 
-// ---- two front doors, one secure backend ----
-// the portal choice themes the login; after sign-in the ROLE decides the
-// actual toolset (a contractor who picks Office still lands in Crew tools).
+// ---- two products, one secure backend ----
+// Caliper Portfolio  → property owners & families (a handful of homes/apts/land)
+// Caliper Pro        → maintenance companies, split into Office + Crew portals
+// The choice only themes the login; after sign-in the org's KIND and the user's
+// ROLE decide the actual shell + toolset (server-enforced by RLS + getdek).
 const PORTALS = {
   crew: {
     title: 'Crew Portal',
@@ -201,25 +203,113 @@ const PORTALS = {
     points: ['Dashboards & financials', 'Dispatch work orders', 'Documents & purchasing'],
   },
 };
+// login branding per tier/portal — chip label, icon, tagline.
+const BRANDS = {
+  portfolio: { chip: 'portfolio', Icon: IcBuilding, tagline: 'Your portfolio, measured true.' },
+  office: { chip: 'office', Icon: IcChart, tagline: 'The whole operation, measured true.' },
+  crew: { chip: 'crew', Icon: IcWrench, tagline: 'Clock in. Get your orders. Snap your receipts.' },
+};
+// top-level product cards (the main page)
+const PRODUCTS = {
+  portfolio: {
+    title: 'Caliper Portfolio',
+    Icon: IcBuilding,
+    tagline: 'For owners & families — a handful of homes, apartments, or land.',
+    points: ['Rent roll, leases & renewals', 'Buildings, calendar & data', 'Maintenance & expenses'],
+  },
+  pro: {
+    title: 'Caliper Pro',
+    Icon: IcChart,
+    tagline: 'For maintenance companies & their crews.',
+    points: ['Office: dashboards & dispatch', 'Crew: timers & receipts', 'Team, compliance & payroll'],
+  },
+};
 
 function Login({ invite }) {
-  const [portal, setPortal] = useState(() => localStorage.getItem('caliper_portal') || null);
+  const [product, setProduct] = useState(() => localStorage.getItem('caliper_product') || null); // 'portfolio' | 'pro'
+  const [portal, setPortal] = useState(() => localStorage.getItem('caliper_portal') || null);     // pro only: 'office' | 'crew'
   const [beta, setBeta] = useState(false);
-  const pick = (p) => { localStorage.setItem('caliper_portal', p); setPortal(p); };
+  // only block on the invite lookup when we don't already know the tier; and
+  // never hang on it — a slow/failed lookup falls through to the picker.
+  const [resolving, setResolving] = useState(!!invite && !localStorage.getItem('caliper_product'));
+
+  // an invite forces the matching tier: owner workspace → Portfolio, company → Pro
+  useEffect(() => {
+    if (!invite) return;
+    let on = true;
+    const stop = () => { if (on) setResolving(false); };
+    const t = setTimeout(stop, 2500); // safety: login can't get stuck on the lookup
+    inviteInfo(invite).then((info) => {
+      if (!on) return;
+      if (info?.kind === 'owner') { setProduct('portfolio'); localStorage.setItem('caliper_product', 'portfolio'); }
+      else if (info?.kind) { setProduct('pro'); localStorage.setItem('caliper_product', 'pro'); }
+      clearTimeout(t); setResolving(false);
+    });
+    return () => { on = false; clearTimeout(t); };
+  }, [invite]);
+
+  const pickProduct = (p) => { localStorage.setItem('caliper_product', p); setProduct(p); };
+  const pickPortal = (p) => { localStorage.setItem('caliper_portal', p); setPortal(p); };
+  const reset = () => { localStorage.removeItem('caliper_product'); localStorage.removeItem('caliper_portal'); setProduct(null); setPortal(null); };
+  const backToProducts = () => { localStorage.removeItem('caliper_product'); localStorage.removeItem('caliper_portal'); setPortal(null); setProduct(null); };
 
   if (beta) return <BetaRequest onBack={() => setBeta(false)} />;
+  if (resolving) return (
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', color: 'var(--text-faint)', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Mark /> opening your invite…</div>
+    </div>
+  );
 
+  // level 1 — the main page: choose a product
+  if (!product) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
+        <div style={{ width: '100%', maxWidth: 720 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}><BrandLockup /></div>
+          <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 26 }}>Labor, measured true. Which Caliper is yours?</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'stretch' }}>
+            {Object.entries(PRODUCTS).map(([key, p]) => (
+              <button key={key} onClick={() => pickProduct(key)} className="card portal-card" style={{
+                flex: '1 1 260px', minWidth: 0, marginTop: 0,
+                cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)', color: 'var(--text)',
+                border: '1px solid var(--line)', padding: 22,
+              }}>
+                <div style={{ marginBottom: 10, color: 'var(--accent)' }}><p.Icon width={26} height={26} /></div>
+                <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 4 }}>{p.title}</div>
+                <div className="p-tag" style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 12 }}>{p.tagline}</div>
+                <div className="p-points">
+                  {p.points.map((pt) => (
+                    <div key={pt} style={{ fontSize: 12, color: 'var(--text-faint)', fontWeight: 600, padding: '2px 0' }}>· {pt}</div>
+                  ))}
+                </div>
+              </button>
+            ))}
+          </div>
+          <p className="note" style={{ textAlign: 'center', marginTop: 22 }}>
+            Not invited yet? <a onClick={() => setBeta(true)} style={{ color: 'var(--info)', cursor: 'pointer', fontWeight: 700 }}>Request a beta invite →</a>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Portfolio → straight to the branded login
+  if (product === 'portfolio') {
+    return <LoginForm brand="portfolio" invite={invite} onBeta={() => setBeta(true)} onSwitch={reset} switchLabel="Not an owner? Choose a different Caliper" />;
+  }
+
+  // Pro → level 2: pick Office or Crew
   if (!portal) {
     return (
       <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
         <div style={{ width: '100%', maxWidth: 640 }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
-            <BrandLockup />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', marginBottom: 6 }}>
+            <BrandLockup /><span className="chip">pro</span>
           </div>
-          <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 26 }}>Labor, measured true. Pick your door.</p>
+          <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 26 }}>Pick your door.</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'stretch' }}>
             {Object.entries(PORTALS).map(([key, p]) => (
-              <button key={key} onClick={() => pick(key)} className="card portal-card" style={{
+              <button key={key} onClick={() => pickPortal(key)} className="card portal-card" style={{
                 flex: '1 1 240px', minWidth: 0, marginTop: 0,
                 cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)', color: 'var(--text)',
                 border: '1px solid var(--line)', padding: 22,
@@ -238,13 +328,14 @@ function Login({ invite }) {
             ))}
           </div>
           <p className="note" style={{ textAlign: 'center', marginTop: 22 }}>
-            Not invited yet? <a onClick={() => setBeta(true)} style={{ color: 'var(--info)', cursor: 'pointer', fontWeight: 700 }}>Request a beta invite →</a>
+            <a onClick={backToProducts} style={{ color: 'var(--info)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>← Back to products</a>
           </p>
         </div>
       </div>
     );
   }
-  return <LoginForm portal={portal} invite={invite} onBeta={() => setBeta(true)} onSwitch={() => { localStorage.removeItem('caliper_portal'); setPortal(null); }} />;
+  return <LoginForm brand={portal} invite={invite} onBeta={() => setBeta(true)} onSwitch={() => { localStorage.removeItem('caliper_portal'); setPortal(null); }}
+    switchLabel={portal === 'crew' ? 'Office staff? Switch portal' : 'On the crew? Switch portal'} />;
 }
 
 // public beta-invite request — no account needed. Lands in the superadmin queue.
@@ -302,13 +393,13 @@ function BetaRequest({ onBack }) {
   );
 }
 
-function LoginForm({ portal, onSwitch, onBeta, invite }) {
+function LoginForm({ brand, onSwitch, onBeta, invite, switchLabel }) {
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [mode, setMode] = useState(invite ? 'signup' : 'signin'); // invited → create account
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
-  const p = PORTALS[portal];
+  const b = BRANDS[brand] || BRANDS.office;
   const isSignup = mode === 'signup';
 
   const submit = async () => {
@@ -328,11 +419,11 @@ function LoginForm({ portal, onSwitch, onBeta, invite }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginBottom: 8 }}>
           <BrandLockup />
           <span className="chip" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            {portal === 'crew' ? <IcWrench width={12} height={12} /> : <IcChart width={12} height={12} />}
-            {portal === 'crew' ? 'crew' : 'office'}
+            <b.Icon width={12} height={12} />
+            {b.chip}
           </span>
         </div>
-        <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 20 }}>{p.tagline}</p>
+        <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 20 }}>{b.tagline}</p>
 
         {invite && isSignup && (
           <div className="offline" style={{ color: 'var(--money)', borderColor: '#4ade8033', background: 'var(--money-dim)', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -350,7 +441,7 @@ function LoginForm({ portal, onSwitch, onBeta, invite }) {
           onKeyDown={(e) => e.key === 'Enter' && submit()} style={inputStyle} />
         <div style={{ height: 20 }} />
         <button className="btn grad" onClick={submit} disabled={busy || !email || pw.length < 6}>
-          {busy ? (isSignup ? 'Creating…' : 'Signing in…') : isSignup ? `Create account & join` : `Sign in to ${p.title}`}
+          {busy ? (isSignup ? 'Creating…' : 'Signing in…') : isSignup ? `Create account & join` : `Sign in`}
         </button>
 
         {isSignup && (
@@ -374,7 +465,7 @@ function LoginForm({ portal, onSwitch, onBeta, invite }) {
         </p>
         <p className="note" style={{ textAlign: 'center', marginTop: 6 }}>
           <a onClick={onSwitch} style={{ color: 'var(--info)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            {portal === 'crew' ? 'Office staff? Switch portal' : 'On the crew? Switch portal'}
+            {switchLabel || 'Switch portal'}
             <IcChevron width={12} height={12} />
           </a>
         </p>
