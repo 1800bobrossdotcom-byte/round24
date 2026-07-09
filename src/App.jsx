@@ -87,7 +87,7 @@ function Shell() {
 
   const seedDemo = async () => {
     setSeeding(true);
-    try { await store.loadSampleData(); navigate('dash'); }
+    try { await store.loadSampleData({ kind: orgKind }); navigate(orgKind === 'owner' ? 'leasing' : 'dash'); }
     finally { setSeeding(false); }
   };
   useEffect(() => {

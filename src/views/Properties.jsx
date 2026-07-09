@@ -1,9 +1,28 @@
 import { useState, useEffect, useMemo } from 'react';
 import { byProp, byUnit, byCategory, totals, fmtMoney, fmtHrs, fmtMoneyC } from '../lib/rollups.js';
 import { IcChevron, IcReceipt, IcBuilding, IcWrench } from '../components/ui.jsx';
+import { BUILDING_INFO } from '../data/leaseDemo.js';
 
 const nameKey = (s) => (s || '').toLowerCase().trim();
 const money0 = (n) => (n == null ? '—' : '$' + Math.round(n).toLocaleString());
+
+// compact unit-mix summary from a building's rent-roll rows, e.g.
+// "1 studio · 3 × 1bd · 2 × 2bd · 1 commercial"
+function unitMix(rows) {
+  const bed = {}; let commercial = 0;
+  for (const u of rows) {
+    if (u.type === 'commercial') { commercial++; continue; }
+    const b = u.beds == null ? null : Number(u.beds);
+    const key = b === 0 ? 'studio' : b == null ? '?' : `${b}bd`;
+    bed[key] = (bed[key] || 0) + 1;
+  }
+  const order = ['studio', '1bd', '2bd', '3bd', '4bd'];
+  const parts = Object.entries(bed)
+    .sort((a, c) => (order.indexOf(a[0]) - order.indexOf(c[0])))
+    .map(([k, n]) => (k === 'studio' ? `${n} studio` : `${n} × ${k}`));
+  if (commercial) parts.push(`${commercial} commercial`);
+  return parts.join(' · ');
+}
 
 export default function Properties({ store, focus, navigate }) {
   const { timers, properties, propById, purchases = [], leasing = [], workOrders = [] } = store;
@@ -57,6 +76,33 @@ export default function Properties({ store, focus, navigate }) {
           {b.rent > 0 && <button className="card clk-card" onClick={() => go('leasing', { building: b.name })}><div className="stat"><span className="k">Billed rent / mo</span><span className="v mono sm">{money0(b.rent)}</span></div></button>}
           <div className="card"><div className="stat"><span className="k">Labor cost</span><span className="v mono grad-text settle sm">{fmtMoney(t.cost)}</span></div></div>
         </div>
+
+        {/* about this building — type, age, address, unit mix */}
+        {(() => {
+          const info = BUILDING_INFO[b.name];
+          const mix = unitMix(lunits);
+          if (!info && !mix) return null;
+          const rows = [
+            info?.type && ['Type', info.type],
+            info?.yearBuilt && ['Built', info.yearBuilt],
+            mix && ['Unit mix', mix],
+            info?.address && ['Address', info.address],
+          ].filter(Boolean);
+          return (
+            <div className="card" style={{ marginBottom: 'var(--gap)' }}>
+              <span className="field-label" style={{ margin: 0 }}>About this building</span>
+              <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
+                {rows.map(([k, v]) => (
+                  <div key={k} style={{ display: 'flex', gap: 12, fontSize: 13 }}>
+                    <span style={{ color: 'var(--text-faint)', width: 74, flexShrink: 0, fontWeight: 600 }}>{k}</span>
+                    <span style={{ color: 'var(--text)' }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+              {info?.note && <p className="note" style={{ marginTop: 10 }}>{info.note}</p>}
+            </div>
+          );
+        })()}
 
         {/* rent roll summary → drill to the live rent roll */}
         {lunits.length > 0 && (

@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import seed from '../data/seed.json';
 import { useAuth } from '../components/AuthGate.jsx';
 import { DEMO_PROPERTIES, buildDemoTimers, DEMO_WORK_ORDERS, DEMO_PURCHASES } from './demoData.js';
-import { DEMO_LEASING } from '../data/leaseDemo.js';
+import { DEMO_LEASING, DEMO_PORTFOLIO } from '../data/leaseDemo.js';
 import {
   isConfigured, listWorkOrders, insertWorkOrder, updateWorkOrderStatus,
   updateWorkOrderPriority, updateWorkOrderAssignee, subscribeWorkOrders,
@@ -696,24 +696,53 @@ export function useStore() {
   // Flows through the same write paths as real data, so what you see is exactly
   // what the app produces. Additive-safe: labor is replaced (no compounding),
   // orders/purchases only seed when empty so re-tapping never duplicates them.
-  const loadSampleData = useCallback(async () => {
-    // 1. properties + labor timers → charts, team, properties
-    const map = ensureProperties(DEMO_PROPERTIES.map((p) => p.label));
-    const rows = buildDemoTimers().map((r) => ({ ...r, propId: r.propLabel ? map[r.propLabel] : null }));
-    addImported(rows, { replace: true });
+  const loadSampleData = useCallback(async (opts = {}) => {
+    const owner = opts.kind === 'owner';
 
-    // 2. work orders (only if none yet)
-    if (woRef.current.length === 0) {
-      for (const wo of DEMO_WORK_ORDERS) await addWorkOrder(wo);
+    // Rent roll — the portfolio spine (both personas). Seed only when empty so
+    // re-tapping never duplicates. In the cloud this persists to units+leases;
+    // in demo mode the rent roll already defaults to the same sample.
+    if ((leaseRef.current?.length || 0) === 0) {
+      if (isConfigured() && orgId) await importLeases(DEMO_PORTFOLIO).catch(() => {});
+      else setLeasing(DEMO_LEASING);
     }
-    // 3. purchases (only if none yet); approve a couple so History isn't empty
-    if (purchases.length === 0) {
-      const saved = [];
-      for (const p of DEMO_PURCHASES) saved.push(await addPurchase(p));
-      saved.slice(0, 2).forEach((s) => s?.id && setPurchaseStatus(s.id, 'approved'));
+
+    let timerCount = 0;
+    if (owner) {
+      // Owner persona: a portfolio, not a maintenance company. Skip the labor
+      // spine / crew apparatus; seed a couple of maintenance items + expenses
+      // pinned to the portfolio's own buildings so those tabs aren't empty.
+      const OWNER_WOS = [
+        { task: 'Unit 2A turnover — paint + patch before showing', propLabel: 'Parkview Lofts', unit: '2A', category: 'painting', priority: 2, status: 'open', source: 'manual' },
+        { task: 'No heat — furnace not igniting', propLabel: '210 Water Street', unit: '3', category: 'hvac', priority: 1, status: 'open', source: 'manual' },
+        { task: 'Annual gutter cleaning', propLabel: '88 Maple Row', unit: '—', category: 'general', priority: 4, status: 'done', source: 'manual' },
+      ];
+      const OWNER_PURCHASES = [
+        { vendor: 'Home Depot', amount: 62.41, propLabel: 'Parkview Lofts', note: 'paint + patching supplies for 2A turnover' },
+        { vendor: 'Lowe’s', amount: 148.9, propLabel: '210 Water Street', note: 'furnace igniter + thermocouple' },
+      ];
+      if (woRef.current.length === 0) for (const wo of OWNER_WOS) await addWorkOrder(wo);
+      if (purchases.length === 0) {
+        const saved = [];
+        for (const p of OWNER_PURCHASES) saved.push(await addPurchase(p));
+        saved.forEach((s) => s?.id && setPurchaseStatus(s.id, 'approved'));
+      }
+    } else {
+      // Company persona: full operation — properties + labor spine + orders + purchases.
+      const map = ensureProperties(DEMO_PROPERTIES.map((p) => p.label));
+      const rows = buildDemoTimers().map((r) => ({ ...r, propId: r.propLabel ? map[r.propLabel] : null }));
+      addImported(rows, { replace: true });
+      timerCount = rows.length;
+
+      if (woRef.current.length === 0) for (const wo of DEMO_WORK_ORDERS) await addWorkOrder(wo);
+      if (purchases.length === 0) {
+        const saved = [];
+        for (const p of DEMO_PURCHASES) saved.push(await addPurchase(p));
+        saved.slice(0, 2).forEach((s) => s?.id && setPurchaseStatus(s.id, 'approved'));
+      }
     }
-    return { timers: rows.length };
-  }, [ensureProperties, addImported, addWorkOrder, addPurchase, setPurchaseStatus, purchases.length]);
+    return { timers: timerCount };
+  }, [ensureProperties, addImported, addWorkOrder, addPurchase, setPurchaseStatus, purchases.length, importLeases, orgId, setLeasing]);
 
   // notification badges: items created since the tab was last opened
   const badges = useMemo(() => {
