@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { isConfigured, adminListOrgs, adminCreateWorkspace, listWorkspaceRequests, decideWorkspaceRequest } from '../lib/backend/supabase.js';
+import { isConfigured, adminListOrgs, adminCreateWorkspace, listWorkspaceRequests, decideWorkspaceRequest, sendInviteEmail } from '../lib/backend/supabase.js';
 import { IcBuilding, IcCheck, IcX, IcCopy } from '../components/ui.jsx';
 
 const inputStyle = {
@@ -29,13 +29,21 @@ export default function Platform() {
   const create = async () => {
     setErr(null); setBusy(true); setMade(null);
     try {
-      const { code } = await adminCreateWorkspace(name.trim(), email.trim() || null, kind);
-      setMade({ code, name: name.trim() }); setName(''); setEmail(''); load();
+      const nm = name.trim(), em = email.trim();
+      const { code } = await adminCreateWorkspace(nm, em || null, kind);
+      if (em) sendInviteEmail({ to: em, code, orgName: nm }).catch(() => {}); // best-effort
+      setMade({ code, name: nm, emailed: !!em }); setName(''); setEmail(''); load();
     } catch (e) { setErr(e.message || 'Could not create workspace'); }
     finally { setBusy(false); }
   };
-  const decide = async (id, approve) => {
-    try { await decideWorkspaceRequest(id, approve); load(); } catch { /* ignore */ }
+  const decide = async (req, approve) => {
+    try {
+      const res = await decideWorkspaceRequest(req.id, approve);
+      if (approve && res?.code && req.email) {
+        sendInviteEmail({ to: req.email, code: res.code, name: req.contactName, orgName: req.orgName }).catch(() => {}); // best-effort
+      }
+      load();
+    } catch { /* ignore */ }
   };
   const copy = async (code) => { try { await navigator.clipboard.writeText(linkFor(code)); setCopied(code); setTimeout(() => setCopied(null), 1500); } catch { /* no clipboard */ } };
 
@@ -67,7 +75,7 @@ export default function Platform() {
         {made && (
           <div className="card" style={{ marginTop: 12, borderColor: '#4ade8033', background: 'var(--money-dim)' }}>
             <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><IcCheck width={14} height={14} /> {made.name} created</div>
-            <div className="note" style={{ margin: '4px 0 8px' }}>Send the owner this invite link — they create their account through it and land as admin.</div>
+            <div className="note" style={{ margin: '4px 0 8px' }}>{made.emailed ? 'We emailed the owner their invite. Here’s the link too, in case you want to send it directly — ' : 'Send the owner this invite link — '}they create their account through it and land as admin.</div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <span className="mono" style={{ fontSize: 12, wordBreak: 'break-all', flex: 1, minWidth: 180 }}>{linkFor(made.code)}</span>
               <button className="btn ghost sm" onClick={() => copy(made.code)}>{copied === made.code ? <><IcCheck width={13} height={13} /> Copied</> : <><IcCopy width={13} height={13} /> Copy</>}</button>
@@ -87,8 +95,8 @@ export default function Platform() {
                 <div className="s">{[r.contactName, r.email, r.note].filter(Boolean).join(' · ') || 'no details'}</div>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button className="btn grad sm" onClick={() => decide(r.id, true)}>Approve</button>
-                <button className="btn ghost sm" style={{ color: 'var(--text-faint)' }} onClick={() => decide(r.id, false)} aria-label="Deny"><IcX width={14} height={14} /></button>
+                <button className="btn grad sm" onClick={() => decide(r, true)}>Approve</button>
+                <button className="btn ghost sm" style={{ color: 'var(--text-faint)' }} onClick={() => decide(r, false)} aria-label="Deny"><IcX width={14} height={14} /></button>
               </div>
             </div>
           ))}

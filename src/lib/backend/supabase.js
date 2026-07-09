@@ -266,6 +266,26 @@ export async function requestBeta({ email, contactName, orgName, kind = 'company
   if (error) throw error;
 }
 
+// ---- transactional email (best-effort; never blocks the app flow) ----
+// The 'email' edge function degrades gracefully when Resend isn't configured,
+// so these are fire-and-forget: a mail failure must never break signup or a
+// workspace approval. Callers may ignore the resolved value.
+export async function sendWelcomeEmail(name) {
+  try {
+    const { data, error } = await supabase.functions.invoke('email', { body: { type: 'welcome', name: name || null } });
+    if (error) return { ok: false, error: error.message };
+    return data || { ok: true };
+  } catch (e) { return { ok: false, error: String(e?.message || e) }; }
+}
+export async function sendInviteEmail({ to, code, name, orgName } = {}) {
+  if (!to) return { ok: false, error: 'no recipient' };
+  try {
+    const { data, error } = await supabase.functions.invoke('email', { body: { type: 'invite', to, code, name: name || null, orgName: orgName || null } });
+    if (error) return { ok: false, error: error.message };
+    return data || { ok: true };
+  } catch (e) { return { ok: false, error: String(e?.message || e) }; }
+}
+
 // ---- work orders ----
 const woFromDb = (r) => ({
   id: r.id, propLabel: r.property_label, unit: r.unit, task: r.task,

@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, fetchMembership, redeemInvite, requestBeta, isPlatformAdmin } from '../lib/backend/supabase.js';
+import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, fetchMembership, redeemInvite, requestBeta, isPlatformAdmin, sendWelcomeEmail } from '../lib/backend/supabase.js';
 import { Mark, BrandLockup, IcGear, IcLogout, IcWrench, IcChart, IcX, IcCheck, IcChevron } from './ui.jsx';
 import Platform from '../views/Platform.jsx';
 
@@ -314,8 +314,10 @@ function LoginForm({ portal, onSwitch, onBeta, invite }) {
   const submit = async () => {
     setErr(null); setBusy(true);
     try {
-      if (isSignup) await signUp(email, pw);   // invite is redeemed post-auth by AuthGate
-      else await signIn(email, pw);
+      if (isSignup) {
+        await signUp(email, pw);   // invite is redeemed post-auth by AuthGate
+        sendWelcomeEmail().catch(() => {}); // best-effort welcome; never blocks signup
+      } else await signIn(email, pw);
     } catch (e) { setErr(e.message || (isSignup ? 'Could not create account' : 'Sign-in failed')); }
     finally { setBusy(false); }
   };
