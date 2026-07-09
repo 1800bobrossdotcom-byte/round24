@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, fetchMembership, redeemInvite, createOrg } from '../lib/backend/supabase.js';
+import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, fetchMembership, redeemInvite, requestWorkspace, isPlatformAdmin } from '../lib/backend/supabase.js';
 import { Mark, BrandLockup, IcGear, IcLogout, IcWrench, IcChart, IcX, IcCheck, IcChevron } from './ui.jsx';
+import Platform from '../views/Platform.jsx';
 
 // invite links land as ?invite=CODE. Capture it, stash it, strip it from the
 // URL, and it gets redeemed the moment the person is authenticated.
@@ -95,49 +96,83 @@ export function AuthGate({ children }) {
   );
 }
 
-// signed in, no org yet — join with an invite code, or start a new workspace
+// signed in, no org yet. Platform superadmins get the provisioning console;
+// everyone else joins by invite or requests a workspace (approval-gated beta).
 function NeedsAccess() {
-  const [tab, setTab] = useState('join');   // 'join' | 'create'
+  const [plat, setPlat] = useState(null);   // null = checking
+  const [tab, setTab] = useState('join');   // 'join' | 'request'
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
+  const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
-  const run = async (fn, msg) => {
+  const [sent, setSent] = useState(false);
+
+  useEffect(() => { isPlatformAdmin().then(setPlat).catch(() => setPlat(false)); }, []);
+
+  const join = async () => {
     setErr(null); setBusy(true);
-    try { await fn(); window.location.reload(); }
-    catch (e) { setErr(e.message ? e.message : msg); setBusy(false); }
+    try { await redeemInvite(code.trim().toUpperCase()); window.location.reload(); }
+    catch (e) { setErr(e.message || 'That invite code isn’t valid or has been used.'); setBusy(false); }
   };
-  const join = () => run(() => redeemInvite(code.trim().toUpperCase()), 'That invite code isn’t valid or has been used.');
-  const create = () => run(() => createOrg(name.trim()), 'Could not create the workspace.');
+  const request = async () => {
+    setErr(null); setBusy(true);
+    try { await requestWorkspace(name.trim(), note.trim() || null); setSent(true); }
+    catch (e) { setErr(e.message || 'Could not send your request.'); }
+    finally { setBusy(false); }
+  };
+
+  // superadmin without an org → the platform console (provision / approve)
+  if (plat) {
+    return (
+      <div className="app desk" style={{ minHeight: '100vh' }}>
+        <header className="topbar" style={{ position: 'static' }}>
+          <div className="brand"><Mark /> Caliper <span className="sub">platform</span></div>
+          <div className="spacer" />
+          <SignOutButton />
+        </header>
+        <main className="content"><Platform /></main>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
       <div style={{ width: '100%', maxWidth: 360, textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><BrandLockup /></div>
         <div style={{ fontWeight: 800, fontSize: 17, marginTop: 12 }}>Almost there</div>
-        <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: '6px 0 14px' }}>You’re signed in — join a workspace with an invite, or start your own.</p>
+        <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: '6px 0 14px' }}>You’re signed in — join a workspace with an invite, or request one.</p>
 
-        <div className="seg" style={{ marginBottom: 16 }}>
-          <button className={tab === 'join' ? 'on' : ''} onClick={() => { setTab('join'); setErr(null); }}>Join with invite</button>
-          <button className={tab === 'create' ? 'on' : ''} onClick={() => { setTab('create'); setErr(null); }}>Create workspace</button>
-        </div>
-
-        {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{err}</div>}
-
-        {tab === 'join' ? (
-          <>
-            <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="INVITE CODE"
-              onKeyDown={(e) => e.key === 'Enter' && code && join()} style={{ ...inputStyle, textAlign: 'center', letterSpacing: '.15em', fontFamily: 'var(--mono)' }} />
-            <div style={{ height: 14 }} />
-            <button className="btn grad" onClick={join} disabled={busy || !code}>{busy ? 'Joining…' : 'Join workspace'}</button>
-          </>
+        {sent ? (
+          <div className="offline" style={{ color: 'var(--money)', borderColor: '#4ade8033', background: 'var(--money-dim)' }}>
+            <IcCheck width={14} height={14} /> Request sent. You’ll get an invite link once it’s approved.
+          </div>
         ) : (
           <>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Company / workspace name"
-              onKeyDown={(e) => e.key === 'Enter' && name.trim() && create()} style={inputStyle} />
-            <div style={{ height: 14 }} />
-            <button className="btn grad" onClick={create} disabled={busy || !name.trim()}>{busy ? 'Creating…' : 'Create workspace'}</button>
-            <p className="note" style={{ marginTop: 10 }}>You’ll be the admin. Invite your team and contractors from the Access tab.</p>
+            <div className="seg" style={{ marginBottom: 16 }}>
+              <button className={tab === 'join' ? 'on' : ''} onClick={() => { setTab('join'); setErr(null); }}>Join with invite</button>
+              <button className={tab === 'request' ? 'on' : ''} onClick={() => { setTab('request'); setErr(null); }}>Request a workspace</button>
+            </div>
+
+            {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{err}</div>}
+
+            {tab === 'join' ? (
+              <>
+                <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="INVITE CODE"
+                  onKeyDown={(e) => e.key === 'Enter' && code && join()} style={{ ...inputStyle, textAlign: 'center', letterSpacing: '.15em', fontFamily: 'var(--mono)' }} />
+                <div style={{ height: 14 }} />
+                <button className="btn grad" onClick={join} disabled={busy || !code}>{busy ? 'Joining…' : 'Join workspace'}</button>
+              </>
+            ) : (
+              <>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Company / workspace name" style={inputStyle} />
+                <div style={{ height: 10 }} />
+                <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything we should know? (optional)" style={inputStyle} />
+                <div style={{ height: 14 }} />
+                <button className="btn grad" onClick={request} disabled={busy || !name.trim()}>{busy ? 'Sending…' : 'Request access'}</button>
+                <p className="note" style={{ marginTop: 10 }}>Caliper is in private beta — new workspaces are approved by the team.</p>
+              </>
+            )}
           </>
         )}
         <p className="note" style={{ marginTop: 16 }}><a onClick={signOut} style={{ color: 'var(--info)', cursor: 'pointer' }}>Sign out</a></p>

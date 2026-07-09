@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { AuthGate, SignOutButton, AccountButton, useAuth } from './components/AuthGate.jsx';
 import TopStrip from './components/TopStrip.jsx';
 import { useStore } from './lib/store.js';
-import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip } from './components/ui.jsx';
+import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip, IcShield } from './components/ui.jsx';
+import { isPlatformAdmin } from './lib/backend/supabase.js';
 import Dashboard from './views/Dashboard.jsx';
 import DayOverview from './views/DayOverview.jsx';
 import Chat from './views/Chat.jsx';
@@ -19,6 +20,7 @@ import Integrations from './views/Integrations.jsx';
 import Access from './views/Access.jsx';
 import Compliance from './views/Compliance.jsx';
 import Settings from './views/Settings.jsx';
+import Platform from './views/Platform.jsx';
 
 // which roles see which tools: the Crew portal (tech) gets field work —
 // orders, timer, receipts, shared docs. The Office portal (admin/manager)
@@ -50,7 +52,12 @@ const MAX_BAR = 5; // slots in the mobile bottom bar (incl. a possible "More")
 function Shell() {
   const store = useStore();
   const { role } = useAuth();
-  const tabs = TABS.filter((t) => t.roles.includes(role));
+  const [isPlat, setIsPlat] = useState(false);
+  useEffect(() => { isPlatformAdmin().then(setIsPlat).catch(() => {}); }, []);
+  const tabs = [
+    ...TABS.filter((t) => t.roles.includes(role)),
+    ...(isPlat ? [{ id: 'platform', label: 'Platform', Icon: IcShield, View: Platform }] : []),
+  ];
   const [tab, setTab] = useState(tabs[0].id);
   const [moreOpen, setMoreOpen] = useState(false);
   const [seeding, setSeeding] = useState(false);

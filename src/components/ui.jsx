@@ -71,6 +71,7 @@ export const IcCreditCard = P(<><rect x="2" y="5" width="20" height="14" rx="2"/
 export const IcImage = P(<><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></>);
 export const IcSun = P(<><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></>);
 export const IcMoon = P(<><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></>);
+export const IcShield = P(<><path d="M12 3l8 3v6c0 4.4-3 7.6-8 9-5-1.4-8-4.6-8-9V6z"/><path d="M9 12l2 2 4-4"/></>);
 export const IcCamera = P(<><path d="M3 7h3l2-2.5h8L18 7h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></>);
 export const IcCopy = P(<><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>);
 

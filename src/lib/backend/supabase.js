@@ -226,6 +226,41 @@ export async function updateOrgName(orgId, name) {
   if (error) throw error;
 }
 
+// ---- platform superadmin (cross-tenant, gated by is_platform_admin) ----
+export async function isPlatformAdmin() {
+  if (!isConfigured()) return false;
+  const { data, error } = await supabase.rpc('is_platform_admin');
+  if (error) return false;
+  return !!data;
+}
+export async function adminListOrgs() {
+  const { data, error } = await supabase.rpc('admin_list_orgs');
+  if (error) throw error;
+  return (data || []).map((o) => ({ id: o.id, name: o.name, createdAt: o.created_at, members: Number(o.members) }));
+}
+export async function adminCreateWorkspace(name, ownerEmail) {
+  const { data, error } = await supabase.rpc('admin_create_workspace', { p_name: name, p_owner_email: ownerEmail || null });
+  if (error) throw error;
+  const r = Array.isArray(data) ? data[0] : data;
+  return { orgId: r?.org_id, code: r?.invite_code };
+}
+export async function listWorkspaceRequests() {
+  const { data, error } = await supabase.from('workspace_requests').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((r) => ({ id: r.id, email: r.email, orgName: r.org_name, note: r.note, status: r.status, code: r.invite_code, createdAt: r.created_at, decidedBy: r.decided_by }));
+}
+export async function decideWorkspaceRequest(id, approve) {
+  const { data, error } = await supabase.rpc('admin_decide_request', { p_id: id, p_approve: approve });
+  if (error) throw error;
+  const r = Array.isArray(data) ? data[0] : data;
+  return r?.org_id ? { orgId: r.org_id, code: r.invite_code } : null;
+}
+export async function requestWorkspace(orgName, note) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase.from('workspace_requests').insert({ org_name: orgName, note: note || null, email: user?.email || null });
+  if (error) throw error;
+}
+
 // ---- work orders ----
 const woFromDb = (r) => ({
   id: r.id, propLabel: r.property_label, unit: r.unit, task: r.task,
