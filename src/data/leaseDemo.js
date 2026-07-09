@@ -71,6 +71,15 @@ const PORTFOLIO = [
       ['House', 3, 'residential', 'leased', 'The Bennetts', '(585) 555-0138', 2650, { insurance: 65 }, '2025-06-01', '2026-05-31', 'renewed'],
     ],
   },
+  {
+    name: 'Ridge Road Parcel', city: 'Canandaigua', type: 'Undeveloped land', yearBuilt: null,
+    size: 6.2, zoning: 'R-1-20 residential',
+    address: 'Ridge Rd (parcel 084.-1-12.100), Canandaigua, NY 14424',
+    note: 'Undeveloped ~6.2-acre parcel held for future development. Road frontage on Ridge Rd; no utilities run to the site yet. Annual taxes ~$1,240.',
+    units: [
+      ['Parcel', null, 'land', 'held', '', '', 0, {}, null, null, null],
+    ],
+  },
 ];
 
 const feesTotal = (rent, fees) => rent + Object.values(fees).reduce((a, b) => a + (b || 0), 0);
@@ -78,7 +87,9 @@ const feesTotal = (rent, fees) => rent + Object.values(fees).reduce((a, b) => a 
 // name → building details, for the Properties "About this building" card
 export const BUILDING_INFO = Object.fromEntries(
   PORTFOLIO.map((b) => [b.name, {
-    city: b.city, type: b.type, yearBuilt: b.yearBuilt, address: b.address, note: b.note, units: b.units.length,
+    city: b.city, type: b.type, yearBuilt: b.yearBuilt, address: b.address, note: b.note,
+    units: b.units.length, size: b.size || null, zoning: b.zoning || null,
+    land: b.units.every((u) => u[2] === 'land'),
   }]),
 );
 
@@ -86,7 +97,7 @@ export const BUILDING_INFO = Object.fromEntries(
 export const DEMO_LEASING = PORTFOLIO.flatMap((b, bi) =>
   b.units.map(([number, beds, type, status, tenant, phone, rent, fees, start, end, renewal], ui) => ({
     id: `d${bi}_${ui}`, leaseId: `dl_${bi}_${ui}`, building: b.name, number, beds,
-    type, furnished: false, sort: ui,
+    type, furnished: false, sort: ui, acres: type === 'land' ? (b.size || null) : null,
     status, tenant: status === 'leased' ? tenant : '', phone: status === 'leased' ? phone : '',
     rent, fees, total: feesTotal(rent, fees),
     deposit: status === 'leased' ? rent : 0,
@@ -103,6 +114,7 @@ export const DEMO_PORTFOLIO = PORTFOLIO.map((b) => ({
     rent, fees, total: feesTotal(rent, fees),
     deposit: status === 'leased' ? rent : 0,
     leaseStart: start, leaseEnd: end, renewalStatus: renewal,
+    note: type === 'land' && b.size ? `Undeveloped ~${b.size} acres · ${b.zoning || ''}`.trim() : undefined,
   })),
 }));
 

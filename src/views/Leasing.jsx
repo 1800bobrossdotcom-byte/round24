@@ -5,8 +5,12 @@ import { parseLeaseWorkbook } from '../lib/leaseParser.js';
 import { IcBuilding, IcImport, IcChevron, IcX, IcWrench, IcReceipt, IcCal, IcCheck } from '../components/ui.jsx';
 
 const UNIT_STATUS = [['leased', 'Leased', 'var(--money)'], ['vacant', 'Vacant', 'var(--warn)'], ['turning', 'Turning', 'var(--info)']];
+// land parcels aren't rentable dwelling units — 'held' reads as an owned asset,
+// not a vacancy, and is excluded from occupancy / rent math.
+const HELD_META = ['held', 'Land', 'var(--text-dim)'];
 const RENEWAL = [['undecided', 'Undecided'], ['renewed', 'Renewed'], ['not_renewing', 'Not renewing'], ['mtm', 'Month-to-month']];
-const statusMeta = (s) => UNIT_STATUS.find((x) => x[0] === s) || UNIT_STATUS[0];
+const statusMeta = (s) => (s === 'held' ? HELD_META : UNIT_STATUS.find((x) => x[0] === s) || UNIT_STATUS[0]);
+const isLand = (u) => u.type === 'land' || u.status === 'held';
 const feeSum = (f) => Object.values(f || {}).reduce((a, b) => a + (b || 0), 0);
 const daysTo = (d) => (d ? Math.ceil((new Date(d) - Date.now()) / 86400000) : null);
 const money0 = (n) => (n == null ? '—' : '$' + Math.round(n).toLocaleString());
@@ -23,7 +27,7 @@ function natUnit(a, b) {
   return 0;
 }
 
-const FILTERS = [['all', 'All'], ['leased', 'Leased'], ['vacant', 'Vacant'], ['ending', 'Ending ≤120d'], ['commercial', 'Commercial']];
+const FILTERS = [['all', 'All'], ['leased', 'Leased'], ['vacant', 'Vacant'], ['ending', 'Ending ≤120d'], ['commercial', 'Commercial'], ['land', 'Land']];
 
 export default function Leasing({ store, navigate, focus }) {
   const { role } = useAuth();
@@ -71,14 +75,17 @@ export default function Leasing({ store, navigate, focus }) {
   };
 
   const kpi = useMemo(() => {
-    const occ = rows.filter((u) => u.status === 'leased');
-    const potential = rows.reduce((a, u) => a + (u.rent || 0), 0);
+    const rentable = rows.filter((u) => !isLand(u)); // land isn't a rentable unit
+    const land = rows.filter(isLand);
+    const occ = rentable.filter((u) => u.status === 'leased');
+    const potential = rentable.reduce((a, u) => a + (u.rent || 0), 0);
     const billed = occ.reduce((a, u) => a + (u.rent || 0), 0);
     return {
-      units: rows.length, occ: occ.length, vac: rows.length - occ.length,
-      occPct: rows.length ? Math.round((occ.length / rows.length) * 100) : 0,
+      units: rentable.length, occ: occ.length, vac: rentable.length - occ.length,
+      occPct: rentable.length ? Math.round((occ.length / rentable.length) * 100) : 0,
       potential, billed, loss: potential - billed,
       deposits: rows.reduce((a, u) => a + (u.deposit || 0), 0),
+      parcels: land.length, acres: land.reduce((a, u) => a + (u.acres || 0), 0),
     };
   }, [rows]);
 
@@ -86,8 +93,9 @@ export default function Leasing({ store, navigate, focus }) {
   const passes = (u) => {
     if (q && !((u.tenant || '').toLowerCase().includes(q) || String(u.number).toLowerCase().includes(q) || (u.building || '').toLowerCase().includes(q))) return false;
     if (filter === 'leased') return u.status === 'leased';
-    if (filter === 'vacant') return u.status !== 'leased';
+    if (filter === 'vacant') return u.status !== 'leased' && !isLand(u);
     if (filter === 'commercial') return u.type === 'commercial';
+    if (filter === 'land') return isLand(u);
     if (filter === 'ending') return u.leaseEnd && daysTo(u.leaseEnd) <= 120;
     return true;
   };
@@ -116,8 +124,9 @@ export default function Leasing({ store, navigate, focus }) {
     const m = new Map();
     for (const u of rows) {
       const k = u.building || 'Unassigned';
-      const s = m.get(k) || { units: 0, occ: 0, rent: 0 };
-      s.units++; if (u.status === 'leased') { s.occ++; s.rent += u.rent || 0; }
+      const s = m.get(k) || { units: 0, occ: 0, rent: 0, parcels: 0, acres: 0 };
+      if (isLand(u)) { s.parcels++; s.acres += u.acres || 0; }
+      else { s.units++; if (u.status === 'leased') { s.occ++; s.rent += u.rent || 0; } }
       m.set(k, s);
     }
     return m;
@@ -160,7 +169,7 @@ export default function Leasing({ store, navigate, focus }) {
       </div>
 
       <div className="rr-kpis">
-        <button className={'kpi-c clk' + (filter === 'all' ? ' on' : '')} onClick={() => setFilter('all')} title="Show all units"><span className="v mono">{kpi.units}</span><span className="k">units</span></button>
+        <button className={'kpi-c clk' + (filter === 'all' ? ' on' : '')} onClick={() => setFilter('all')} title="Show all units"><span className="v mono">{kpi.units}</span><span className="k">units{kpi.parcels ? ` · ${kpi.acres ? `${Math.round(kpi.acres * 10) / 10} ac` : `${kpi.parcels} parcel${kpi.parcels > 1 ? 's' : ''}`}` : ''}</span></button>
         <button className={'kpi-c clk' + (filter === 'leased' ? ' on' : '')} onClick={() => setFilter('leased')} title="Filter to leased"><span className="v mono" style={{ color: 'var(--money)' }}>{kpi.occPct}%</span><span className="k">occupied · {kpi.vac} vacant</span></button>
         <div className="kpi-c"><span className="v mono">{money0(kpi.potential)}</span><span className="k">potential / mo</span></div>
         <button className={'kpi-c clk' + (filter === 'leased' ? ' on' : '')} onClick={() => setFilter('leased')} title="Filter to billed (leased)"><span className="v mono">{money0(kpi.billed)}</span><span className="k">billed / mo</span></button>
@@ -241,9 +250,10 @@ export default function Leasing({ store, navigate, focus }) {
       {/* rent roll by building */}
       {buildings.map(([name, units]) => {
         const isOpen = !collapsed.has(name) || !!q;
-        const fs = fullStats.get(name) || { units: units.length, occ: 0, rent: 0 };
+        const fs = fullStats.get(name) || { units: units.length, occ: 0, rent: 0, parcels: 0, acres: 0 };
         const occ = fs.occ, rent = fs.rent;
         const pct = fs.units ? Math.round((occ / fs.units) * 100) : 0;
+        const landOnly = fs.units === 0 && fs.parcels > 0;
         const editUnit = editRow ? units.find((u) => u.id === editRow.id) : null;
         return (
           <div className={'card rr-bcard' + (dense ? ' dense' : '')} key={name} style={{ marginBottom: 'var(--gap)' }}>
@@ -251,8 +261,10 @@ export default function Leasing({ store, navigate, focus }) {
               <button className="rr-bhead" onClick={() => toggleOne(name)} aria-expanded={isOpen}>
                 <IcChevron className="rr-chev" width={14} height={14} style={{ transform: isOpen ? 'rotate(90deg)' : 'none' }} />
                 <span className="rr-bname"><IcBuilding width={13} height={13} style={{ verticalAlign: -2 }} /> {name}</span>
-                <span className="rr-occbar" title={`${pct}% leased`}><span style={{ width: pct + '%', background: pct >= 90 ? 'var(--money)' : pct >= 75 ? 'var(--warn)' : 'var(--danger)' }} /></span>
-                <span className="rr-bmeta mono">{occ}/{fs.units} · {pct}% · {money0(rent)}/mo</span>
+                {landOnly
+                  ? <><span className="rr-occbar" style={{ visibility: 'hidden' }} /><span className="rr-bmeta mono">{fs.acres ? `${fs.acres} ac` : `${fs.parcels} parcel${fs.parcels > 1 ? 's' : ''}`} · undeveloped</span></>
+                  : <><span className="rr-occbar" title={`${pct}% leased`}><span style={{ width: pct + '%', background: pct >= 90 ? 'var(--money)' : pct >= 75 ? 'var(--warn)' : 'var(--danger)' }} /></span>
+                    <span className="rr-bmeta mono">{occ}/{fs.units} · {pct}% · {money0(rent)}/mo</span></>}
               </button>
               {canEdit && <button className="rr-add" onClick={() => addUnitTo(name)} title="Add a unit">+ Unit</button>}
             </div>
@@ -273,27 +285,29 @@ export default function Leasing({ store, navigate, focus }) {
                   <tbody>
                     {units.map((u) => {
                       const d = daysTo(u.leaseEnd);
-                      const vac = u.status !== 'leased';
+                      const land = isLand(u);
+                      const vac = !land && u.status !== 'leased';
                       const isEd = editRow && editRow.id === u.id;
                       return (
                         <tr key={u.id} className={vac ? 'vac' : ''}>
                           <td className="mono rr-link" onClick={() => setDetail(u.id)}><span className="ustripe" style={{ background: statusMeta(u.status)[2] }} />{u.number}{u.furnished ? ' ·F' : ''}</td>
-                          <td className="rr-link" onClick={() => setDetail(u.id)}>{u.type === 'commercial' ? <em style={{ color: 'var(--info)' }}>{u.tenant || 'Vacant'}</em> : (u.tenant || <span style={{ color: 'var(--text-faint)' }}>vacant</span>)}</td>
-                          <td className="mono">{u.type === 'commercial' ? 'C' : (u.beds ?? '—')}</td>
+                          <td className="rr-link" onClick={() => setDetail(u.id)}>{land ? <em style={{ color: 'var(--text-dim)' }}>{u.acres ? `${u.acres} acres · undeveloped` : 'Undeveloped land'}</em> : u.type === 'commercial' ? <em style={{ color: 'var(--info)' }}>{u.tenant || 'Vacant'}</em> : (u.tenant || <span style={{ color: 'var(--text-faint)' }}>vacant</span>)}</td>
+                          <td className="mono">{land ? '—' : u.type === 'commercial' ? 'C' : (u.beds ?? '—')}</td>
                           <td className="num">
-                            {canEdit
+                            {land ? <span className="mono" style={{ color: 'var(--text-faint)' }}>—</span>
+                              : canEdit
                               ? <input className="rr-num" type="number" defaultValue={u.rent ?? ''} onBlur={(e) => { const v = parseFloat(e.target.value); if (!Number.isNaN(v) && v !== u.rent) store.setLeaseField(u.id, { rent: v }); }} />
                               : <span className="mono">{money0(u.rent)}</span>}
                           </td>
-                          <td className="num mono" style={{ color: 'var(--text-dim)' }}>{feeSum(u.fees) ? money0(feeSum(u.fees)) : '—'}</td>
-                          <td className="num mono">{money0((u.rent || 0) + feeSum(u.fees))}</td>
+                          <td className="num mono" style={{ color: 'var(--text-dim)' }}>{!land && feeSum(u.fees) ? money0(feeSum(u.fees)) : '—'}</td>
+                          <td className="num mono">{land ? '—' : money0((u.rent || 0) + feeSum(u.fees))}</td>
                           <td className="mono" style={{ fontSize: 12 }}>
                             {u.leaseEnd
                               ? <span title={u.leaseEnd} className={'ends-chip' + (d < 0 ? ' over' : d <= 60 ? ' soon' : '')}>{d < 0 ? `${-d}d ago` : `${d}d`}</span>
                               : <span style={{ color: 'var(--text-faint)' }}>—</span>}
                           </td>
                           <td>
-                            {canEdit
+                            {(!land && canEdit)
                               ? <select className="rr-sel" value={u.status} onChange={(e) => store.setLeaseField(u.id, { status: e.target.value })}>
                                   {UNIT_STATUS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                                 </select>

@@ -11,6 +11,7 @@ const money0 = (n) => (n == null ? '—' : '$' + Math.round(n).toLocaleString())
 function unitMix(rows) {
   const bed = {}; let commercial = 0;
   for (const u of rows) {
+    if (u.type === 'land' || u.status === 'held') continue; // land isn't a dwelling unit
     if (u.type === 'commercial') { commercial++; continue; }
     const b = u.beds == null ? null : Number(u.beds);
     const key = b === 0 ? 'studio' : b == null ? '?' : `${b}bd`;
@@ -40,7 +41,7 @@ export default function Properties({ store, focus, navigate }) {
     };
     for (const p of properties) ensure(p.name, p.city, p.id);
     for (const r of byProp(timers)) { const p = propById[r.key]; if (p) { const b = ensure(p.name, p.city, r.key); if (b) { b.cost = r.cost; b.hrs = r.hrs; b.jobs = r.count; } } }
-    for (const u of leasing) { const b = ensure(u.building, 'Rochester'); if (b) { b.units++; if (u.status === 'leased') { b.occ++; b.rent += u.rent || 0; } } }
+    for (const u of leasing) { const b = ensure(u.building, BUILDING_INFO[u.building]?.city || ''); if (!b) continue; if (u.type === 'land' || u.status === 'held') { b.parcels = (b.parcels || 0) + 1; b.acres = (b.acres || 0) + (u.acres || 0); } else { b.units++; if (u.status === 'leased') { b.occ++; b.rent += u.rent || 0; } } }
     for (const w of workOrders) if (w.status === 'open' || w.status === 'in_progress') { const b = map.get(nameKey(w.propLabel)); if (b) b.openWo++; }
     return [...map.values()].sort((a, b) => (b.rent - a.rent) || (b.cost - a.cost));
   }, [properties, timers, leasing, workOrders, propById]);
@@ -52,7 +53,7 @@ export default function Properties({ store, focus, navigate }) {
 
   // ---------- building detail: the hub ----------
   if (sel) {
-    const b = buildings.find((x) => x.key === nameKey(sel)) || { name: sel, city: '', units: 0, occ: 0, rent: 0 };
+    const b = buildings.find((x) => x.key === nameKey(sel)) || { name: sel, city: '', units: 0, occ: 0, rent: 0, parcels: 0, acres: 0 };
     const prop = properties.find((p) => nameKey(p.name) === nameKey(sel));
     const pt = timers.filter((t) => prop && t.propId === prop.id);
     const t = totals(pt);
@@ -60,7 +61,8 @@ export default function Properties({ store, focus, navigate }) {
     const cats = byCategory(pt).sort((a, c) => c.cost - a.cost);
     const umax = Math.max(...units.map((u) => u.cost), 1);
     const lunits = leasing.filter((u) => nameKey(u.building) === nameKey(sel));
-    const vac = lunits.filter((u) => u.status !== 'leased').length;
+    const rentable = lunits.filter((u) => !(u.type === 'land' || u.status === 'held'));
+    const vac = rentable.filter((u) => u.status !== 'leased').length;
     const deposits = lunits.reduce((a, u) => a + (u.deposit || 0), 0);
     const openWos = workOrders.filter((w) => nameKey(w.propLabel) === nameKey(sel) && (w.status === 'open' || w.status === 'in_progress'));
     const mats = purchases.filter((pu) => nameKey(pu.propLabel) === nameKey(sel));
@@ -69,7 +71,7 @@ export default function Properties({ store, focus, navigate }) {
     return (
       <div>
         <button className="btn ghost sm" onClick={() => setSel(null)} style={{ marginBottom: 14 }}><IcChevron width={14} height={14} style={{ transform: 'rotate(180deg)' }} /> All buildings</button>
-        <div className="view-head"><h1>{b.name}</h1><p>{[b.city, b.units ? `${b.units} units` : null].filter(Boolean).join(' · ')}</p></div>
+        <div className="view-head"><h1>{b.name}</h1><p>{[b.city, b.units ? `${b.units} units` : null, b.parcels ? `${b.acres ? `${Math.round(b.acres * 10) / 10} ac` : `${b.parcels} parcel${b.parcels > 1 ? 's' : ''}`} undeveloped` : null].filter(Boolean).join(' · ')}</p></div>
 
         <div className="grid g3" style={{ marginBottom: 'var(--gap)' }}>
           {b.units > 0 && <button className="card clk-card" onClick={() => go('leasing', { building: b.name })}><div className="stat"><span className="k">Occupancy</span><span className="v mono sm" style={{ color: 'var(--money)' }}>{Math.round((b.occ / b.units) * 100)}%</span></div></button>}
@@ -85,6 +87,8 @@ export default function Properties({ store, focus, navigate }) {
           const rows = [
             info?.type && ['Type', info.type],
             info?.yearBuilt && ['Built', info.yearBuilt],
+            info?.size && ['Size', `${info.size} acres`],
+            info?.zoning && ['Zoning', info.zoning],
             mix && ['Unit mix', mix],
             info?.address && ['Address', info.address],
           ].filter(Boolean);
@@ -105,7 +109,7 @@ export default function Properties({ store, focus, navigate }) {
         })()}
 
         {/* rent roll summary → drill to the live rent roll */}
-        {lunits.length > 0 && (
+        {rentable.length > 0 && (
           <div className="card clk-card" style={{ marginBottom: 'var(--gap)' }} onClick={() => go('leasing', { building: b.name })}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
               <span className="field-label" style={{ margin: 0 }}><IcBuilding width={13} height={13} style={{ verticalAlign: -2 }} /> Rent roll · {b.units} units</span>
