@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { isConfigured } from '../lib/backend/supabase.js';
+import { getTheme, applyTheme } from '../lib/theme.js';
+import { IcSun, IcMoon } from './ui.jsx';
 
 // persistent slim strip pinned to the very top: live day + clock (military by
 // default, tap to switch to 12-hour) and a glowing dot that shows field
@@ -29,6 +31,9 @@ export default function TopStrip() {
     return nv;
   });
 
+  const [theme, setTheme] = useState(() => getTheme());
+  const flipTheme = () => { const t = theme === 'light' ? 'dark' : 'light'; applyTheme(t); setTheme(t); };
+
   return (
     <div className="topstrip">
       <div className={'aes' + (secure ? ' on' : '')}
@@ -36,11 +41,16 @@ export default function TopStrip() {
         <span className="dot" />
         <span className="lbl">{secure ? 'AES-256 ENCRYPTED' : 'AES · DEMO'}</span>
       </div>
-      <button className="clock" onClick={toggle} title="Tap to switch 12/24-hour" aria-label="Toggle clock format">
-        <span className="d">{date}</span>
-        <span className="t">{time}</span>
-        <span className="fmt">{mil ? '24H' : '12H'}</span>
-      </button>
+      <div className="strip-right">
+        <button className="theme-btn" onClick={flipTheme} title={theme === 'light' ? 'Switch to dark' : 'Switch to light'} aria-label="Toggle light/dark theme">
+          {theme === 'light' ? <IcMoon width={13} height={13} /> : <IcSun width={13} height={13} />}
+        </button>
+        <button className="clock" onClick={toggle} title="Tap to switch 12/24-hour" aria-label="Toggle clock format">
+          <span className="d">{date}</span>
+          <span className="t">{time}</span>
+          <span className="fmt">{mil ? '24H' : '12H'}</span>
+        </button>
+      </div>
     </div>
   );
 }

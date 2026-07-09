@@ -4,6 +4,9 @@ import './styles/tokens.css';
 import './styles/app.css';
 import './styles/wizard.css';
 import App from './App.jsx';
+import { initTheme } from './lib/theme.js';
+
+initTheme();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode><App /></React.StrictMode>
