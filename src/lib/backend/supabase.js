@@ -8,12 +8,55 @@
 // ============================================================
 
 import { createClient } from '@supabase/supabase-js';
+import { importKey, encryptField, decryptField } from './crypto.js';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = url && anon ? createClient(url, anon) : null;
 export const isConfigured = () => !!supabase;
+
+// ---- field encryption (AES-256-GCM, DEK unwrapped from AWS KMS per session) ----
+// The DEK is fetched once and kept in memory only. Sensitive PII in user_settings
+// (tax / emergency contact) is encrypted at rest with it. Fail-SAFE: if the key
+// can't be obtained, we store/return plaintext rather than lose or block data.
+const ENC_SETTINGS_FIELDS = ['tax', 'emergency'];
+let _dekKeyPromise = null;
+function orgKey() {
+  if (!_dekKeyPromise) _dekKeyPromise = fetchDEK().then(importKey).catch((e) => { _dekKeyPromise = null; throw e; });
+  return _dekKeyPromise;
+}
+async function encryptSettings(data) {
+  const needs = ENC_SETTINGS_FIELDS.some((f) => data[f] != null);
+  if (!needs) return data;
+  try {
+    const key = await orgKey();
+    const out = { ...data };
+    for (const f of ENC_SETTINGS_FIELDS) {
+      if (f in out) {
+        out[`${f}_enc`] = out[f] == null ? null : await encryptField(key, JSON.stringify(out[f]));
+        delete out[f];
+      }
+    }
+    return out;
+  } catch { return data; } // KMS unavailable → store as-is, never block the save
+}
+async function decryptSettings(data) {
+  if (!data) return {};
+  const hasEnc = ENC_SETTINGS_FIELDS.some((f) => data[`${f}_enc`] != null);
+  if (!hasEnc) return data;
+  try {
+    const key = await orgKey();
+    const out = { ...data };
+    for (const f of ENC_SETTINGS_FIELDS) {
+      if (out[`${f}_enc`] != null) {
+        try { out[f] = JSON.parse(await decryptField(key, out[`${f}_enc`])); } catch { /* leave field unset */ }
+        delete out[`${f}_enc`];
+      }
+    }
+    return out;
+  } catch { return data; }
+}
 
 // ---- auth helpers ----
 export async function signIn(email, password) {
@@ -52,19 +95,20 @@ export async function getUserSettings() {
   if (!user) return {};
   const { data, error } = await supabase.from('user_settings').select('data').eq('user_id', user.id).maybeSingle();
   if (error) throw error;
-  return data?.data || {};
+  return decryptSettings(data?.data || {});
 }
 
 export async function saveUserSettings(orgId, patch) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
-  const cur = await getUserSettings();
+  const cur = await getUserSettings();          // decrypted plaintext
   const next = { ...cur, ...patch };
+  const stored = await encryptSettings(next);   // encrypt sensitive PII at rest
   const { error } = await supabase.from('user_settings').upsert(
-    { user_id: user.id, org_id: orgId || null, data: next, updated_at: new Date().toISOString() },
+    { user_id: user.id, org_id: orgId || null, data: stored, updated_at: new Date().toISOString() },
     { onConflict: 'user_id' });
   if (error) throw error;
-  return next;
+  return next;                                   // return plaintext to the app
 }
 
 // ---- two-factor (TOTP) ----
