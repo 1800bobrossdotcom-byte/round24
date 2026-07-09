@@ -609,6 +609,76 @@ export async function deleteUnit(unitId) {
   if (error) throw error;
 }
 
+// ---- vendors: approved contractors / suppliers + favorite products ----
+const vendorFromDb = (r) => ({
+  id: r.id, name: r.name, kind: r.kind || 'contractor', trade: r.trade || '',
+  contactName: r.contact_name || '', phone: r.phone || '', email: r.email || '',
+  website: r.website || '', address: r.address || '', license: r.license || '',
+  rating: r.rating ?? null, approved: r.approved !== false, favorite: !!r.favorite,
+  notes: r.notes || '', createdAt: r.created_at,
+});
+const vendorToDb = (v) => ({
+  name: v.name, kind: v.kind || 'contractor', trade: v.trade || null,
+  contact_name: v.contactName || null, phone: v.phone || null, email: v.email || null,
+  website: v.website || null, address: v.address || null, license: v.license || null,
+  rating: v.rating ?? null, approved: v.approved !== false, favorite: !!v.favorite,
+  notes: v.notes || null,
+});
+const productFromDb = (r) => ({
+  id: r.id, vendorId: r.vendor_id || null, name: r.name, category: r.category || '',
+  sku: r.sku || '', price: r.price ?? null, url: r.url || '', favorite: r.favorite !== false,
+  notes: r.notes || '', createdAt: r.created_at,
+});
+const productToDb = (p) => ({
+  vendor_id: p.vendorId || null, name: p.name, category: p.category || null,
+  sku: p.sku || null, price: p.price ?? null, url: p.url || null,
+  favorite: p.favorite !== false, notes: p.notes || null,
+});
+
+export async function listVendors(orgId) {
+  const { data, error } = await supabase.from('vendors').select('*').eq('org_id', orgId).order('name', { ascending: true });
+  if (error) throw error;
+  return (data || []).map(vendorFromDb);
+}
+export async function addVendor(orgId, v) {
+  const { data, error } = await supabase.from('vendors').insert({ org_id: orgId, ...vendorToDb(v) }).select('*').single();
+  if (error) throw error;
+  return vendorFromDb(data);
+}
+export async function updateVendor(id, patch) {
+  const { error } = await supabase.from('vendors').update(vendorToDb(patch)).eq('id', id);
+  if (error) throw error;
+}
+export async function deleteVendor(id) {
+  const { error } = await supabase.from('vendors').delete().eq('id', id);
+  if (error) throw error;
+}
+export async function listVendorProducts(orgId) {
+  const { data, error } = await supabase.from('vendor_products').select('*').eq('org_id', orgId).order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(productFromDb);
+}
+export async function addVendorProduct(orgId, p) {
+  const { data, error } = await supabase.from('vendor_products').insert({ org_id: orgId, ...productToDb(p) }).select('*').single();
+  if (error) throw error;
+  return productFromDb(data);
+}
+export async function updateVendorProduct(id, patch) {
+  const { error } = await supabase.from('vendor_products').update(productToDb(patch)).eq('id', id);
+  if (error) throw error;
+}
+export async function deleteVendorProduct(id) {
+  const { error } = await supabase.from('vendor_products').delete().eq('id', id);
+  if (error) throw error;
+}
+export function subscribeVendors(orgId, cb) {
+  const ch = supabase.channel('vendors-' + orgId)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'vendors', filter: `org_id=eq.${orgId}` }, cb)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'vendor_products', filter: `org_id=eq.${orgId}` }, cb)
+    .subscribe();
+  return () => supabase.removeChannel(ch);
+}
+
 // bulk import a parsed lease workbook → properties + units + leases
 export async function importLeaseBuildings(orgId, buildings) {
   const { data: props } = await supabase.from('properties').select('id,name').eq('org_id', orgId);

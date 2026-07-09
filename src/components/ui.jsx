@@ -45,6 +45,7 @@ export const IcPlay = P(<><path d="M6 4l14 8-14 8z"/></>);
 export const IcImport = P(<><path d="M12 3v12M8 11l4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></>);
 export const IcCal = P(<><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></>);
 export const IcWrench = P(<><path d="M20.3 5.1a5 5 0 0 1-6.6 6.6L7 18.4a2.1 2.1 0 0 1-3-3l6.7-6.7a5 5 0 0 1 6.6-6.6l-3.2 3.2 2.1 2.1 3.2-3.2z"/></>);
+export const IcTag = P(<><path d="M20.6 13.4 12.4 21.6a1.4 1.4 0 0 1-2 0L3 14.2V4h10.2l7.4 7.4a1.4 1.4 0 0 1 0 2z"/><circle cx="7.5" cy="7.5" r="1.4"/></>);
 export const IcReceipt = P(<><path d="M5 3h14v18l-2.3-1.5L14.4 21l-2.4-1.5L9.6 21l-2.3-1.5L5 21zM9 8h6M9 12h6"/></>);
 export const IcDoc = P(<><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></>);
 export const IcPlug = P(<><path d="M9 2v6M15 2v6M7 8h10v3a5 5 0 0 1-10 0zM12 16v6"/></>);

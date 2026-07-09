@@ -3,6 +3,7 @@ import seed from '../data/seed.json';
 import { useAuth } from '../components/AuthGate.jsx';
 import { DEMO_PROPERTIES, buildDemoTimers, DEMO_WORK_ORDERS, DEMO_PURCHASES } from './demoData.js';
 import { DEMO_LEASING, DEMO_PORTFOLIO } from '../data/leaseDemo.js';
+import { DEMO_VENDORS, DEMO_VENDOR_PRODUCTS } from '../data/vendorDemo.js';
 import {
   isConfigured, listWorkOrders, insertWorkOrder, updateWorkOrderStatus,
   updateWorkOrderPriority, updateWorkOrderAssignee, subscribeWorkOrders,
@@ -11,6 +12,8 @@ import {
   listMessages, insertMessage, subscribeMessages, uploadVoiceNote, summarizeThread,
   uploadAttachment, updateWorkOrderPhotos, updateWorkOrderFiles,
   listLeasing, updateLeaseRow, updateUnitRow, importLeaseBuildings, addUnitWithLease, deleteUnit,
+  listVendors, addVendor, updateVendor, deleteVendor,
+  listVendorProducts, addVendorProduct, updateVendorProduct, deleteVendorProduct, subscribeVendors,
   upsertChatMember, listChatMembers, listChatChannels, insertChatChannel,
   listPropertyCards, insertPropertyCard, deletePropertyCard,
   listLiveTimers, upsertLiveTimer, deleteLiveTimer, subscribeLiveTimers,
@@ -556,6 +559,64 @@ export function useStore() {
     return res;
   }, [orgId, loadLeasing, audit]);
 
+  // ---- vendors: approved contractor/supplier rolodex + favorite products ----
+  // any member can read; staff (admin/manager, incl. owner-admins) maintain it.
+  const canEditVendors = role === 'admin' || role === 'manager';
+  const [vendors, setVendors] = useState(() => (demoMode ? DEMO_VENDORS : []));
+  const [vendorProducts, setVendorProducts] = useState(() => (demoMode ? DEMO_VENDOR_PRODUCTS : []));
+  const vendorsRef = useRef(vendors);
+  useEffect(() => { vendorsRef.current = vendors; }, [vendors]);
+  const loadVendors = useCallback(() => {
+    if (!isConfigured() || !orgId) return;
+    listVendors(orgId).then(setVendors).catch(() => {});
+    listVendorProducts(orgId).then(setVendorProducts).catch(() => {});
+  }, [orgId]);
+  useEffect(loadVendors, [loadVendors]);
+  useEffect(() => {
+    if (!isConfigured() || !orgId) return undefined;
+    return subscribeVendors(orgId, loadVendors);
+  }, [orgId, loadVendors]);
+
+  const saveVendor = useCallback(async (v) => {
+    if (v.id && !String(v.id).startsWith('nv_')) {
+      setVendors((l) => l.map((x) => (x.id === v.id ? { ...x, ...v } : x)));
+      if (isConfigured() && orgId && !demoMode) { try { await updateVendor(v.id, v); audit('update_vendor', v.name); } catch { /* keep local */ } }
+      return v.id;
+    }
+    const draft = { id: 'nv_' + Math.random().toString(36).slice(2, 9), approved: true, favorite: false, kind: 'contractor', trade: '', ...v };
+    if (!isConfigured() || !orgId || demoMode) { setVendors((l) => [...l, draft]); return draft.id; }
+    try { const saved = await addVendor(orgId, draft); setVendors((l) => [...l, saved]); audit('add_vendor', saved.name); return saved.id; }
+    catch { setVendors((l) => [...l, draft]); return draft.id; }
+  }, [orgId, demoMode, audit]);
+  const removeVendor = useCallback(async (id) => {
+    setVendors((l) => l.filter((x) => x.id !== id));
+    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('nv_')) { try { await deleteVendor(id); audit('delete_vendor', id); } catch { /* gone */ } }
+  }, [orgId, demoMode, audit]);
+  const setVendorField = useCallback(async (id, patch) => {
+    let next; setVendors((l) => { next = l.map((x) => (x.id === id ? { ...x, ...patch } : x)); return next; });
+    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('nv_')) { try { await updateVendor(id, { ...(next?.find((x) => x.id === id)) }); } catch { /* keep */ } }
+  }, [orgId, demoMode]);
+
+  const saveProduct = useCallback(async (p) => {
+    if (p.id && !String(p.id).startsWith('np_')) {
+      setVendorProducts((l) => l.map((x) => (x.id === p.id ? { ...x, ...p } : x)));
+      if (isConfigured() && orgId && !demoMode) { try { await updateVendorProduct(p.id, p); } catch { /* keep */ } }
+      return p.id;
+    }
+    const draft = { id: 'np_' + Math.random().toString(36).slice(2, 9), favorite: true, ...p };
+    if (!isConfigured() || !orgId || demoMode) { setVendorProducts((l) => [...l, draft]); return draft.id; }
+    try { const saved = await addVendorProduct(orgId, draft); setVendorProducts((l) => [...l, saved]); return saved.id; }
+    catch { setVendorProducts((l) => [...l, draft]); return draft.id; }
+  }, [orgId, demoMode]);
+  const removeProduct = useCallback(async (id) => {
+    setVendorProducts((l) => l.filter((x) => x.id !== id));
+    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('np_')) { try { await deleteVendorProduct(id); } catch { /* gone */ } }
+  }, [orgId, demoMode]);
+  const setProductField = useCallback(async (id, patch) => {
+    let next; setVendorProducts((l) => { next = l.map((x) => (x.id === id ? { ...x, ...patch } : x)); return next; });
+    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('np_')) { try { await updateVendorProduct(id, { ...(next?.find((x) => x.id === id)) }); } catch { /* keep */ } }
+  }, [orgId, demoMode]);
+
   // ---- per-property credit cards: auto-file receipts by card ----
   const [cards, setCards] = useState(() => loadLS('caliper_cards_v1', []));
   const [cardBackend, setCardBackend] = useState('local');
@@ -707,6 +768,16 @@ export function useStore() {
       else setLeasing(DEMO_LEASING);
     }
 
+    // Approved vendors + favorite products (both personas). Seed only when empty;
+    // remap demo product→vendor links onto the freshly created vendor ids.
+    if (vendorsRef.current.length === 0) {
+      if (isConfigured() && orgId && !demoMode) {
+        const idMap = {};
+        for (const v of DEMO_VENDORS) { try { idMap[v.id] = await saveVendor({ ...v, id: undefined }); } catch { /* skip */ } }
+        for (const p of DEMO_VENDOR_PRODUCTS) { try { await saveProduct({ ...p, id: undefined, vendorId: idMap[p.vendorId] || null }); } catch { /* skip */ } }
+      } else { setVendors(DEMO_VENDORS); setVendorProducts(DEMO_VENDOR_PRODUCTS); }
+    }
+
     let timerCount = 0;
     if (owner) {
       // Owner persona: a portfolio, not a maintenance company. Skip the labor
@@ -742,7 +813,7 @@ export function useStore() {
       }
     }
     return { timers: timerCount };
-  }, [ensureProperties, addImported, addWorkOrder, addPurchase, setPurchaseStatus, purchases.length, importLeases, orgId, setLeasing]);
+  }, [ensureProperties, addImported, addWorkOrder, addPurchase, setPurchaseStatus, purchases.length, importLeases, orgId, setLeasing, demoMode, saveVendor, saveProduct]);
 
   // notification badges: items created since the tab was last opened
   const badges = useMemo(() => {
@@ -777,6 +848,8 @@ export function useStore() {
     // cloud timers
     addTimerEntry, updateTimerEntry, operatorId,
     leasing, setLeaseField, importLeases, loadLeasing, canSeeLeasing, addUnit, removeUnit,
+    vendors, vendorProducts, canEditVendors, saveVendor, removeVendor, setVendorField,
+    saveProduct, removeProduct, setProductField,
     // live presence + availability + audit
     liveTimers, syncLivePresence,
     availability, setMyAvailability, audit,

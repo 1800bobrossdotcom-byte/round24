@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { AuthGate, SignOutButton, AccountButton, useAuth } from './components/AuthGate.jsx';
 import TopStrip from './components/TopStrip.jsx';
 import { useStore } from './lib/store.js';
-import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip, IcShield } from './components/ui.jsx';
+import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip, IcShield, IcTag } from './components/ui.jsx';
 import { isPlatformAdmin } from './lib/backend/supabase.js';
 import Dashboard from './views/Dashboard.jsx';
 import DayOverview from './views/DayOverview.jsx';
@@ -19,6 +19,7 @@ import Documents from './views/Documents.jsx';
 import Integrations from './views/Integrations.jsx';
 import Access from './views/Access.jsx';
 import Compliance from './views/Compliance.jsx';
+import Vendors from './views/Vendors.jsx';
 import Settings from './views/Settings.jsx';
 import Platform from './views/Platform.jsx';
 
@@ -39,6 +40,7 @@ const TABS = [
   { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, roles: ['admin', 'manager', 'viewer'] },
   { id: 'leasing', label: 'Rent Roll', Icon: IcBuilding, View: Leasing, roles: ['admin', 'manager', 'viewer'] },
   { id: 'props', label: 'Properties', Icon: IcBuilding, View: Properties, roles: ['admin', 'manager', 'viewer'] },
+  { id: 'vendors', label: 'Vendors', Icon: IcTag, View: Vendors, roles: ['admin', 'manager', 'tech', 'viewer'] },
   { id: 'team', label: 'Team', Icon: IcUsers, View: Team, roles: ['admin', 'manager'] },
   { id: 'import', label: 'Import', Icon: IcImport, View: Import, roles: ['admin', 'manager'] },
   { id: 'integrations', label: 'Integrations', Icon: IcPlug, View: Integrations, roles: ['admin', 'manager'] },
@@ -55,6 +57,7 @@ const OWNER_TABS = [
   { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, primary: true },
   { id: 'props', label: 'Buildings', Icon: IcBuilding, View: Properties, primary: true },
   { id: 'wo', label: 'Maintenance', Icon: IcWrench, View: WorkOrders, primary: true },
+  { id: 'vendors', label: 'Vendors', Icon: IcTag, View: Vendors },
   { id: 'pur', label: 'Expenses', Icon: IcReceipt, View: Purchases },
   { id: 'docs', label: 'Docs', Icon: IcDoc, View: Documents },
   { id: 'settings', label: 'Settings', Icon: IcGear, View: Settings },
