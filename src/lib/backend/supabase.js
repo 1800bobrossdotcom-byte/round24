@@ -42,7 +42,7 @@ async function encStr(v) {
 async function decStr(v) {
   if (!isEncrypted(v)) return v; // legacy plaintext (or empty) — pass through
   try { return await decryptField(await orgKey(), v.slice(ENC_PREFIX.length)); }
-  catch { return v; } // key unavailable → leave as-is (rare; KMS down)
+  catch { return '•••'; } // key unavailable (e.g. KMS down) → mask, never show ciphertext
 }
 // encrypt/decrypt several fields of a row object at once
 async function encFields(row, fields) {

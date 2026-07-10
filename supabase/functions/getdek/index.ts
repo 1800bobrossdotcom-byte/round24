@@ -23,6 +23,12 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { KMSClient, DecryptCommand, GenerateDataKeyCommand } from 'npm:@aws-sdk/client-kms@3';
 
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
 const AWS_REGION = Deno.env.get('CALIPER_AWS_REGION');
 const AWS_KEY_ID = Deno.env.get('CALIPER_AWS_ACCESS_KEY_ID');
 const AWS_SECRET = Deno.env.get('CALIPER_AWS_SECRET_ACCESS_KEY');
@@ -31,6 +37,7 @@ const kmsConfigured = !!(AWS_REGION && AWS_KEY_ID && AWS_SECRET && KMS_KEY_ID);
 const DEV_MODE = !kmsConfigured && Deno.env.get('CALIPER_DEV_MODE') === 'true';
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
     // ---- authenticate the caller ----
     const authHeader = req.headers.get('Authorization');
@@ -47,8 +54,10 @@ Deno.serve(async (req) => {
     // ---- resolve caller's org + role ----
     const { data: mem } = await supabase.from('memberships').select('org_id, role').limit(1).single();
     if (!mem) return json({ error: 'no org' }, 403);
-    if (!['admin', 'manager'].includes(mem.role)) {
-      return json({ error: 'forbidden: financial decryption requires an admin or manager role' }, 403);
+    // admin/manager (incl. owner-admins) and viewers can read the rent roll, so
+    // they may decrypt its fields. Field crew (tech) read nothing encrypted.
+    if (!['admin', 'manager', 'viewer'].includes(mem.role)) {
+      return json({ error: 'forbidden: decryption requires office access' }, 403);
     }
     const orgId = mem.org_id;
 
@@ -105,13 +114,13 @@ Deno.serve(async (req) => {
     }
 
     return json({ dek: b64(dekBytes) });
-  } catch (e) {
-    return json({ error: String(e?.message || e) }, 500);
+  } catch (_e) {
+    return json({ error: 'internal error' }, 500);
   }
 });
 
 function json(obj: unknown, status = 200) {
-  return new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify(obj), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 }
 function b64(bytes: Uint8Array) {
   let bin = '';
