@@ -555,6 +555,19 @@ export function useStore() {
     }
   }, [demoMode]); // audit resolved via closure (defined below)
 
+  // ---- salaried operators: enter a fixed salary; it disperses by hours ----
+  // Stored locally for now (office device); cloud sync is a small future column.
+  const [salaries, setSalaries] = useState(() => loadLS('caliper_salaries_v1', {}));
+  useEffect(() => { localStorage.setItem('caliper_salaries_v1', JSON.stringify(salaries)); }, [salaries]);
+  const setSalary = useCallback((techId, val) => {
+    setSalaries((s) => {
+      const next = { ...s };
+      if (!val || !(val.amount > 0)) delete next[techId];
+      else next[techId] = { amount: Number(val.amount), period: val.period || 'year' };
+      return next;
+    });
+  }, []);
+
   // ---- documents: DB+storage only (no meaningful local fallback for files) ----
   const [documents, setDocuments] = useState([]);
   const [docBackend, setDocBackend] = useState('none'); // 'db' | 'none'
@@ -960,6 +973,8 @@ export function useStore() {
     addTimerEntry, updateTimerEntry, operatorId,
     // timesheet (editable log history)
     timesheet, addTimesheet, updateTimesheet, deleteTimesheet, refreshTimesheet,
+    // salaried operators
+    salaries, setSalary,
     leasing, setLeaseField, importLeases, loadLeasing, canSeeLeasing, addUnit, removeUnit,
     setBuildingLocation,
     vendors, vendorProducts, canEditVendors, saveVendor, removeVendor, setVendorField,
