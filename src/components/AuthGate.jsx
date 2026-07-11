@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, fetchMembership, redeemInvite, inviteInfo, requestBeta, isPlatformAdmin, sendWelcomeEmail } from '../lib/backend/supabase.js';
-import { Mark, BrandLockup, IcGear, IcLogout, IcWrench, IcChart, IcBuilding, IcX, IcCheck, IcChevron } from './ui.jsx';
+import { Mark, BrandLockup, IcGear, IcLogout, IcWrench, IcChart, IcBuilding, IcX, IcCheck, IcChevron, IcMapPin, IcMic, IcReceipt, IcShield } from './ui.jsx';
 import Platform from '../views/Platform.jsx';
 
 // invite links land as ?invite=CODE. Capture it, stash it, strip it from the
@@ -237,10 +237,60 @@ const PRODUCTS = {
   },
 };
 
+// "What is Caliper" — the landing page after the splash. Explains the product
+// and routes to a beta invite request or the sign-in picker.
+const LANDING_FEATURES = [
+  { Icon: IcMapPin, title: 'Measured labor', body: 'Geofenced clock-in and a hands-free field timer put real hours on the right door — not a guess, not a spreadsheet after the fact.' },
+  { Icon: IcChart, title: 'Connected money', body: 'Rent, receipts, and pay flow into per-door P&L, expense forecasts, and monthly statements that assemble themselves.' },
+  { Icon: IcMic, title: 'Built for the field', body: 'Offline-safe and voice-driven on any phone. Import the pay logs and rent rolls you already keep — Caliper reads them.' },
+];
+function Landing({ onEnter, onBeta }) {
+  return (
+    <div className="landing">
+      <div className="landing-inner">
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><BrandLockup className="bl-hero" /></div>
+        <h1 className="landing-h1">The maintenance platform that <span className="grad-text">measures the labor</span>.</h1>
+        <p className="landing-sub">Every hour, receipt, and door — reconciled automatically. Caliper turns the pay logs, rent rolls, and P&amp;L sheets your crew and office keep by hand into one connected, encrypted ledger.</p>
+
+        <div className="landing-cta">
+          <button className="btn grad" style={{ width: 'auto', padding: '13px 22px' }} onClick={onBeta}>Request beta access →</button>
+          <button className="btn ghost" style={{ width: 'auto', padding: '13px 22px' }} onClick={onEnter}>Sign in</button>
+        </div>
+
+        <div className="landing-grid">
+          {LANDING_FEATURES.map((f) => (
+            <div className="landing-card" key={f.title}>
+              <span className="landing-ic"><f.Icon width={20} height={20} /></span>
+              <div className="landing-card-t">{f.title}</div>
+              <div className="landing-card-b">{f.body}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="landing-personas">
+          <button className="landing-persona" onClick={onEnter}>
+            <IcBuilding width={18} height={18} />
+            <div><b>Caliper Portfolio</b><span>Owners &amp; families — a handful of homes, apartments, or land.</span></div>
+          </button>
+          <button className="landing-persona" onClick={onEnter}>
+            <IcChart width={18} height={18} />
+            <div><b>Caliper Pro</b><span>Maintenance companies — office dispatch + a crew in the field.</span></div>
+          </button>
+        </div>
+
+        <p className="landing-foot"><IcShield width={12} height={12} style={{ verticalAlign: -2 }} /> Private beta · AES-256 encrypted · live on a 183-unit portfolio</p>
+      </div>
+    </div>
+  );
+}
+
 function Login({ invite }) {
   const [product, setProduct] = useState(() => localStorage.getItem('caliper_product') || null); // 'portfolio' | 'pro'
   const [portal, setPortal] = useState(() => localStorage.getItem('caliper_portal') || null);     // pro only: 'office' | 'crew'
   const [beta, setBeta] = useState(false);
+  // fresh visitors land on "What is Caliper" first; returning users (a product
+  // chosen) and invite links skip straight to sign-in.
+  const [entered, setEntered] = useState(() => !!localStorage.getItem('caliper_product') || !!localStorage.getItem('caliper_seen_landing') || !!invite);
   // only block on the invite lookup when we don't already know the tier; and
   // never hang on it — a slow/failed lookup falls through to the picker.
   const [resolving, setResolving] = useState(!!invite && !localStorage.getItem('caliper_product'));
@@ -272,7 +322,12 @@ function Login({ invite }) {
     </div>
   );
 
-  // level 1 — the main page: choose a product
+  // landing — "What is Caliper" (fresh visitors, before the sign-in picker)
+  if (!entered && !product) {
+    return <Landing onEnter={() => { localStorage.setItem('caliper_seen_landing', '1'); setEntered(true); }} onBeta={() => setBeta(true)} />;
+  }
+
+  // level 1 — the sign-in page: choose a product
   if (!product) {
     return (
       <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
@@ -299,6 +354,8 @@ function Login({ invite }) {
           </div>
           <p className="note" style={{ textAlign: 'center', marginTop: 22 }}>
             Not invited yet? <a onClick={() => setBeta(true)} style={{ color: 'var(--info)', cursor: 'pointer', fontWeight: 700 }}>Request a beta invite →</a>
+            <span style={{ color: 'var(--text-faint)', margin: '0 8px' }}>·</span>
+            <a onClick={() => { localStorage.removeItem('caliper_seen_landing'); setEntered(false); }} style={{ color: 'var(--text-dim)', cursor: 'pointer' }}>What is Caliper?</a>
           </p>
         </div>
       </div>
