@@ -240,6 +240,34 @@ audio { filter: invert(0.9) hue-rotate(180deg); }
   .desk-brand .mark { width: 26px; height: 26px; flex: none; }
 }
 
+/* ---- grouped, collapsible nav categories ---- */
+.nav-desktop { overflow-y: auto; scrollbar-width: thin; }
+.nav-cat { display: flex; flex-direction: column; gap: 2px; }
+.nav-cat + .nav-cat { margin-top: 5px; }
+.nav-desktop .nav-cat-head {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 7px 10px 5px; background: none; border: 0; cursor: pointer; border-radius: 8px;
+  font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+.nav-desktop .nav-cat-head:hover { color: var(--text-dim); background: var(--surface-2); }
+.nav-cat-chev { flex: none; color: var(--text-faint); transition: transform .15s ease; }
+.nav-cat-chev.open { transform: rotate(90deg); }
+.nav-cat-badge {
+  margin-left: auto; min-width: 16px; height: 16px; padding: 0 5px; border-radius: 8px;
+  background: var(--danger); color: #fff; font-size: 10px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; font-family: var(--font);
+}
+.nav-desktop .nav-cat-item { padding-left: 20px; }
+
+/* mobile More sheet — grouped by category */
+.sheet-scroll { max-height: 62vh; overflow-y: auto; }
+.sheet-cat + .sheet-cat { margin-top: 14px; }
+.sheet-cat-head {
+  font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-faint); margin: 0 2px 8px;
+}
+
 /* ---- More sheet (mobile overflow tabs) ---- */
 .sheet-backdrop { position: fixed; inset: 0; z-index: 150; background: #000a; display: flex; align-items: flex-end; }
 .sheet {

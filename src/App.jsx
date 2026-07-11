@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { AuthGate, SignOutButton, AccountButton, useAuth } from './components/AuthGate.jsx';
 import TopStrip from './components/TopStrip.jsx';
 import { useStore } from './lib/store.js';
-import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip, IcShield, IcTag, IcChart, IcTable } from './components/ui.jsx';
+import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip, IcShield, IcTag, IcChart, IcTable, IcChevron } from './components/ui.jsx';
 import { isPlatformAdmin } from './lib/backend/supabase.js';
 import Dashboard from './views/Dashboard.jsx';
 import DayOverview from './views/DayOverview.jsx';
@@ -30,42 +30,56 @@ import Platform from './views/Platform.jsx';
 // runs the whole operation. RLS + getdek enforce the same split server-side.
 // `primary` tabs surface directly in the mobile bottom bar; the rest fold
 // into a "More" sheet so the bar never overflows.
+// nav categories: as the tool count grows, the rail groups into collapsible
+// sections instead of one long list. Order here is the order they render.
+const NAV_CATS = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'work', label: 'Work' },
+  { id: 'operations', label: 'Operations' },
+  { id: 'portfolio', label: 'Portfolio' },
+  { id: 'money', label: 'Money' },
+  { id: 'people', label: 'People' },
+  { id: 'data', label: 'Data & setup' },
+  { id: 'files', label: 'Files' },
+  { id: 'account', label: 'Account' },
+];
+
 const TABS = [
-  { id: 'dash', label: 'Dashboard', Icon: IcDash, View: Dashboard, roles: ['admin', 'manager', 'viewer'], primary: true },
-  { id: 'today', label: 'Today', Icon: IcCal, View: DayOverview, roles: ['admin', 'manager'], primary: true },
+  { id: 'dash', label: 'Dashboard', Icon: IcDash, View: Dashboard, roles: ['admin', 'manager', 'viewer'], cat: 'overview', primary: true },
+  { id: 'today', label: 'Today', Icon: IcCal, View: DayOverview, roles: ['admin', 'manager'], cat: 'overview', primary: true },
   // Field timer is a CREW tool only — office dispatches, it doesn't run timers.
-  { id: 'field', label: 'Field', Icon: IcClock, View: Field, roles: ['tech'], primary: true },
-  { id: 'timesheet', label: 'Timesheet', Icon: IcTable, View: Timesheet, roles: ['admin', 'manager', 'tech'], primary: true },
-  { id: 'wo', label: 'Orders', Icon: IcWrench, View: WorkOrders, roles: ['admin', 'manager', 'tech', 'viewer'], primary: true },
-  { id: 'chat', label: 'Chat', Icon: IcChat, View: Chat, roles: ['admin', 'manager', 'tech', 'viewer'], primary: true },
-  { id: 'pur', label: 'Purchases', Icon: IcReceipt, View: Purchases, roles: ['admin', 'manager', 'tech'], primary: true },
-  { id: 'docs', label: 'Docs', Icon: IcDoc, View: Documents, roles: ['admin', 'manager', 'tech', 'viewer'] },
-  { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, roles: ['admin', 'manager', 'viewer'] },
-  { id: 'leasing', label: 'Rent Roll', Icon: IcBuilding, View: Leasing, roles: ['admin', 'manager', 'viewer'] },
-  { id: 'pnl', label: 'P&L', Icon: IcChart, View: Economics, roles: ['admin', 'manager', 'viewer'] },
-  { id: 'props', label: 'Properties', Icon: IcBuilding, View: Properties, roles: ['admin', 'manager', 'viewer'] },
-  { id: 'vendors', label: 'Vendors', Icon: IcTag, View: Vendors, roles: ['admin', 'manager', 'tech', 'viewer'] },
-  { id: 'team', label: 'Team', Icon: IcUsers, View: Team, roles: ['admin', 'manager'] },
-  { id: 'import', label: 'Import', Icon: IcImport, View: Import, roles: ['admin', 'manager'] },
-  { id: 'integrations', label: 'Integrations', Icon: IcPlug, View: Integrations, roles: ['admin', 'manager'] },
-  { id: 'access', label: 'Access', Icon: IcUsers, View: Access, roles: ['admin', 'manager'] },
-  { id: 'compliance', label: 'Compliance', Icon: IcClip, View: Compliance, roles: ['admin', 'manager'] },
-  { id: 'settings', label: 'Settings', Icon: IcGear, View: Settings, roles: ['admin', 'manager', 'tech', 'viewer'] },
+  { id: 'field', label: 'Field', Icon: IcClock, View: Field, roles: ['tech'], cat: 'work', primary: true },
+  { id: 'timesheet', label: 'Timesheet', Icon: IcTable, View: Timesheet, roles: ['admin', 'manager', 'tech'], cat: 'work', primary: true },
+  { id: 'wo', label: 'Orders', Icon: IcWrench, View: WorkOrders, roles: ['admin', 'manager', 'tech', 'viewer'], cat: 'work', primary: true },
+  { id: 'chat', label: 'Chat', Icon: IcChat, View: Chat, roles: ['admin', 'manager', 'tech', 'viewer'], cat: 'work', primary: true },
+  { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, roles: ['admin', 'manager', 'viewer'], cat: 'work' },
+  { id: 'pur', label: 'Purchases', Icon: IcReceipt, View: Purchases, roles: ['admin', 'manager', 'tech'], cat: 'money', primary: true },
+  { id: 'pnl', label: 'P&L', Icon: IcChart, View: Economics, roles: ['admin', 'manager', 'viewer'], cat: 'money' },
+  { id: 'leasing', label: 'Rent Roll', Icon: IcBuilding, View: Leasing, roles: ['admin', 'manager', 'viewer'], cat: 'portfolio' },
+  { id: 'props', label: 'Properties', Icon: IcBuilding, View: Properties, roles: ['admin', 'manager', 'viewer'], cat: 'portfolio' },
+  { id: 'vendors', label: 'Vendors', Icon: IcTag, View: Vendors, roles: ['admin', 'manager', 'tech', 'viewer'], cat: 'portfolio' },
+  { id: 'team', label: 'Team', Icon: IcUsers, View: Team, roles: ['admin', 'manager'], cat: 'people' },
+  { id: 'access', label: 'Access', Icon: IcUsers, View: Access, roles: ['admin', 'manager'], cat: 'people' },
+  { id: 'import', label: 'Import', Icon: IcImport, View: Import, roles: ['admin', 'manager'], cat: 'data' },
+  { id: 'integrations', label: 'Integrations', Icon: IcPlug, View: Integrations, roles: ['admin', 'manager'], cat: 'data' },
+  { id: 'compliance', label: 'Compliance', Icon: IcClip, View: Compliance, roles: ['admin', 'manager'], cat: 'data' },
+  { id: 'docs', label: 'Docs', Icon: IcDoc, View: Documents, roles: ['admin', 'manager', 'tech', 'viewer'], cat: 'files' },
+  { id: 'settings', label: 'Settings', Icon: IcGear, View: Settings, roles: ['admin', 'manager', 'tech', 'viewer'], cat: 'account' },
 ];
 
 // Owner persona: a landlord with a handful of properties who IS the whole
 // operation. Same admin role, streamlined shell — portfolio-first, no
 // crew/dispatch/team apparatus. Labels reframed for a solo owner.
 const OWNER_TABS = [
-  { id: 'leasing', label: 'Portfolio', Icon: IcBuilding, View: Leasing, primary: true },
-  { id: 'pnl', label: 'P&L', Icon: IcChart, View: Economics, primary: true },
-  { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, primary: true },
-  { id: 'props', label: 'Buildings', Icon: IcBuilding, View: Properties, primary: true },
-  { id: 'wo', label: 'Maintenance', Icon: IcWrench, View: WorkOrders, primary: true },
-  { id: 'vendors', label: 'Vendors', Icon: IcTag, View: Vendors },
-  { id: 'pur', label: 'Expenses', Icon: IcReceipt, View: Purchases },
-  { id: 'docs', label: 'Docs', Icon: IcDoc, View: Documents },
-  { id: 'settings', label: 'Settings', Icon: IcGear, View: Settings },
+  { id: 'leasing', label: 'Portfolio', Icon: IcBuilding, View: Leasing, cat: 'portfolio', primary: true },
+  { id: 'props', label: 'Buildings', Icon: IcBuilding, View: Properties, cat: 'portfolio', primary: true },
+  { id: 'pnl', label: 'P&L', Icon: IcChart, View: Economics, cat: 'money', primary: true },
+  { id: 'pur', label: 'Expenses', Icon: IcReceipt, View: Purchases, cat: 'money' },
+  { id: 'wo', label: 'Maintenance', Icon: IcWrench, View: WorkOrders, cat: 'operations', primary: true },
+  { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, cat: 'operations' },
+  { id: 'vendors', label: 'Vendors', Icon: IcTag, View: Vendors, cat: 'operations' },
+  { id: 'docs', label: 'Docs', Icon: IcDoc, View: Documents, cat: 'files' },
+  { id: 'settings', label: 'Settings', Icon: IcGear, View: Settings, cat: 'account' },
 ];
 
 const MAX_BAR = 5; // slots in the mobile bottom bar (incl. a possible "More")
@@ -78,10 +92,19 @@ function Shell() {
   const baseTabs = orgKind === 'owner' ? OWNER_TABS : TABS.filter((t) => t.roles.includes(role));
   const tabs = [
     ...baseTabs,
-    ...(isPlat ? [{ id: 'platform', label: 'Platform', Icon: IcShield, View: Platform }] : []),
+    ...(isPlat ? [{ id: 'platform', label: 'Platform', Icon: IcShield, View: Platform, cat: 'account' }] : []),
   ];
   const [tab, setTab] = useState(tabs[0].id);
   const [moreOpen, setMoreOpen] = useState(false);
+  // collapsible nav categories — compress the rail as the tool count grows
+  const [navCollapsed, setNavCollapsed] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('caliper_nav_collapsed')) || {}; } catch { return {}; }
+  });
+  const toggleCat = (id) => setNavCollapsed((c) => {
+    const n = { ...c, [id]: !c[id] };
+    try { localStorage.setItem('caliper_nav_collapsed', JSON.stringify(n)); } catch { /* no storage */ }
+    return n;
+  });
   const [seeding, setSeeding] = useState(false);
   const [focus, setFocus] = useState(null); // drill-down params for the target tab
   const isOffice = role === 'admin' || role === 'manager';
@@ -116,6 +139,13 @@ function Shell() {
   const primary = fits ? tabs : tabs.slice(0, MAX_BAR - 1);
   const overflow = fits ? [] : tabs.slice(MAX_BAR - 1);
 
+  // group a tab list into its categories, preserving NAV_CATS order
+  const groupByCat = (list) => NAV_CATS
+    .map((c) => ({ ...c, items: list.filter((t) => (t.cat || 'account') === c.id) }))
+    .filter((g) => g.items.length);
+  const navGroups = groupByCat(tabs);
+  const overflowGroups = groupByCat(overflow);
+
   // live task-list notifications (priority changes, new assignments)
   const { woNotice, clearWoNotice } = store;
   useEffect(() => {
@@ -135,15 +165,29 @@ function Shell() {
         </div>
       )}
 
-      {/* desktop side rail — all tabs (vertical, scrolls) */}
+      {/* desktop side rail — grouped into collapsible categories */}
       <nav className="tabbar nav-desktop">
         <div className="desk-brand"><Mark /> Caliper</div>
-        {tabs.map(({ id, label, Icon }) => (
-          <button key={id} className={tab === id ? 'active' : ''} onClick={() => navigate(id)}>
-            <span className="nav-ic">{Icon && <Icon width={22} height={22} />}{badgeFor(id) > 0 && <span className="nav-badge">{badgeFor(id)}</span>}</span>
-            <span>{label}</span>
-          </button>
-        ))}
+        {navGroups.map((g) => {
+          const hasActive = g.items.some((t) => t.id === tab);
+          const open = !navCollapsed[g.id] || hasActive; // active category is always visible
+          const catBadge = overflowBadges(g.items);
+          return (
+            <div className="nav-cat" key={g.id}>
+              <button className="nav-cat-head" onClick={() => toggleCat(g.id)} aria-expanded={open}>
+                <IcChevron className={'nav-cat-chev' + (open ? ' open' : '')} width={12} height={12} />
+                <span>{g.label}</span>
+                {!open && catBadge > 0 && <span className="nav-cat-badge">{catBadge}</span>}
+              </button>
+              {open && g.items.map(({ id, label, Icon }) => (
+                <button key={id} className={'nav-cat-item' + (tab === id ? ' active' : '')} onClick={() => navigate(id)}>
+                  <span className="nav-ic">{Icon && <Icon width={20} height={20} />}{badgeFor(id) > 0 && <span className="nav-badge">{badgeFor(id)}</span>}</span>
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          );
+        })}
       </nav>
 
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -177,12 +221,19 @@ function Shell() {
         <div className="sheet-backdrop" onClick={() => setMoreOpen(false)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-grip" />
-            <div className="sheet-grid">
-              {overflow.map(({ id, label, Icon }) => (
-                <button key={id} className={tab === id ? 'active' : ''} onClick={() => navigate(id)}>
-                  <span className="nav-ic"><Icon width={24} height={24} />{badgeFor(id) > 0 && <span className="nav-badge">{badgeFor(id)}</span>}</span>
-                  <span>{label}</span>
-                </button>
+            <div className="sheet-scroll">
+              {overflowGroups.map((g) => (
+                <div className="sheet-cat" key={g.id}>
+                  <div className="sheet-cat-head">{g.label}</div>
+                  <div className="sheet-grid">
+                    {g.items.map(({ id, label, Icon }) => (
+                      <button key={id} className={tab === id ? 'active' : ''} onClick={() => navigate(id)}>
+                        <span className="nav-ic"><Icon width={24} height={24} />{badgeFor(id) > 0 && <span className="nav-badge">{badgeFor(id)}</span>}</span>
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
             {isOffice && (
