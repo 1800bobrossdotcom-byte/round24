@@ -14,6 +14,7 @@ function useLiveTimer(propById) {
   if (!run) return null;
   const end = s.onBreak ? s.onBreak.start : Date.now();
   const hrs = Math.round((Math.max(0, (end - run.start - (s.breakMs || 0)) / 1000) / 3600) * 100) / 100;
+  if (!Number.isFinite(hrs)) return null; // corrupted timer (missing start) — don't poison sheet totals with NaN
   return {
     propLabel: propById[run.propId]?.name || run.propLabel || 'Unassigned',
     unit: run.unit === '—' ? '' : run.unit, category: run.category,

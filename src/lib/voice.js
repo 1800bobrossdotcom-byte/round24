@@ -39,6 +39,10 @@ export function useVoiceCommands({ enabled, onCommand, onHeard }) {
   const recRef = useRef(null);
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
+  // sticky kill-switch for a denied mic — NOT rewritten each render, so the
+  // per-render enabledRef assignment above can't resurrect a permission we've
+  // already been refused (which would restart-loop against the denial).
+  const deniedRef = useRef(false);
 
   const [listening, setListening] = useState(false);
   const [error, setError] = useState(null);
@@ -52,6 +56,7 @@ export function useVoiceCommands({ enabled, onCommand, onHeard }) {
     rec.interimResults = false;
     rec.lang = 'en-US';
     recRef.current = rec;
+    deniedRef.current = false;   // a fresh enable is a fresh chance at the mic
     setError(null);
 
     rec.onstart = () => { setListening(true); setError(null); }; // a clean (re)start clears any transient "paused" state
@@ -68,14 +73,14 @@ export function useVoiceCommands({ enabled, onCommand, onHeard }) {
     rec.onerror = (e) => {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
         setError('Microphone blocked — allow mic access to use voice.');
-        enabledRef.current = false;             // don't fight a denied permission
+        deniedRef.current = true;               // don't fight a denied permission
       }
       // everything else ('no-speech', 'aborted', 'audio-capture' when the phone
       // backgrounds for the food map, transient 'network') is recoverable — the
       // onend auto-restart + the visibility handler below bring it back, so we
       // don't flash a scary "paused" message the crew would have to tap away.
     };
-    const kick = () => { if (enabledRef.current) { try { rec.start(); } catch { /* already running */ } } };
+    const kick = () => { if (enabledRef.current && !deniedRef.current) { try { rec.start(); } catch { /* already running */ } } };
     rec.onend = () => { setListening(false); kick(); };
 
     // when the crew taps "Food near the job site" (opens Maps in another tab) the

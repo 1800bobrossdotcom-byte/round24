@@ -95,12 +95,15 @@ function Shell() {
   const { role, orgKind } = useAuth();
   const [isPlat, setIsPlat] = useState(false);
   useEffect(() => { isPlatformAdmin().then(setIsPlat).catch(() => {}); }, []);
-  const baseTabs = orgKind === 'owner' ? OWNER_TABS : TABS.filter((t) => t.roles.includes(role));
+  const roleTabs = orgKind === 'owner' ? OWNER_TABS : TABS.filter((t) => t.roles.includes(role));
+  // an unrecognized/empty role (stale membership, a role added server-side we
+  // don't map yet) must never leave the shell tab-less — Settings is the floor.
+  const baseTabs = roleTabs.length ? roleTabs : TABS.filter((t) => t.id === 'settings');
   const tabs = [
     ...baseTabs,
     ...(isPlat ? [{ id: 'platform', label: 'Platform', Icon: IcShield, View: Platform, cat: 'account' }] : []),
   ];
-  const [tab, setTab] = useState(tabs[0].id);
+  const [tab, setTab] = useState(tabs[0]?.id);
   const [moreOpen, setMoreOpen] = useState(false);
   // collapsible nav categories — compress the rail as the tool count grows
   const [navCollapsed, setNavCollapsed] = useState(() => {
@@ -128,9 +131,9 @@ function Shell() {
     finally { setSeeding(false); }
   };
   useEffect(() => {
-    if (!tabs.some((t) => t.id === tab)) setTab(tabs[0].id);
+    if (!tabs.some((t) => t.id === tab)) setTab(tabs[0]?.id);
   }, [role]); // role change (re-login) can invalidate the active tab
-  const Active = (tabs.find((t) => t.id === tab) || tabs[0]).View;
+  const Active = (tabs.find((t) => t.id === tab) || tabs[0])?.View || Settings;
 
   // notification badges: opening a tab clears its badge
   const { badges, markSeen } = store;

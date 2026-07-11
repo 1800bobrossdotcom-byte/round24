@@ -12,7 +12,7 @@ const stepMonth = (m, d) => {
   const dt = new Date(Date.UTC(y, mo - 1 + d, 1));
   return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
 };
-const fmtMonth = (m) => { const [y, mo] = m.split('-').map(Number); return `${MONTHS[mo - 1]} ${y}`; };
+const fmtMonth = (m) => { const [y, mo] = String(m || '').split('-').map(Number); return Number.isFinite(mo) && MONTHS[mo - 1] ? `${MONTHS[mo - 1]} ${y}` : '—'; };
 
 export default function PLStatement({ store }) {
   const { leasing = [], allTimers = [], purchases = [], propById = {}, plConfig = {}, setPlLine } = store;

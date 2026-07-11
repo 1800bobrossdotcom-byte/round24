@@ -14,7 +14,7 @@ export default function Forecast({ store, navigate }) {
   // In demo, always fold in the dated sample history so the forecast stays rich
   // even after "Load sample data" adds a few same-day receipts. Real orgs use
   // only their own approved purchases.
-  const src = !isConfigured() ? [...DEMO_EXPENSE_HISTORY, ...purchases] : purchases;
+  const src = useMemo(() => (!isConfigured() ? [...DEMO_EXPENSE_HISTORY, ...purchases] : purchases), [purchases]);
   const f = useMemo(() => forecastExpenses({ purchases: src, leasing }), [src, leasing]);
 
   if (src.length === 0) {
