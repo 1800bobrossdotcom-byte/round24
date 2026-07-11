@@ -408,6 +408,10 @@ const woFromDb = (r) => ({
   detail: r.detail, category: r.category, assigneeLabel: r.assignee_label,
   due: r.due_date, status: r.status, source: r.source, priority: r.priority ?? 3,
   transcript: r.voice_transcript, photos: r.photos || [], files: r.files || [], createdAt: r.created_at,
+  // tenant billing (Service Log): what we charge, what it cost, billed state
+  serviceFee: r.service_fee != null ? Number(r.service_fee) : null,
+  repairCost: r.repair_cost != null ? Number(r.repair_cost) : null,
+  tenantBilled: r.tenant_billed || 'no',
 });
 
 export async function listWorkOrders(orgId) {
@@ -443,6 +447,20 @@ export async function updateWorkOrderPriority(id, priority) {
 
 export async function updateWorkOrderAssignee(id, assigneeLabel) {
   const { error } = await supabase.from('work_orders').update({ assignee_label: assigneeLabel }).eq('id', id);
+  if (error) throw error;
+}
+
+// tenant billing on a work order — service fee, repair cost, billed state.
+// Tolerates a DB without the billing columns (added in 0032) so nothing
+// regresses before the migration lands.
+export async function updateWorkOrderBilling(id, patch) {
+  const upd = {};
+  if (patch.serviceFee !== undefined) upd.service_fee = patch.serviceFee;
+  if (patch.repairCost !== undefined) upd.repair_cost = patch.repairCost;
+  if (patch.tenantBilled !== undefined) upd.tenant_billed = patch.tenantBilled;
+  if (!Object.keys(upd).length) return;
+  const { error } = await supabase.from('work_orders').update(upd).eq('id', id);
+  if (error && /service_fee|repair_cost|tenant_billed|column/i.test(error.message || '')) return;
   if (error) throw error;
 }
 

@@ -261,7 +261,7 @@ export default function Field({ store }) {
 
       {/* hands-free voice — say "Caliper, start job" without touching the phone */}
       <div className="card voice-card" style={{ marginBottom: 'var(--gap)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             className={'btn voice-toggle' + (handsFree ? ' on' : ' ghost')}
             onClick={() => { const n = !handsFree; setHandsFree(n); if (n) speak('Hands-free on.'); }}
@@ -272,21 +272,22 @@ export default function Field({ store }) {
             <span className={'voice-mic' + (handsFree && voice.listening ? ' pulse' : '')} style={{ display: 'inline-flex' }}><IcMic width={17} height={17} /></span>
             {handsFree ? 'Hands-free on' : 'Hands-free'}
           </button>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {!voice.supported ? (
-              <div className="s" style={{ color: 'var(--text-dim)' }}>Voice needs Chrome, Edge, or Android. Tap-free once supported.</div>
-            ) : voice.error ? (
-              <div className="s" style={{ color: 'var(--danger)' }}>{voice.error}</div>
-            ) : handsFree ? (
-              <div className="s" style={{ color: voice.listening ? 'var(--money)' : 'var(--text-dim)' }}>
-                {voice.listening ? 'Listening — ' : 'Starting… '}say “<b>Caliper, start job</b>”
-                {voice.lastHeard && <div style={{ color: 'var(--text-faint)', fontFamily: 'var(--mono)', fontSize: 11, marginTop: 2 }}>heard: “{voice.lastHeard}”</div>}
-              </div>
-            ) : (
-              <div className="s" style={{ color: 'var(--text-dim)' }}>Turn on to run the timer by voice — start, stop, break, all hands-free.</div>
-            )}
-          </div>
+          <span style={{ flex: 1 }} />
           <button className="btn ghost sm" style={{ flex: 'none' }} onClick={() => setShowCmds((v) => !v)}>{showCmds ? 'Hide' : 'Commands'}</button>
+        </div>
+        <div style={{ marginTop: 8 }}>
+          {!voice.supported ? (
+            <div className="s" style={{ color: 'var(--text-dim)' }}>Voice needs Chrome, Edge, or Android. Tap-free once supported.</div>
+          ) : voice.error ? (
+            <div className="s" style={{ color: 'var(--danger)' }}>{voice.error}</div>
+          ) : handsFree ? (
+            <div className="s" style={{ color: voice.listening ? 'var(--money)' : 'var(--text-dim)' }}>
+              {voice.listening ? 'Listening — ' : 'Starting… '}say “<b>Caliper, start job</b>”
+              {voice.lastHeard && <div style={{ color: 'var(--text-faint)', fontFamily: 'var(--mono)', fontSize: 11, marginTop: 2 }}>heard: “{voice.lastHeard}”</div>}
+            </div>
+          ) : (
+            <div className="s" style={{ color: 'var(--text-dim)' }}>Turn on to run the timer by voice — start, stop, break, all hands-free.</div>
+          )}
         </div>
         {showCmds && <div style={{ marginTop: 12 }}><VoiceCommandGuide compact /></div>}
       </div>

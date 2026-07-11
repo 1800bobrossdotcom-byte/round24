@@ -90,8 +90,8 @@ export const DEMO_WORK_ORDERS = [
   { task: 'Replace hallway smoke detectors (2)', propLabel: '301 Central Ave', unit: '—', category: 'electrical', assigneeLabel: 'Dawn Whitfield', priority: 2, status: 'open', source: 'manual' },
   { task: 'Furnace not igniting — no heat', propLabel: '440 Armstrong', unit: '2B', category: 'hvac', assigneeLabel: 'Brent Kowalski', priority: 1, status: 'open', source: 'manual' },
   { task: 'Turnover paint + patch, unit vacant', propLabel: '121 Park', unit: '5A', category: 'painting', assigneeLabel: 'Marco Rossi', priority: 3, status: 'open', source: 'manual' },
-  { task: 'Dishwasher swap — tenant provided unit', propLabel: '31 Genesee', unit: '1A', category: 'appliance', assigneeLabel: 'Luis Fernandez', priority: 3, status: 'in_progress', source: 'manual' },
-  { task: 'Front entry door closer adjustment', propLabel: '145 Fitzhugh', unit: '—', category: 'general', assigneeLabel: 'Tyrone Banks', priority: 4, status: 'done', source: 'manual' },
+  { task: 'Dishwasher swap — tenant provided unit', propLabel: '31 Genesee', unit: '1A', category: 'appliance', assigneeLabel: 'Luis Fernandez', priority: 3, status: 'in_progress', source: 'manual', serviceFee: 120, repairCost: 0, tenantBilled: 'billed' },
+  { task: 'Front entry door closer adjustment', propLabel: '145 Fitzhugh', unit: '—', category: 'general', assigneeLabel: 'Tyrone Banks', priority: 4, status: 'done', source: 'manual', serviceFee: 85, repairCost: 40, tenantBilled: 'paid' },
 ];
 
 // purchases in the addPurchase() shape (status is set to pending by the store;

@@ -6,7 +6,7 @@ import { DEMO_LEASING, DEMO_PORTFOLIO, BUILDING_GEO, DEMO_PORTFOLIO_LABOR } from
 import { DEMO_VENDORS, DEMO_VENDOR_PRODUCTS } from '../data/vendorDemo.js';
 import {
   isConfigured, listWorkOrders, insertWorkOrder, updateWorkOrderStatus,
-  updateWorkOrderPriority, updateWorkOrderAssignee, subscribeWorkOrders,
+  updateWorkOrderPriority, updateWorkOrderAssignee, updateWorkOrderBilling, subscribeWorkOrders,
   listPurchases, insertPurchase, setPurchaseStatus as dbSetPurchaseStatus, uploadReceipt,
   listDocuments, uploadDocument,
   listMessages, insertMessage, subscribeMessages, uploadVoiceNote, summarizeThread,
@@ -320,6 +320,14 @@ export function useStore() {
     setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, assigneeLabel } : w)));
     if (isConfigured() && woBackend === 'db' && !String(id).startsWith('wo_')) {
       updateWorkOrderAssignee(id, assigneeLabel).catch(() => {});
+    }
+  }, [woBackend]);
+
+  // tenant billing on a work order — service fee, repair cost, billed state
+  const setWoBilling = useCallback((id, patch) => {
+    setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, ...patch } : w)));
+    if (isConfigured() && woBackend === 'db' && !String(id).startsWith('wo_')) {
+      updateWorkOrderBilling(id, patch).catch(() => {});
     }
   }, [woBackend]);
 
@@ -986,7 +994,7 @@ export function useStore() {
     hasImported: imported.timers.length > 0,
     importedCount: imported.timers.length,
     // work orders
-    workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, addWoAttachment, woBackend,
+    workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, addWoAttachment, woBackend,
     woNotice, clearWoNotice: () => setWoNotice(null),
     // cloud timers
     addTimerEntry, updateTimerEntry, operatorId,

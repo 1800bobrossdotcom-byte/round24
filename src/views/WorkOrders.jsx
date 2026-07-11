@@ -99,7 +99,7 @@ const inputStyle = {
 };
 
 export default function WorkOrders({ store, focus }) {
-  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, addWoAttachment, properties, techs, role, woBackend, purchases = [], vendors = [] } = store;
+  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoBilling, addWoAttachment, properties, techs, role, woBackend, purchases = [], vendors = [] } = store;
   const receiptsByWo = useMemo(() => {
     const m = {};
     for (const p of purchases) if (p.workOrderId) (m[p.workOrderId] ||= []).push(p);
@@ -260,26 +260,44 @@ export default function WorkOrders({ store, focus }) {
         </div>
       )}
 
+      {/* tenant-billing summary (office) */}
+      {isStaff && (() => {
+        let charged = 0, collected = 0, n = 0;
+        for (const w of workOrders) if (w.serviceFee > 0) { charged += w.serviceFee; n++; if (w.tenantBilled === 'paid') collected += w.serviceFee; }
+        if (!n) return null;
+        return (
+          <div className="rr-kpis" style={{ marginBottom: 'var(--gap)' }}>
+            <div className="kpi-c"><span className="v mono">{fmtMoneyC(charged)}</span><span className="k">tenant charges · {n}</span></div>
+            <div className="kpi-c"><span className="v mono" style={{ color: 'var(--money)' }}>{fmtMoneyC(collected)}</span><span className="k">collected</span></div>
+            <div className="kpi-c"><span className="v mono" style={{ color: 'var(--warn)' }}>{fmtMoneyC(charged - collected)}</span><span className="k">outstanding</span></div>
+          </div>
+        );
+      })()}
+
       {/* ---- open ---- */}
       <div className="card">
         <span className="field-label">Open ({open.length}) — sorted by priority</span>
         {open.length === 0 && <p className="note">Nothing open. {isStaff ? 'Create one above — or just say it out loud.' : 'Nothing assigned to you right now.'}</p>}
-        {open.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} isStaff={isStaff} canRun={canRun} canAttach={isStaff || role === 'tech'} addWoAttachment={addWoAttachment} receipts={receiptsByWo[w.id]} />)}
+        {open.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} setWoBilling={setWoBilling} isStaff={isStaff} canRun={canRun} canAttach={isStaff || role === 'tech'} addWoAttachment={addWoAttachment} receipts={receiptsByWo[w.id]} />)}
       </div>
 
       {closed.length > 0 && (
         <div className="card" style={{ marginTop: 'var(--gap)' }}>
           <span className="field-label">Closed ({closed.length})</span>
-          {closed.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} isStaff={isStaff} canRun={canRun} canAttach={isStaff || role === 'tech'} addWoAttachment={addWoAttachment} receipts={receiptsByWo[w.id]} done />)}
+          {closed.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} setWoBilling={setWoBilling} isStaff={isStaff} canRun={canRun} canAttach={isStaff || role === 'tech'} addWoAttachment={addWoAttachment} receipts={receiptsByWo[w.id]} done />)}
         </div>
       )}
     </div>
   );
 }
 
-function WoRow({ w, setWoStatus, setWoPriority, isStaff, canRun, canAttach, addWoAttachment, done, receipts = [] }) {
+const BILL_LABEL = { no: 'not billed', billed: 'billed', paid: 'paid' };
+const BILL_COLOR = { no: 'var(--text-faint)', billed: 'var(--warn)', paid: 'var(--money)' };
+
+function WoRow({ w, setWoStatus, setWoPriority, setWoBilling, isStaff, canRun, canAttach, addWoAttachment, done, receipts = [] }) {
   const pr = WO_PRIORITIES[w.priority ?? 3];
   const [open, setOpen] = useState(false);
+  const [billOpen, setBillOpen] = useState(false);
   const [attOpen, setAttOpen] = useState(false);
   const [upBusy, setUpBusy] = useState(false);
   const [lb, setLb] = useState(null); // lightbox start index
@@ -309,6 +327,8 @@ function WoRow({ w, setWoStatus, setWoPriority, isStaff, canRun, canAttach, addW
             {nAtt > 0
               ? <> · <a onClick={() => setAttOpen((o) => !o)} style={{ color: 'var(--info)', cursor: 'pointer' }}><IcClip width={11} height={11} style={{ verticalAlign: -1 }} /> {nAtt}</a></>
               : (canAttach && addWoAttachment) && <> · <a onClick={() => setAttOpen(true)} style={{ color: 'var(--text-faint)', cursor: 'pointer' }}><IcClip width={11} height={11} style={{ verticalAlign: -1 }} /> add photo</a></>}
+            {isStaff && setWoBilling && <> · <a onClick={() => setBillOpen((o) => !o)} style={{ color: w.serviceFee > 0 ? BILL_COLOR[w.tenantBilled || 'no'] : 'var(--text-faint)', cursor: 'pointer' }}>
+              {w.serviceFee > 0 ? <>{fmtMoneyC(w.serviceFee)} · {BILL_LABEL[w.tenantBilled || 'no']}</> : 'bill tenant'}</a></>}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -329,6 +349,8 @@ function WoRow({ w, setWoStatus, setWoPriority, isStaff, canRun, canAttach, addW
           {isStaff && !done && <button className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)' }} onClick={() => setWoStatus(w.id, 'cancelled')} aria-label="Cancel"><IcX width={14} height={14} /></button>}
         </div>
       </div>
+      {billOpen && isStaff && setWoBilling && <WoBilling w={w} matTotal={matTotal} onSave={(patch) => setWoBilling(w.id, patch)} />}
+
       {open && receipts.length > 0 && (
         <div className="pur-items">
           {receipts.map((r) => (
@@ -372,6 +394,47 @@ function WoRow({ w, setWoStatus, setWoPriority, isStaff, canRun, canAttach, addW
         </div>
       )}
       {lb !== null && lbItems.length > 0 && <Lightbox items={lbItems} index={lb} onClose={() => setLb(null)} />}
+    </div>
+  );
+}
+
+// tenant billing on a work order — replaces the spreadsheet Service Log columns:
+// what we charge (service fee), what it cost (repair cost), and billed state.
+const billInput = { width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--mono)', fontSize: 14, padding: 8, borderRadius: 8 };
+function WoBilling({ w, matTotal = 0, onSave }) {
+  const [fee, setFee] = useState(w.serviceFee ?? '');
+  const [cost, setCost] = useState(w.repairCost ?? '');
+  const num = (v) => (v === '' || v == null ? null : Math.round(parseFloat(v) * 100) / 100);
+  const feeN = num(fee) || 0;
+  const costN = num(cost) != null ? num(cost) : matTotal;   // default cost to logged materials
+  const margin = feeN - costN;
+  const STATES = [['no', 'Not billed'], ['billed', 'Billed'], ['paid', 'Paid']];
+  return (
+    <div className="pur-items" style={{ padding: 12 }}>
+      <span className="field-label" style={{ margin: '0 0 8px' }}>Tenant billing</span>
+      <div className="grid g2" style={{ gap: 8 }}>
+        <div>
+          <div className="field-label" style={{ marginTop: 0 }}>Service fee (charge)</div>
+          <input style={billInput} type="number" step="1" min="0" inputMode="decimal" value={fee}
+            onChange={(e) => setFee(e.target.value)} onBlur={() => onSave({ serviceFee: num(fee) })} placeholder="0.00" />
+        </div>
+        <div>
+          <div className="field-label" style={{ marginTop: 0 }}>Repair cost</div>
+          <input style={billInput} type="number" step="1" min="0" inputMode="decimal" value={cost}
+            onChange={(e) => setCost(e.target.value)} onBlur={() => onSave({ repairCost: num(cost) })}
+            placeholder={matTotal ? `${matTotal.toFixed(2)} (materials)` : '0.00'} />
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+        <div className="pick" style={{ margin: 0 }}>
+          {STATES.map(([v, l]) => <button key={v} className={(w.tenantBilled || 'no') === v ? 'on' : ''} onClick={() => onSave({ tenantBilled: v })}>{l}</button>)}
+        </div>
+        <span style={{ flex: 1 }} />
+        <span className="mono" style={{ fontSize: 12, color: margin >= 0 ? 'var(--money)' : 'var(--danger)' }}>
+          margin {margin < 0 ? '-$' : '$'}{Math.abs(margin).toFixed(2)}
+        </span>
+      </div>
+      <p className="note" style={{ margin: '8px 0 0' }}>Charge the tenant a service fee, track it against what the repair cost — and whether they've paid. Replaces the Service Log's billing columns.</p>
     </div>
   );
 }
