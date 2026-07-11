@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { signedFileUrl } from '../lib/backend/supabase.js';
-import { IcTable, IcReceipt, IcCheck, IcX, IcTrash, IcMapPin, IcBuilding, IcChevron, IcCal, IcClock } from '../components/ui.jsx';
+import { IcTable, IcReceipt, IcCheck, IcX, IcTrash, IcMapPin, IcBuilding, IcChevron, IcCal, IcClock, IcUsers } from '../components/ui.jsx';
 
 // live view of the crew's running Field timer (same localStorage the timer
 // persists to). Ticks once a second so hours + pay compile in real time on the
@@ -169,6 +169,22 @@ export default function Timesheet({ store }) {
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
+  const [opFilter, setOpFilter] = useState('all');   // office only: 'all' (roster) | techId key
+
+  // office reads as "Timesheets" — an index of every operator, with a master tally,
+  // and you drill into one person's sheet. Crew sees only their own (level 2).
+  const opKeyOf = (r) => r.techId || '__none__';
+  const opNameOf = (r) => techById[r.techId]?.name || (r.techId ? 'Operator' : 'Unattributed');
+  const officeIndex = isOffice && opFilter === 'all';         // level 1: the roster
+  const viewingOp = isOffice && opFilter !== 'all';           // level 2 for a chosen operator
+  const canAdd = !isOffice;                                    // crew log their own; office corrects existing entries
+
+  // rows that feed the level-2 sheet (week/list): the whole org for crew's own list,
+  // or one operator when office has drilled in
+  const baseRows = useMemo(
+    () => (viewingOp ? timesheet.filter((r) => opKeyOf(r) === opFilter) : timesheet),
+    [timesheet, viewingOp, opFilter],
+  );
 
   // property options for the picker / mentions (rent-roll + labor buildings, de-duped)
   const propNames = useMemo(() => {
@@ -177,21 +193,46 @@ export default function Timesheet({ store }) {
     return [...s].filter(Boolean).sort();
   }, [properties, timesheet]);
 
+  const periodCut = period === 'all' ? null : addDays(todayISO(), -Number(period) + 1);
   const rows = useMemo(() => {
-    let list = [...timesheet];
-    if (period !== 'all') list = list.filter((r) => r.date >= addDays(todayISO(), -Number(period) + 1));
+    let list = [...baseRows];
+    if (periodCut) list = list.filter((r) => r.date >= periodCut);
     return list.sort((a, b) => (b.date < a.date ? -1 : b.date > a.date ? 1 : (b.createdAt || '').localeCompare(a.createdAt || '')));
-  }, [timesheet, period]);
+  }, [baseRows, periodCut]);
 
-  const live = useLiveTimer(store.propById || {});
+  // the office user's own live timer only belongs on a crew member's own sheet
+  const liveRaw = useLiveTimer(store.propById || {});
+  const live = isOffice ? null : liveRaw;
+
+  // ---- office master roster: every operator's tally over the selected period ----
+  const roster = useMemo(() => {
+    if (!isOffice) return [];
+    const src = periodCut ? timesheet.filter((r) => r.date >= periodCut) : timesheet;
+    const m = new Map();
+    src.forEach((r) => {
+      const k = opKeyOf(r);
+      const e = m.get(k) || { key: k, name: opNameOf(r), hrs: 0, pay: 0, entries: 0, last: '', props: new Map() };
+      e.hrs += r.durationHrs || 0; e.pay += (r.durationHrs || 0) * (r.rate || 0); e.entries += 1;
+      if (r.date > e.last) e.last = r.date;
+      const pk = r.propLabel && r.propLabel !== 'Unassigned' ? r.propLabel : 'Unassigned';
+      e.props.set(pk, (e.props.get(pk) || 0) + (r.durationHrs || 0));
+      m.set(k, e);
+    });
+    return [...m.values()]
+      .map((e) => ({ ...e, topProp: [...e.props.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || '—' }))
+      .sort((a, b) => b.hrs - a.hrs);
+  }, [isOffice, timesheet, periodCut, techById]);
+  const master = useMemo(() => roster.reduce((a, o) => ({ hrs: a.hrs + o.hrs, pay: a.pay + o.pay, entries: a.entries + o.entries }), { hrs: 0, pay: 0, entries: 0 }), [roster]);
+  const masterHasPay = roster.some((o) => o.pay > 0);
+  const activeOp = viewingOp ? roster.find((o) => o.key === opFilter) : null;
 
   // ---- the work week, scheduled out ----
   const weekStart = weekStartOf(weekAnchor);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const weekEntries = useMemo(() => {
     const set = new Set(weekDays);
-    return timesheet.filter((r) => set.has(r.date));
-  }, [timesheet, weekDays]);
+    return baseRows.filter((r) => set.has(r.date));
+  }, [baseRows, weekDays]);
   const byDay = useMemo(() => {
     const m = {}; weekDays.forEach((d) => { m[d] = []; });
     weekEntries.forEach((r) => { (m[r.date] = m[r.date] || []).push(r); });
@@ -238,6 +279,9 @@ export default function Timesheet({ store }) {
     setDraft({ date, durationHrs: 1, propLabel: 'Unassigned', unit: '', category: 'general', note: '' });
   };
   const cancel = () => { setEditId(null); setDraft(null); };
+  // office drills into an operator — land on List (their history is usually not this week)
+  // and anchor the week to their last logged day so a Week toggle is populated too
+  const openOp = (o) => { setOpFilter(o.key); setView('list'); if (o.last) setWeekAnchor(o.last); cancel(); };
   const save = async () => {
     if (!draft) return;
     setBusy(true);
@@ -264,9 +308,71 @@ export default function Timesheet({ store }) {
   return (
     <div>
       <div className="view-head">
-        <h1>Timesheet</h1>
-        <p>{isOffice ? 'Every hour the crew logged — the week laid out, editable, tagged to the right door.' : 'Your week, scheduled out. Log hours on any day, and @tag a property in the comment to route them.'}</p>
+        <h1>{isOffice ? 'Timesheets' : 'Timesheet'}</h1>
+        <p>{!isOffice ? 'Your week, scheduled out. Log hours on any day, and @tag a property in the comment to route them.'
+          : officeIndex ? 'Every operator’s hours — per person, with the master tally.'
+          : `${activeOp?.name || 'Operator'}’s timesheet — review, correct, and tag to the right door.`}</p>
       </div>
+
+      {/* office: operator rail — All (master roster) + one chip per person */}
+      {isOffice && (
+        <div className="card" style={{ marginBottom: 'var(--gap)', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span className="field-label" style={{ margin: 0, marginRight: 2 }}>Operators</span>
+          <button className={'chip' + (opFilter === 'all' ? ' on' : '')} style={{ cursor: 'pointer', border: opFilter === 'all' ? '1px solid var(--accent)' : '1px solid var(--line)' }}
+            onClick={() => { setOpFilter('all'); cancel(); }}><IcUsers width={12} height={12} style={{ verticalAlign: -2, marginRight: 4 }} />All · master tally</button>
+          {roster.map((o) => (
+            <button key={o.key} className={'chip' + (opFilter === o.key ? ' on' : '')} style={{ cursor: 'pointer', border: opFilter === o.key ? '1px solid var(--accent)' : '1px solid var(--line)' }}
+              onClick={() => openOp(o)}>{o.name} · <span className="mono">{Math.round(o.hrs * 10) / 10}h</span></button>
+          ))}
+        </div>
+      )}
+
+      {officeIndex ? (
+        <>
+          {/* master tally + period */}
+          <div className="card" style={{ marginBottom: 'var(--gap)', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="pick" style={{ margin: 0 }}>
+              {PERIODS.map(([v, l]) => <button key={v} className={period === v ? 'on' : ''} onClick={() => setPeriod(v)}>{l}</button>)}
+            </div>
+            <div style={{ flex: 1 }} />
+            <div style={{ display: 'flex', gap: 18, alignItems: 'baseline' }}>
+              <div><span className="mono" style={{ fontSize: 20, fontWeight: 700 }}>{Math.round(master.hrs * 10) / 10}</span> <span className="s" style={{ color: 'var(--text-dim)' }}>hrs</span></div>
+              {masterHasPay && <div><span className="mono" style={{ fontSize: 20, fontWeight: 700, color: 'var(--money)' }}>{money(master.pay)}</span> <span className="s" style={{ color: 'var(--text-dim)' }}>labor</span></div>}
+              <div><span className="mono" style={{ fontSize: 20, fontWeight: 700 }}>{roster.length}</span> <span className="s" style={{ color: 'var(--text-dim)' }}>{roster.length === 1 ? 'operator' : 'operators'}</span></div>
+            </div>
+          </div>
+
+          {/* per-operator index — click a row to open that person's sheet */}
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div className="rr-scroll">
+              <table className="rr-tbl ts-tbl">
+                <thead><tr>
+                  <th>Operator</th><th className="num">Hours</th>{masterHasPay && <th className="num">Labor</th>}<th className="num">Entries</th><th>Top property</th><th>Last logged</th><th aria-label="open"></th>
+                </tr></thead>
+                <tbody>
+                  {roster.length === 0 && <tr><td colSpan={masterHasPay ? 7 : 6} style={{ padding: 20, textAlign: 'center', color: 'var(--text-faint)' }}>No hours logged in this period.</td></tr>}
+                  {roster.map((o) => (
+                    <tr key={o.key} style={{ cursor: 'pointer' }} onClick={() => openOp(o)}>
+                      <td style={{ fontWeight: 600 }}>{o.name}</td>
+                      <td className="num mono" style={{ fontWeight: 700 }}>{Math.round(o.hrs * 10) / 10}</td>
+                      {masterHasPay && <td className="num mono money">{money(o.pay)}</td>}
+                      <td className="num mono ts-dim">{o.entries}</td>
+                      <td className="ts-dim" style={{ fontSize: 13 }}>{o.topProp}</td>
+                      <td className="ts-dim mono" style={{ fontSize: 12 }}>{o.last ? fmtDate(o.last) : '—'}</td>
+                      <td><button className="btn ghost sm" onClick={(e) => { e.stopPropagation(); openOp(o); }}>Open ›</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p className="note"><IcTable width={12} height={12} style={{ verticalAlign: -2 }} /> Open an operator to see their week, correct an entry, or check where their hours landed. Totals here roll every operator together for the selected period.</p>
+        </>
+      ) : (
+      <>
+      {viewingOp && (
+        <button className="btn ghost sm" style={{ marginBottom: 10 }} onClick={() => { setOpFilter('all'); cancel(); }}><IcChevron width={13} height={13} style={{ transform: 'rotate(180deg)', verticalAlign: -2 }} /> All timesheets</button>
+      )}
 
       {/* view toggle + totals + add */}
       <div className="card" style={{ marginBottom: 'var(--gap)', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -284,7 +390,7 @@ export default function Timesheet({ store }) {
           <div><span className="mono" style={{ fontSize: 20, fontWeight: 700 }}>{Math.round(totHrs * 10) / 10}</span> <span className="s" style={{ color: 'var(--text-dim)' }}>{view === 'week' ? 'wk hrs' : 'hrs'}</span></div>
           {hasPay && <div><span className="mono" style={{ fontSize: 20, fontWeight: 700, color: 'var(--money)' }}>{money(totPay)}</span> <span className="s" style={{ color: 'var(--text-dim)' }}>pay</span></div>}
         </div>
-        <button className="btn grad sm" onClick={() => startNew()} disabled={editId === '__new__'}>+ Add entry</button>
+        {canAdd && <button className="btn grad sm" onClick={() => startNew()} disabled={editId === '__new__'}>+ Add entry</button>}
       </div>
 
       {/* allocation by property — updates as the timer ticks */}
@@ -376,7 +482,7 @@ export default function Timesheet({ store }) {
                     ))}
                     {entries.length === 0 && !showLive && <div className="ts-dim" style={{ fontSize: 11.5, padding: '4px 2px' }}>—</div>}
                   </div>
-                  <button className="ts-day-add" onClick={() => startNew(iso)}>+ log</button>
+                  {canAdd && <button className="ts-day-add" onClick={() => startNew(iso)}>+ log</button>}
                 </div>
               );
             })}
@@ -413,7 +519,7 @@ export default function Timesheet({ store }) {
                     </tr>
                   )}
                   {shown.length === 0 && editId !== '__new__' && !live && (
-                    <tr><td colSpan={colspan} style={{ padding: 20, textAlign: 'center', color: 'var(--text-faint)' }}>No entries in this period. Log time in the Field timer, or “+ Add entry”.</td></tr>
+                    <tr><td colSpan={colspan} style={{ padding: 20, textAlign: 'center', color: 'var(--text-faint)' }}>{isOffice ? 'No hours logged for this operator in this period.' : 'No entries in this period. Log time in the Field timer, or “+ Add entry”.'}</td></tr>
                   )}
                   {shown.map((r) => {
                     if (editId === r.id) return <tr key={r.id} className="ts-edit-row"><td colSpan={colspan}>{editorEl}</td></tr>;
@@ -468,6 +574,8 @@ export default function Timesheet({ store }) {
           {rows.length > CAP && <p className="note">Showing the {CAP} most recent of {rows.length} entries — narrow the period to see the rest.</p>}
           <p className="note"><IcTable width={12} height={12} style={{ verticalAlign: -2 }} /> Edits flow straight to the labor spine — change an entry here and it moves the dashboards, per-door P&amp;L, and payroll together.</p>
         </>
+      )}
+      </>
       )}
     </div>
   );
