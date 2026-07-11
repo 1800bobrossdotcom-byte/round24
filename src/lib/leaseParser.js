@@ -96,7 +96,7 @@ export function parseLeaseWorkbook(dataArrayBuffer) {
       const tenant = 'tenant' in cm ? g('tenant') : `${norm(g('first'))} ${norm(g('last'))}`.trim();
       const us = low(unit), ts = low(tenant), rent = money(g('rent'));
       if (us.startsWith('total') || us.includes('sqft') || ts.includes('total rent')) break;
-      if (us === '' && ts === '' && rent == null) { if (++blanks >= 2) break; continue; }
+      if (us === '' && ts === '' && rent == null) { if (++blanks >= 4) break; continue; }
       blanks = 0;
       if (rent == null && ts === '') continue;
       const vacant = ts.includes('vacant');

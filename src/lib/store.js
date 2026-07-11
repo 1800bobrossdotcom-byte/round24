@@ -113,10 +113,11 @@ export function useStore() {
   useEffect(() => { impPropsRef.current = impProps; }, [impProps]);
 
   // ---- salaried operators: a fixed salary, dispersed across doors by hours ----
-  // Rides the labor-state document so it syncs across the office's devices
-  // (encrypted at rest — it carries pay). localStorage is the fast local cache.
-  const [salaries, setSalaries] = useState(() => loadLS('caliper_salaries_v1', {}));
-  useEffect(() => { localStorage.setItem('caliper_salaries_v1', JSON.stringify(salaries)); }, [salaries]);
+  // Rides the per-org labor-state document (encrypted — it carries pay). For a
+  // real org the cloud is authoritative and we never touch localStorage, so
+  // salaries can't bleed between tenants on a shared browser; demo uses local.
+  const [salaries, setSalaries] = useState(() => (demoMode ? loadLS('caliper_salaries_v1', {}) : {}));
+  useEffect(() => { if (demoMode) localStorage.setItem('caliper_salaries_v1', JSON.stringify(salaries)); }, [salaries, demoMode]);
   const setSalary = useCallback((techId, val) => {
     setSalaries((s) => {
       const next = { ...s };
@@ -127,11 +128,18 @@ export function useStore() {
   }, []);
 
   // ---- P&L statement config: fixed per-building inputs (debt, utilities, tax) ----
-  const [plConfig, setPlConfig] = useState(() => (demoMode ? DEMO_PL_CONFIG : loadLS('caliper_plconfig_v1', {})));
-  useEffect(() => { if (!demoMode) localStorage.setItem('caliper_plconfig_v1', JSON.stringify(plConfig)); }, [plConfig, demoMode]);
+  // Kept in a single localStorage doc keyed by org, so plConfig is derived (never
+  // a lagging copy) and can't bleed between tenants on a shared browser.
+  const [plAll, setPlAll] = useState(() => loadLS('caliper_plconfig_v2', {}));
+  useEffect(() => { localStorage.setItem('caliper_plconfig_v2', JSON.stringify(plAll)); }, [plAll]);
+  const plKey = demoMode ? '__demo__' : (orgId || '__none__');
+  const plConfig = useMemo(
+    () => (demoMode ? { ...DEMO_PL_CONFIG, ...(plAll.__demo__ || {}) } : (plAll[plKey] || {})),
+    [plAll, plKey, demoMode],
+  );
   const setPlLine = useCallback((building, patch) => {
-    setPlConfig((c) => ({ ...c, [building]: { ...(c[building] || {}), ...patch } }));
-  }, []);
+    setPlAll((a) => { const cur = a[plKey] || {}; return { ...a, [plKey]: { ...cur, [building]: { ...(cur[building] || {}), ...patch } } }; });
+  }, [plKey]);
 
   // ---- cloud labor persistence: the spine follows the account (staff only) ----
   // localStorage is the fast local cache; when connected, this org record is the
@@ -146,8 +154,9 @@ export function useStore() {
         if (s.imported && (s.imported.timers?.length || s.imported.techs?.length)) setImported(s.imported);
         if (Array.isArray(s.props)) { impPropsRef.current = s.props; setImpProps(s.props); }
         if (s.range?.from && s.range?.to) setRange(s.range);
-        if (s.salaries && typeof s.salaries === 'object') setSalaries(s.salaries);
       }
+      // authoritative per-org: clear any prior org's salaries when this one has none
+      setSalaries(s?.salaries && typeof s.salaries === 'object' ? s.salaries : {});
       setLaborBackend('db');
       hydratedRef.current = true;
     }).catch(() => { setLaborBackend('local'); hydratedRef.current = true; });
@@ -405,7 +414,8 @@ export function useStore() {
           notify(`“${upd.task}” is now ${upd.status.replace('_', ' ')}`);
         }
         setWorkOrders((l) => l.map((w) => (w.id === upd.id
-          ? { ...w, status: upd.status, priority: upd.priority ?? 3, due: upd.due_date, task: upd.task, assigneeLabel: upd.assignee_label }
+          ? { ...w, status: upd.status, priority: upd.priority ?? 3, due: upd.due_date, task: upd.task, assigneeLabel: upd.assignee_label,
+              serviceFee: upd.service_fee != null ? Number(upd.service_fee) : w.serviceFee, repairCost: upd.repair_cost != null ? Number(upd.repair_cost) : w.repairCost, tenantBilled: upd.tenant_billed ?? w.tenantBilled }
           : w)));
       } else if (eventType === 'DELETE' && payload.old?.id) {
         setWorkOrders((l) => l.filter((w) => w.id !== payload.old.id));
@@ -960,10 +970,14 @@ export function useStore() {
   // cloud rows too when connected. Portfolio (rent roll + vendors) is preserved
   // unless includePortfolio is set.
   const resetWorkspace = useCallback(async ({ cloud = true, includePortfolio = false } = {}) => {
-    [IMP_KEY, WO_KEY, PUR_KEY, PROP_KEY, TQ_KEY, MSG_KEY, CHAN_KEY, 'caliper_cards_v1']
+    [IMP_KEY, WO_KEY, PUR_KEY, PROP_KEY, TQ_KEY, MSG_KEY, CHAN_KEY, 'caliper_cards_v1', 'caliper_salaries_v1']
       .forEach((k) => { try { localStorage.removeItem(k); } catch { /* no storage */ } });
     clearImported();
     setWorkOrders([]); setPurchases([]); setMessages([]); setCards([]); setTimesheet([]);
+    // clear pay config too so a "clear test data" reset can't leave salaries or
+    // P&L inputs behind (and the write-through can't re-upload them to the cloud)
+    setSalaries({});
+    setPlAll((a) => { const nxt = { ...a }; delete nxt[plKey]; return nxt; });
     if (includePortfolio) { setLeasing([]); setVendors([]); setVendorProducts([]); }
     let result = null;
     if (cloud && isConfigured() && orgId && !demoMode) {
@@ -971,7 +985,7 @@ export function useStore() {
       catch { /* local clear already applied */ }
     }
     return result;
-  }, [orgId, demoMode, clearImported, audit]);
+  }, [orgId, demoMode, clearImported, audit, plKey]);
 
   // notification badges: items created since the tab was last opened
   const badges = useMemo(() => {

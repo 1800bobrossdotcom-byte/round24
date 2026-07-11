@@ -7,7 +7,7 @@ const GRAINS = ['day', 'week', 'month', 'year'];
 const money0 = (n) => (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString();
 
 export default function Team({ store, focus, navigate }) {
-  const { timers, techById, techs, propById = {}, salaries = {}, setSalary, role } = store;
+  const { timers = [], techById = {}, techs = [], propById = {}, salaries = {}, setSalary, role } = store;
   const isOffice = role === 'admin' || role === 'manager';
   const [salEdit, setSalEdit] = useState(null); // techId being edited
   const go = navigate || (() => {});

@@ -1,11 +1,17 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { buildStatement } from '../lib/pnlStatement.js';
 import { IcChart, IcChevron } from '../components/ui.jsx';
 
 const nk = (s) => (s || '').toLowerCase().trim();
 const money = (v) => (v == null ? '—' : (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString());
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const stepMonth = (m, d) => { const [y, mo] = m.split('-').map(Number); const dt = new Date(Date.UTC(y, mo - 1 + d, 1)); return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`; };
+const thisMonth = () => new Date().toISOString().slice(0, 7);
+const stepMonth = (m, d) => {
+  const [y, mo] = (m || thisMonth()).split('-').map(Number);
+  if (!Number.isFinite(y) || !Number.isFinite(mo)) return thisMonth();
+  const dt = new Date(Date.UTC(y, mo - 1 + d, 1));
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
+};
 const fmtMonth = (m) => { const [y, mo] = m.split('-').map(Number); return `${MONTHS[mo - 1]} ${y}`; };
 
 export default function PLStatement({ store }) {
@@ -26,7 +32,8 @@ export default function PLStatement({ store }) {
     return [...s].sort();
   }, [allTimers, purchases]);
   const [month, setMonth] = useState('');
-  useEffect(() => { if (!month) setMonth(dataMonths[dataMonths.length - 1] || new Date().toISOString().slice(0, 7)); }, [dataMonths]);
+  const pickedRef = useRef(false); // once the user steps months, stop auto-defaulting
+  useEffect(() => { if (!pickedRef.current) setMonth(dataMonths[dataMonths.length - 1] || thisMonth()); }, [dataMonths]);
 
   const inMonth = (d) => (d || '').slice(0, 7) === month;
   const rent = useMemo(() => leasing.filter((u) => nk(u.building) === nk(building) && u.status === 'leased' && !(u.type === 'land' || u.status === 'held')).reduce((a, u) => a + (u.rent || 0), 0), [leasing, building]);
@@ -67,9 +74,9 @@ export default function PLStatement({ store }) {
       <div className="view-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
         <div><h1>P&amp;L statement</h1><p>Rent, labor, and receipts fill in automatically. Enter the fixed lines once — Caliper does the math.</p></div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button className="btn ghost sm icon-btn" onClick={() => setMonth((m) => stepMonth(m, -1))} aria-label="Previous month"><IcChevron width={15} height={15} style={{ transform: 'rotate(180deg)' }} /></button>
+          <button className="btn ghost sm icon-btn" onClick={() => { pickedRef.current = true; setMonth((m) => stepMonth(m, -1)); }} aria-label="Previous month"><IcChevron width={15} height={15} style={{ transform: 'rotate(180deg)' }} /></button>
           <span className="mono" style={{ fontWeight: 700, minWidth: 88, textAlign: 'center' }}>{month ? fmtMonth(month) : '—'}</span>
-          <button className="btn ghost sm icon-btn" onClick={() => setMonth((m) => stepMonth(m, 1))} aria-label="Next month"><IcChevron width={15} height={15} /></button>
+          <button className="btn ghost sm icon-btn" onClick={() => { pickedRef.current = true; setMonth((m) => stepMonth(m, 1)); }} aria-label="Next month"><IcChevron width={15} height={15} /></button>
         </div>
       </div>
 
@@ -114,7 +121,8 @@ export default function PLStatement({ store }) {
       </div>
 
       <p className="note">
-        <span className="pl-auto" style={{ marginLeft: 0 }}>auto</span> lines come straight from the connected data — <b>Rent</b> from the rent roll, <b>Maintenance labor</b> from the crew's timers, <b>Repairs</b> from approved receipts, <b>Management</b> as {stmt.mgmtPct}% of gross. The rest you set once per property. This is the statement you keep in Excel — assembled for you, every month.
+        <span className="pl-auto" style={{ marginLeft: 0 }}>auto</span> lines come straight from the connected data — <b>Rent</b> from the rent roll, <b>Maintenance labor</b> from the crew's timers, <b>Repairs</b> from approved receipts, <b>Management</b> as {stmt.mgmtPct}% of gross. The rest you set once per property.
+        <br /><span style={{ color: 'var(--text-faint)' }}>Rent reflects the <b>current</b> roll; labor &amp; repairs are what's logged for {fmtMonth(month)} so far — NOI firms up as the month closes.</span>
       </p>
     </div>
   );

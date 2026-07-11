@@ -8,7 +8,7 @@ const nameKey = (s) => (s || '').toLowerCase().trim();
 export default function Economics({ store, navigate }) {
   const { leasing = [], allTimers = [], purchases = [], propById = {} } = store;
   const go = navigate || (() => {});
-  const [sort, setSort] = useState('noi'); // noi | costPerDoor | rentBilled | labor
+  const [sort, setSort] = useState('noiPerDoor'); // noiPerDoor | costPerDoor | rentBilled | labor
 
   const { rows, tot } = useMemo(
     () => portfolioPnl({ leasing, timers: allTimers, purchases, propById }),
@@ -61,7 +61,7 @@ export default function Economics({ store, navigate }) {
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ display: 'flex', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--line)', flexWrap: 'wrap', alignItems: 'center' }}>
           <span className="field-label" style={{ margin: 0 }}>Sort by</span>
-          {th('noi', 'Net')}{th('costPerDoor', 'Cost / door')}{th('rentBilled', 'Rent')}{th('labor', 'Labor')}
+          {th('noiPerDoor', 'Net / door')}{th('costPerDoor', 'Cost / door')}{th('rentBilled', 'Rent')}{th('labor', 'Labor')}
         </div>
         <div className="rr-scroll">
           <table className="rr-tbl">

@@ -585,25 +585,31 @@ export async function summarizeThread(messages, workOrder) {
 // ---- cloud timers: crew hours land where management can see them ----
 // RLS: a tech can only insert timers for their own operator record.
 export async function fetchMyOperatorId() {
-  const { data, error } = await supabase
-    .from('operators').select('id, user_id').limit(10);
-  if (error) throw error;
   const { data: { user } } = await supabase.auth.getUser();
-  return data.find((o) => o.user_id === user?.id)?.id || null;
+  if (!user) return null;
+  // filter server-side so a large operator roster can never bury the caller's
+  // own row past a client-side limit (which would leave them unable to sync)
+  const { data, error } = await supabase
+    .from('operators').select('id').eq('user_id', user.id).limit(1).maybeSingle();
+  if (error) throw error;
+  return data?.id || null;
 }
 
 export async function insertTimer(orgId, operatorId, t) {
-  const { data, error } = await supabase.from('timers').insert({
+  const base = {
     org_id: orgId, operator_id: operatorId,
     property_label: t.propLabel || null, unit: t.unit || null,
     work_date: t.date, category: t.category || 'general',
     issue: t.issue || null, duration_hrs: t.durationHrs,
-    note: t.note || null, work_order_id: t.workOrderId || null,
-    // verified clock-in: the punch location + whether it landed inside the fence
-    gps_lat: t.gpsLat ?? null, gps_lng: t.gpsLng ?? null,
-    verified: t.verified ?? null, distance_m: t.distanceM ?? null,
-    source: 'timer',
-  }).select('id').single();
+    note: t.note || null, work_order_id: t.workOrderId || null, source: 'timer',
+  };
+  // verified clock-in: the punch location + whether it landed inside the fence.
+  // Tolerate a DB without the 0030 geo columns so timers still sync (no regression).
+  const withGeo = { ...base, gps_lat: t.gpsLat ?? null, gps_lng: t.gpsLng ?? null, verified: t.verified ?? null, distance_m: t.distanceM ?? null };
+  let { data, error } = await supabase.from('timers').insert(withGeo).select('id').single();
+  if (error && /gps_lat|gps_lng|verified|distance_m|column/i.test(error.message || '')) {
+    ({ data, error } = await supabase.from('timers').insert(base).select('id').single());
+  }
   if (error) throw error;
   return data.id;
 }

@@ -97,7 +97,8 @@ function parseGeneric(arrayBuffer) {
       if (rent == null && !tenant && !unit) continue;
       const buildingName = M.building != null && norm(g(row, 'building')) ? norm(g(row, 'building')) : sheetBuilding;
       const bedsRaw = norm(g(row, 'beds'));
-      const commercial = /commercial|retail|office|store/i.test(bedsRaw + ' ' + unit);
+      const COMM = /\b(commercial|retail|office|storefront|shop|unit\s*type\s*:?\s*comm)\b/i;
+      const commercial = COMM.test(bedsRaw) || COMM.test(unit);
       const status = vacantStatus(g(row, 'status'), tenant);
       const unitRec = {
         number: unit || String((byBuilding.get(buildingName)?.units.length || 0) + 1),

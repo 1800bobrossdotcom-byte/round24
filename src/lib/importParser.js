@@ -41,6 +41,9 @@ function detectRate(rows) {
 // This is what lets a shop with NO integration and NO buildings yet import
 // — the buildings are discovered from the sheet.
 const BUILDING_HDR = /\b(propert(?:y|ies)|building|bldg|location|site|address|complex|apt\b|apartments?)\b/i;
+// stricter: the WHOLE cell must be a building header, so "Email Address" or a
+// note that merely mentions "site" isn't mistaken for the building column.
+const BUILDING_COL_HDR = /^\s*(propert(?:y|ies)|building|bldg\.?|location|site|complex)\s*$/i;
 
 // recognize a building name inside the allocation grid (Evolution24 logs write
 // building names as cells above their dollar columns: "379 S.Main", "Water St.",
@@ -52,6 +55,9 @@ export function looksLikeBuilding(s) {
   if (t.length < 3 || t.length > 30) return false;
   if (t.includes('/')) return false;                              // notes: "Water St.- 4 / St.Paul-1"
   if (/^(total|off|paid by|hourly|pay period|monthly)/i.test(t)) return false;
+  // time/count note cells ("8 hrs overtime", "40 hours", "5 sick days", "2 units")
+  // look like "number + words" but are NOT buildings — exclude them.
+  if (/\b(hrs?|hours?|days?|wks?|weeks?|units?|sick|pto|vac(ation)?|overtime|\bot\b|mins?|minutes?|jobs?)\b/i.test(t)) return false;
   const words = t.split(/\s+/).length;
   if (/^\d{1,5}\s*[A-Za-z]/.test(t) && words <= 3) return true;    // 379 S.Main, 31 Genesee, 357Alexander
   if (STREET_WORD.test(t) && words <= 3) return true;             // Water St., 121 Park, St.Paul
@@ -67,7 +73,7 @@ function detectBuilding(rows) {
       if (typeof c !== 'string') continue;
       const m = c.match(/^\s*(propert(?:y|ies)|building|bldg|location|site|complex)\s*[:=]\s*(.+)$/i);
       if (m && m[2].trim()) { sheetBuilding = m[2].trim(); }
-      else if (buildingCol < 0 && c.length < 26 && BUILDING_HDR.test(c) && !/[:=]/.test(c)) { buildingCol = i; }
+      else if (buildingCol < 0 && BUILDING_COL_HDR.test(c)) { buildingCol = i; }
     }
   }
   return { buildingCol, sheetBuilding };

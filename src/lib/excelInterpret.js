@@ -44,7 +44,13 @@ export function toISO(v) {
     const s = v.trim();
     if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
     const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-    if (m) { let [, mo, da, yr] = m; yr = +yr < 100 ? +yr + 2000 : +yr; return `${yr}-${String(+mo).padStart(2, '0')}-${String(+da).padStart(2, '0')}`; }
+    if (m) {
+      const mo = +m[1], da = +m[2], yr = +m[3] < 100 ? +m[3] + 2000 : +m[3];
+      const d = new Date(Date.UTC(yr, mo - 1, da));
+      // reject impossible dates (e.g. 25/12/2024 D-M-Y, or 2/30) instead of emitting a bogus ISO
+      if (d.getUTCMonth() === mo - 1 && d.getUTCDate() === da) return isoOf(d);
+      return null;
+    }
     if (/[A-Za-z]{3}/.test(s) && /\d{4}/.test(s)) { const d = new Date(s + ' UTC'); if (!isNaN(d.getTime())) return isoOf(d); }
   }
   return null;
