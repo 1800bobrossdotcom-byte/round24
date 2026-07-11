@@ -97,7 +97,7 @@ export default function Field({ store }) {
     setWoStatus(w.id, 'in_progress');
     setRunning({
       propId: p?.id || properties[0].id, unit: w.unit || '—',
-      category: w.category || 'general', start: Date.now(), woId: w.id, woTask: w.task,
+      category: w.category || 'general', start: Date.now(), woId: w.id, woTask: w.task, rate: me.rate,
     });
     setElapsed(0); resetBreaks();
     capturePunch(p || properties[0]);
@@ -131,7 +131,7 @@ export default function Field({ store }) {
   const resetBreaks = () => { setOnBreak(null); setBreakMs(0); setBreakNow(0); setLastNudge(0); setLunchNudged(false); };
   const start = () => {
     const selected = properties.find((x) => x.id === prop);
-    setRunning({ propId: prop, unit: unit || '—', category: cat, start: Date.now() });
+    setRunning({ propId: prop, unit: unit || '—', category: cat, start: Date.now(), rate: me.rate });
     setElapsed(0); resetBreaks();
     capturePunch(selected);
   };

@@ -20,7 +20,7 @@ import {
   getLaborState, saveLaborState,
   listAvailability, setAvailability, subscribeAvailability, logAudit,
   fetchMyOperatorId, insertTimer, updateTimer, insertProperties, getUserSettings,
-  setPropertyLocation,
+  setPropertyLocation, listTimers, deleteTimer,
 } from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
@@ -480,6 +480,81 @@ export function useStore() {
     });
   }, [orgId, operatorId, addTimerEntry]);
 
+  // ---- timesheet: editable history of logged time (crew self / office review) ----
+  // The timers spine, but as rows people can correct — a timer ran long, wrong
+  // unit, forgot the note. RLS scopes reads/writes: office all, tech their own.
+  const [timesheet, setTimesheet] = useState([]);
+  const timesheetRef = useRef(timesheet);
+  useEffect(() => { timesheetRef.current = timesheet; }, [timesheet]);
+  const tsRowFromSpine = useCallback((t) => ({
+    id: t.id, dbId: t.dbId || null, operatorId: null, techId: t.techId || null,
+    date: t.date, createdAt: t.createdAt || `${t.date}T09:00:00.000Z`,
+    propLabel: t.propLabel || propById[t.propId]?.name || 'Unassigned',
+    unit: t.unit || '', category: t.category || 'general',
+    note: t.issue || t.note || '', durationHrs: t.durationHrs || 0,
+    workOrderId: t.workOrderId || null, verified: t.verified ?? null,
+    distanceM: t.distanceM ?? null, rate: t.rate ?? techById[t.techId]?.rate ?? 0, source: t.source || 'timer',
+  }), [propById, techById]);
+  useEffect(() => {
+    // demo seeds from the sample spine (editable copy); cloud loads the table.
+    // Deliberately keyed on [orgId, demoMode] only — re-running on every spine
+    // change would clobber in-progress edits.
+    if (demoMode) { setTimesheet(allTimers.map(tsRowFromSpine)); return; }
+    if (!isConfigured() || !orgId) return;
+    listTimers(orgId).then(setTimesheet).catch(() => {});
+  }, [orgId, demoMode]);
+  const refreshTimesheet = useCallback(() => {
+    if (demoMode || !isConfigured() || !orgId) return;
+    listTimers(orgId).then(setTimesheet).catch(() => {});
+  }, [orgId, demoMode]);
+
+  const addTimesheet = useCallback(async (row) => {
+    const local = {
+      id: 'ts_' + Math.random().toString(36).slice(2, 10), dbId: null,
+      operatorId: operatorId || null, techId: null,
+      date: row.date, createdAt: new Date().toISOString(),
+      propLabel: row.propLabel || 'Unassigned', unit: row.unit || '',
+      category: row.category || 'general', note: row.note || '',
+      durationHrs: Number(row.durationHrs) || 0, workOrderId: row.workOrderId || null,
+      verified: null, distanceM: null, rate: row.rate || 0, source: 'manual',
+    };
+    setTimesheet((l) => [local, ...l]);
+    if (!demoMode && isConfigured() && orgId && operatorId) {
+      try {
+        const id = await insertTimer(orgId, operatorId, {
+          propLabel: local.propLabel, unit: local.unit || null, date: local.date,
+          category: local.category, issue: local.note || null, durationHrs: local.durationHrs,
+          note: local.note || null, workOrderId: local.workOrderId,
+        });
+        setTimesheet((l) => l.map((x) => (x.id === local.id ? { ...x, dbId: id } : x)));
+        audit('add_timesheet', `${local.propLabel} · ${local.durationHrs}h`);
+      } catch { /* keep local */ }
+    }
+    return local;
+  }, [demoMode, orgId, operatorId]); // audit resolved via closure (defined below)
+
+  const updateTimesheet = useCallback(async (id, patch) => {
+    setTimesheet((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+    const row = timesheetRef.current.find((x) => x.id === id);
+    if (!demoMode && isConfigured() && row?.dbId) {
+      try {
+        await updateTimer(row.dbId, {
+          propLabel: patch.propLabel, unit: patch.unit === '' ? null : patch.unit,
+          category: patch.category, durationHrs: patch.durationHrs, note: patch.note, date: patch.date,
+        });
+        audit('edit_timesheet', `${patch.propLabel ?? row.propLabel} · ${patch.durationHrs ?? row.durationHrs}h`);
+      } catch { /* keep local */ }
+    }
+  }, [demoMode]); // audit resolved via closure (defined below)
+
+  const deleteTimesheet = useCallback(async (id) => {
+    const row = timesheetRef.current.find((x) => x.id === id);
+    setTimesheet((l) => l.filter((x) => x.id !== id));
+    if (!demoMode && isConfigured() && row?.dbId) {
+      try { await deleteTimer(row.dbId); audit('delete_timesheet', row.propLabel || id); } catch { /* gone locally */ }
+    }
+  }, [demoMode]); // audit resolved via closure (defined below)
+
   // ---- documents: DB+storage only (no meaningful local fallback for files) ----
   const [documents, setDocuments] = useState([]);
   const [docBackend, setDocBackend] = useState('none'); // 'db' | 'none'
@@ -883,6 +958,8 @@ export function useStore() {
     woNotice, clearWoNotice: () => setWoNotice(null),
     // cloud timers
     addTimerEntry, updateTimerEntry, operatorId,
+    // timesheet (editable log history)
+    timesheet, addTimesheet, updateTimesheet, deleteTimesheet, refreshTimesheet,
     leasing, setLeaseField, importLeases, loadLeasing, canSeeLeasing, addUnit, removeUnit,
     setBuildingLocation,
     vendors, vendorProducts, canEditVendors, saveVendor, removeVendor, setVendorField,

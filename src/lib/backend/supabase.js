@@ -590,6 +590,34 @@ export async function insertTimer(orgId, operatorId, t) {
   return data.id;
 }
 
+// map a timers-table row to the editable timesheet shape the crew/office see
+const tsFromDb = (r) => ({
+  id: r.id, dbId: r.id, operatorId: r.operator_id, techId: r.operator_id,
+  date: r.work_date, createdAt: r.created_at,
+  propLabel: r.property_label || '', unit: r.unit || '',
+  category: r.category || 'general', note: r.note || r.issue || '',
+  durationHrs: Number(r.duration_hrs) || 0, workOrderId: r.work_order_id || null,
+  verified: r.verified ?? null, distanceM: r.distance_m ?? null, rate: 0, source: r.source || 'timer',
+});
+
+// the timesheet history. RLS scopes it for free: office sees every org row,
+// a tech sees only their own — one query, correct for both.
+export async function listTimers(orgId, { limit = 1000 } = {}) {
+  const { data, error } = await supabase.from('timers').select('*')
+    .eq('org_id', orgId)
+    .order('work_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data.map(tsFromDb);
+}
+
+// remove a logged entry (RLS: office any row, tech their own)
+export async function deleteTimer(id) {
+  const { error } = await supabase.from('timers').delete().eq('id', id);
+  if (error) throw error;
+}
+
 // edit a previously-logged timer (RLS: a tech may update only their own rows)
 export async function updateTimer(id, patch) {
   const upd = {};

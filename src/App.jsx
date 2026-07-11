@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { AuthGate, SignOutButton, AccountButton, useAuth } from './components/AuthGate.jsx';
 import TopStrip from './components/TopStrip.jsx';
 import { useStore } from './lib/store.js';
-import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip, IcShield, IcTag, IcChart } from './components/ui.jsx';
+import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip, IcShield, IcTag, IcChart, IcTable } from './components/ui.jsx';
 import { isPlatformAdmin } from './lib/backend/supabase.js';
 import Dashboard from './views/Dashboard.jsx';
 import DayOverview from './views/DayOverview.jsx';
@@ -20,6 +20,7 @@ import Integrations from './views/Integrations.jsx';
 import Access from './views/Access.jsx';
 import Compliance from './views/Compliance.jsx';
 import Economics from './views/Economics.jsx';
+import Timesheet from './views/Timesheet.jsx';
 import Vendors from './views/Vendors.jsx';
 import Settings from './views/Settings.jsx';
 import Platform from './views/Platform.jsx';
@@ -34,6 +35,7 @@ const TABS = [
   { id: 'today', label: 'Today', Icon: IcCal, View: DayOverview, roles: ['admin', 'manager'], primary: true },
   // Field timer is a CREW tool only — office dispatches, it doesn't run timers.
   { id: 'field', label: 'Field', Icon: IcClock, View: Field, roles: ['tech'], primary: true },
+  { id: 'timesheet', label: 'Timesheet', Icon: IcTable, View: Timesheet, roles: ['admin', 'manager', 'tech'], primary: true },
   { id: 'wo', label: 'Orders', Icon: IcWrench, View: WorkOrders, roles: ['admin', 'manager', 'tech', 'viewer'], primary: true },
   { id: 'chat', label: 'Chat', Icon: IcChat, View: Chat, roles: ['admin', 'manager', 'tech', 'viewer'], primary: true },
   { id: 'pur', label: 'Purchases', Icon: IcReceipt, View: Purchases, roles: ['admin', 'manager', 'tech'], primary: true },
