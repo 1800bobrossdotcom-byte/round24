@@ -4,7 +4,8 @@ import {
   isConfigured, updatePassword, getUserSettings, saveUserSettings, signOutEverywhere,
   mfaFactors, mfaEnroll, mfaVerify, mfaUnenroll, exportMyData, requestAccountDeletion,
 } from '../lib/backend/supabase.js';
-import { IcGear, IcCheck, IcX, IcLogout, IcDoc, IcClip } from '../components/ui.jsx';
+import { IcGear, IcCheck, IcX, IcLogout, IcDoc, IcClip, IcMic } from '../components/ui.jsx';
+import VoiceCommandGuide from '../components/VoiceCommandGuide.jsx';
 
 const inputStyle = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
@@ -60,7 +61,11 @@ export default function Settings({ store }) {
     return (
       <div>
         <div className="view-head"><h1>Settings</h1><p>Your profile, security, and preferences</p></div>
-        <div className="card"><p className="note">Connect to the cloud to manage your account.</p></div>
+        <div className="card" style={{ marginBottom: 'var(--gap)' }}><p className="note">Connect to the cloud to manage your account.</p></div>
+        <div className="card">
+          <span className="field-label"><IcMic width={12} height={12} /> Voice commands · hands-free</span>
+          <VoiceCommandGuide />
+        </div>
       </div>
     );
   }
@@ -161,6 +166,12 @@ export default function Settings({ store }) {
 
       {/* certifications — contractors */}
       {isCrew && <Certifications certs={s.certs || []} onChange={(certs) => patch({ certs })} />}
+
+      {/* voice commands — hands-free help */}
+      <div className="card" style={{ marginBottom: 'var(--gap)' }}>
+        <span className="field-label"><IcMic width={12} height={12} /> Voice commands · hands-free</span>
+        <VoiceCommandGuide />
+      </div>
 
       {/* privacy & data */}
       <div className="card" style={{ marginBottom: 'var(--gap)' }}>

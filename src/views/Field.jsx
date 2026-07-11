@@ -3,7 +3,9 @@ import { fmtHrs } from '../lib/rollups.js';
 import { categoryMedian } from '../lib/rollups.js';
 import { WO_PRIORITIES, byPriority } from './WorkOrders.jsx';
 import { getPosition, geofenceCheck, fmtDistance } from '../lib/geo.js';
-import { IcCoffee, IcUtensils, IcActivity, IcCheck, IcPlay, IcMapPin } from '../components/ui.jsx';
+import { useVoiceCommands, speak } from '../lib/voice.js';
+import VoiceCommandGuide from '../components/VoiceCommandGuide.jsx';
+import { IcCoffee, IcUtensils, IcActivity, IcCheck, IcPlay, IcMapPin, IcMic } from '../components/ui.jsx';
 
 const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'painting', 'turn', 'general', 'inspection'];
 
@@ -58,6 +60,11 @@ export default function Field({ store }) {
       : { verified: null, distance: null };
     setPunch({ lat: pos.lat, lng: pos.lng, verified: fence.verified, distance: fence.distance });
   };
+
+  // hands-free voice — gloves on, up a ladder: say "Caliper, start job".
+  const [handsFree, setHandsFree] = useState(() => localStorage.getItem('caliper_handsfree') === '1');
+  const [showCmds, setShowCmds] = useState(false);
+  useEffect(() => { localStorage.setItem('caliper_handsfree', handsFree ? '1' : '0'); }, [handsFree]);
 
   // break machinery: while on break the work clock freezes
   const [onBreak, setOnBreak] = useState(() => loadTimer().onBreak ?? null); // { start }
@@ -149,6 +156,38 @@ export default function Field({ store }) {
     setLog((l) => l.map((e) => (e.id === entryId ? { ...e, sync: res.status, dbId: res.id, note: running.woTask || null } : e)));
   };
 
+  // route a recognized voice intent to the timer, with an audible confirmation.
+  // Recreated every render so it always reads current running/break/elapsed.
+  const handleVoice = (intent) => {
+    const propName = () => properties.find((p) => p.id === (running ? running.propId : prop))?.name || 'the job';
+    if (intent === 'start') {
+      if (running) { speak('Already on the clock.'); return; }
+      start(); speak(`Started ${propName()}.`);
+    } else if (intent === 'stop') {
+      if (!running) { speak('No timer running.'); return; }
+      speak('Stopped and logged.'); stop();
+    } else if (intent === 'done') {
+      if (!running) { speak('No timer running.'); return; }
+      if (running.woId) setWoStatus(running.woId, 'done');
+      speak('Marked done and logged.'); stop();
+    } else if (intent === 'break') {
+      if (!running) { speak('Start a job first.'); return; }
+      if (onBreak) { speak('Already on break.'); return; }
+      startBreak(); speak('On break. The clock is paused.');
+    } else if (intent === 'resume') {
+      if (!onBreak) { speak('You are not on break.'); return; }
+      endBreak(); speak('Back to work.');
+    } else if (intent === 'status') {
+      if (!running) { speak('No timer running.'); return; }
+      const h = Math.floor(elapsed / 3600), m = Math.floor((elapsed % 3600) / 60);
+      const parts = [];
+      if (h) parts.push(`${h} hour${h > 1 ? 's' : ''}`);
+      parts.push(`${m} minute${m === 1 ? '' : 's'}`);
+      speak(`${parts.join(' and ')} on ${propName()}${onBreak ? ', on break' : ''}.`);
+    }
+  };
+  const voice = useVoiceCommands({ enabled: handsFree, onCommand: handleVoice });
+
   // ---- edit a logged entry: fix property / unit / category / hours ----
   const [editing, setEditing] = useState(null); // { id, prop, unit, category, hrs, note }
   const [editBusy, setEditBusy] = useState(false);
@@ -219,6 +258,38 @@ export default function Field({ store }) {
       </div>
 
       <div className="offline">◐ Offline-safe — timers and photos queue on-device, sync when signal returns.</div>
+
+      {/* hands-free voice — say "Caliper, start job" without touching the phone */}
+      <div className="card voice-card" style={{ marginBottom: 'var(--gap)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            className={'btn voice-toggle' + (handsFree ? ' on' : ' ghost')}
+            onClick={() => { const n = !handsFree; setHandsFree(n); if (n) speak('Hands-free on.'); }}
+            disabled={!voice.supported}
+            aria-pressed={handsFree}
+            style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, width: 'auto', padding: '10px 14px' }}
+          >
+            <span className={'voice-mic' + (handsFree && voice.listening ? ' pulse' : '')} style={{ display: 'inline-flex' }}><IcMic width={17} height={17} /></span>
+            {handsFree ? 'Hands-free on' : 'Hands-free'}
+          </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {!voice.supported ? (
+              <div className="s" style={{ color: 'var(--text-dim)' }}>Voice needs Chrome, Edge, or Android. Tap-free once supported.</div>
+            ) : voice.error ? (
+              <div className="s" style={{ color: 'var(--danger)' }}>{voice.error}</div>
+            ) : handsFree ? (
+              <div className="s" style={{ color: voice.listening ? 'var(--money)' : 'var(--text-dim)' }}>
+                {voice.listening ? 'Listening — ' : 'Starting… '}say “<b>Caliper, start job</b>”
+                {voice.lastHeard && <div style={{ color: 'var(--text-faint)', fontFamily: 'var(--mono)', fontSize: 11, marginTop: 2 }}>heard: “{voice.lastHeard}”</div>}
+              </div>
+            ) : (
+              <div className="s" style={{ color: 'var(--text-dim)' }}>Turn on to run the timer by voice — start, stop, break, all hands-free.</div>
+            )}
+          </div>
+          <button className="btn ghost sm" style={{ flex: 'none' }} onClick={() => setShowCmds((v) => !v)}>{showCmds ? 'Hide' : 'Commands'}</button>
+        </div>
+        {showCmds && <div style={{ marginTop: 12 }}><VoiceCommandGuide compact /></div>}
+      </div>
 
       {!running && myWos.length > 0 && (
         <div className="card" style={{ marginBottom: 'var(--gap)' }}>

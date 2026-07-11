@@ -97,6 +97,15 @@
   50%      { box-shadow: 0 0 6px 1px var(--warn); opacity: .65; }
 }
 
+/* ---- hands-free voice ---- */
+.voice-toggle.on { background: var(--money); color: #062; border-color: transparent; }
+.voice-mic { border-radius: 50%; }
+.voice-mic.pulse { animation: voicepulse 1.4s ease-in-out infinite; color: #fff; }
+@keyframes voicepulse {
+  0%, 100% { filter: drop-shadow(0 0 0 #fff0); transform: scale(1); }
+  50%      { filter: drop-shadow(0 0 5px #fff); transform: scale(1.12); }
+}
+
 /* ---- persisted purchase line items ---- */
 .pur-item { border-bottom: 1px solid var(--line-soft); }
 .pur-item:last-child { border-bottom: 0; }
