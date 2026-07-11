@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
-import { parseWorkbook, toTimers } from '../lib/importParser.js';
+import { toTimers } from '../lib/importParser.js';
+import { interpretWorkbook } from '../lib/excelInterpret.js';
 import { fmtMoney, fmtHrs } from '../lib/rollups.js';
 import { IcCheck, IcImport } from '../components/ui.jsx';
 
@@ -52,7 +53,7 @@ export default function Import({ store }) {
     if (!file) return;
     try {
       const buf = await file.arrayBuffer();
-      const parsed = parseWorkbook(buf);
+      const parsed = interpretWorkbook(buf);
       const withData = parsed.filter((s) => s.entryCount > 0);
       setSheets(parsed);
       setSelected(withData.filter((s) => s.looksPayLog).map((s) => s.name));
@@ -140,7 +141,7 @@ export default function Import({ store }) {
     <div>
       <div className="view-head">
         <h1>Import from Excel</h1>
-        <p>Bring your existing pay logs in — nothing leaves your browser</p>
+        <p>Bring your existing pay logs in, any layout — nothing leaves your browser</p>
       </div>
 
       <div className="stepper">
@@ -193,7 +194,7 @@ export default function Import({ store }) {
             <div className="sm">or tap to browse · .xlsx files</div>
           </div>
           <input ref={fileRef} type="file" accept=".xlsx,.xls" hidden onChange={(e) => handleFile(e.target.files[0])} />
-          <p className="note">Works with your real Evolution24 workbook — every pay-log tab, both formats. It reads hours, dates, pay periods, and rates, then shows you everything before saving a thing.</p>
+          <p className="note">Reads most timesheet shapes — a plain Date/Hours/Property table, a column-per-property grid, or a recurring allocation matrix like Evolution24's. It auto-detects the layout, pulls hours, dates, pay periods, rates, and per-property allocation, then shows you everything before saving a thing.</p>
         </>
       )}
 
@@ -207,7 +208,7 @@ export default function Import({ store }) {
             <div key={s.name} className={`sheet-card${selected.includes(s.name) ? ' sel' : ''}${!s.looksPayLog ? ' skip' : ''}`} onClick={() => toggle(s.name)}>
               <div className="cb">{selected.includes(s.name) ? <IcCheck width={14} height={14} /> : ''}</div>
               <div className="info">
-                <div className="n">{s.techName}</div>
+                <div className="n">{s.techName}{s.layout && s.layout !== 'none' && <span className="layout-tag">{s.layout}</span>}</div>
                 <div className="m">{s.name}{!s.looksPayLog ? ' · not a pay log?' : ''}</div>
               </div>
               <div className="stat-mini">

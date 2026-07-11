@@ -22,7 +22,7 @@ export const DEMO_PROPERTIES = [
 ];
 
 export const DEMO_OPERATORS = [
-  { name: 'Gianni Alvarez', rate: 27, role: 'tech' },
+  { name: 'Gianni Arone', rate: 27, role: 'tech' },
   { name: 'Brent Kowalski', rate: 25, role: 'tech' },
   { name: 'Marco Rossi', rate: 24, role: 'tech' },
   { name: 'Luis Fernandez', rate: 23, role: 'tech' },
@@ -86,7 +86,7 @@ export function buildDemoTimers({ from = '2026-05-11', to = '2026-07-04' } = {})
 
 // work orders in the addWorkOrder() shape (propLabel strings, not ids)
 export const DEMO_WORK_ORDERS = [
-  { task: 'Kitchen faucet leaking under sink', propLabel: '179-189 St Paul', unit: '3C', category: 'plumbing', assigneeLabel: 'Gianni Alvarez', priority: 1, status: 'in_progress', source: 'voice', transcript: 'unit 3C leaking faucet for Gianni at 179 St Paul' },
+  { task: 'Kitchen faucet leaking under sink', propLabel: '179-189 St Paul', unit: '3C', category: 'plumbing', assigneeLabel: 'Gianni Arone', priority: 1, status: 'in_progress', source: 'voice', transcript: 'unit 3C leaking faucet for Gianni at 179 St Paul' },
   { task: 'Replace hallway smoke detectors (2)', propLabel: '301 Central Ave', unit: '—', category: 'electrical', assigneeLabel: 'Dawn Whitfield', priority: 2, status: 'open', source: 'manual' },
   { task: 'Furnace not igniting — no heat', propLabel: '440 Armstrong', unit: '2B', category: 'hvac', assigneeLabel: 'Brent Kowalski', priority: 1, status: 'open', source: 'manual' },
   { task: 'Turnover paint + patch, unit vacant', propLabel: '121 Park', unit: '5A', category: 'painting', assigneeLabel: 'Marco Rossi', priority: 3, status: 'open', source: 'manual' },
@@ -97,7 +97,7 @@ export const DEMO_WORK_ORDERS = [
 // purchases in the addPurchase() shape (status is set to pending by the store;
 // we tag a couple as pre-decided by inserting them then flipping status)
 export const DEMO_PURCHASES = [
-  { vendor: 'Home Depot', amount: 77.88, propLabel: '179-189 St Paul', note: 'faucet cartridge + supply lines', submittedBy: 'Gianni Alvarez', receiptPath: '/mock/receipt-homedepot.png',
+  { vendor: 'Home Depot', amount: 77.88, propLabel: '179-189 St Paul', note: 'faucet cartridge + supply lines', submittedBy: 'Gianni Arone', receiptPath: '/mock/receipt-homedepot.png',
     lineItems: [
       { description: 'SharkBite 1/2" coupling', qty: 1, unitPrice: 8.47, amount: 8.47 },
       { description: 'Fluidmaster supply line 20"', qty: 1, unitPrice: 9.98, amount: 9.98 },
