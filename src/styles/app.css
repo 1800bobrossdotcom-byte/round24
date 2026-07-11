@@ -115,6 +115,15 @@
 .ts-alloc-bar { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
 .ts-alloc-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
 
+/* ---- P&L statement ---- */
+.pl-tbl { width: 100%; border-collapse: collapse; }
+.pl-tbl td { padding: 7px 16px; border-bottom: 1px solid var(--line-soft); font-size: 13.5px; }
+.pl-tbl td.num { text-align: right; white-space: nowrap; }
+.pl-tbl tr.pl-head td { background: var(--surface-2); font-family: var(--mono); font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--text-faint); font-weight: 700; padding-left: 16px; }
+.pl-tbl tr.pl-total td { font-weight: 700; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.pl-tbl tr.pl-noi td { font-size: 15px; background: var(--surface-2); }
+.pl-auto { margin-left: 7px; font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--accent); background: var(--surface-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 4px; vertical-align: 1px; }
+
 /* ---- hands-free voice ---- */
 .voice-toggle.on { background: var(--money); color: #062; border-color: transparent; }
 .voice-mic { border-radius: 50%; }

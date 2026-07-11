@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import seed from '../data/seed.json';
 import { useAuth } from '../components/AuthGate.jsx';
 import { DEMO_PROPERTIES, buildDemoTimers, DEMO_WORK_ORDERS, DEMO_PURCHASES } from './demoData.js';
-import { DEMO_LEASING, DEMO_PORTFOLIO, BUILDING_GEO, DEMO_PORTFOLIO_LABOR } from '../data/leaseDemo.js';
+import { DEMO_LEASING, DEMO_PORTFOLIO, BUILDING_GEO, DEMO_PORTFOLIO_LABOR, DEMO_PL_CONFIG } from '../data/leaseDemo.js';
 import { DEMO_VENDORS, DEMO_VENDOR_PRODUCTS } from '../data/vendorDemo.js';
 import {
   isConfigured, listWorkOrders, insertWorkOrder, updateWorkOrderStatus,
@@ -124,6 +124,13 @@ export function useStore() {
       else next[techId] = { amount: Number(val.amount), period: val.period || 'year' };
       return next;
     });
+  }, []);
+
+  // ---- P&L statement config: fixed per-building inputs (debt, utilities, tax) ----
+  const [plConfig, setPlConfig] = useState(() => (demoMode ? DEMO_PL_CONFIG : loadLS('caliper_plconfig_v1', {})));
+  useEffect(() => { if (!demoMode) localStorage.setItem('caliper_plconfig_v1', JSON.stringify(plConfig)); }, [plConfig, demoMode]);
+  const setPlLine = useCallback((building, patch) => {
+    setPlConfig((c) => ({ ...c, [building]: { ...(c[building] || {}), ...patch } }));
   }, []);
 
   // ---- cloud labor persistence: the spine follows the account (staff only) ----
@@ -1002,6 +1009,8 @@ export function useStore() {
     timesheet, addTimesheet, updateTimesheet, deleteTimesheet, refreshTimesheet,
     // salaried operators
     salaries, setSalary,
+    // P&L statement config
+    plConfig, setPlLine,
     // go-live reset
     resetWorkspace,
     leasing, setLeaseField, importLeases, loadLeasing, canSeeLeasing, addUnit, removeUnit,

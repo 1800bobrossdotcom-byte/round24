@@ -142,6 +142,15 @@ const L = (propLabel, unit, category, hrs, rate, verified, day) => ({
   date: `2026-07-${String(day).padStart(2, '0')}`, category, issue: `${category} work`,
   durationHrs: hrs, rate, verified,
 });
+// per-building fixed P&L inputs (debt service, utilities, insurance, taxes) so
+// the statement generator produces a complete NOI/DSCR out of the box. Rent,
+// labor, and repairs fill in automatically from the connected data.
+export const DEMO_PL_CONFIG = {
+  'Parkview Lofts': { debtService: 2450, insurance: 305, taxes: 760, internet: 60, trash: 95, electricGas: 640, waterSewer: 180, legal: 40, mgmtPct: 9 },
+  'Elm Street Apartments': { debtService: 1680, insurance: 210, taxes: 520, internet: 57, trash: 70, electricGas: 380, waterSewer: 120, mgmtPct: 9 },
+  'Highland Court': { debtService: 1720, insurance: 240, taxes: 560, trash: 80, electricGas: 410, waterSewer: 130, mgmtPct: 9 },
+};
+
 export const DEMO_PORTFOLIO_LABOR = [
   L('Parkview Lofts', '2A', 'painting', 6.5, 32, true, 2),
   L('Parkview Lofts', '2A', 'general', 3.0, 32, true, 3),
