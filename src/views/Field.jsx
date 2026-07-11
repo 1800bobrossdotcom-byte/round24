@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { fmtHrs } from '../lib/rollups.js';
 import { categoryMedian } from '../lib/rollups.js';
 import { WO_PRIORITIES, byPriority } from './WorkOrders.jsx';
-import { IcCoffee, IcUtensils, IcActivity, IcCheck, IcPlay } from '../components/ui.jsx';
+import { getPosition, geofenceCheck, fmtDistance } from '../lib/geo.js';
+import { IcCoffee, IcUtensils, IcActivity, IcCheck, IcPlay, IcMapPin } from '../components/ui.jsx';
 
 const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'painting', 'turn', 'general', 'inspection'];
 
@@ -42,6 +43,22 @@ export default function Field({ store }) {
   const [log, setLog] = useState(() => loadTimer().log ?? []);
   const tick = useRef();
 
+  // verified clock-in: where the punch happened + whether it landed inside the
+  // building's fence. Captured once at clock-in (that's when you're on site),
+  // held on the running session, and stamped onto the logged entry on stop.
+  const [punch, setPunch] = useState(() => loadTimer().punch ?? null); // { lat, lng, verified, distance }
+  const [locating, setLocating] = useState(false);
+  const capturePunch = async (selected) => {
+    setPunch(null); setLocating(true);
+    const pos = await getPosition();
+    setLocating(false);
+    if (!pos) { setPunch({ verified: null, distance: null, denied: true }); return; }
+    const fence = selected && selected.lat != null
+      ? geofenceCheck({ lat: selected.lat, lng: selected.lng }, pos, selected.geofence)
+      : { verified: null, distance: null };
+    setPunch({ lat: pos.lat, lng: pos.lng, verified: fence.verified, distance: fence.distance });
+  };
+
   // break machinery: while on break the work clock freezes
   const [onBreak, setOnBreak] = useState(() => loadTimer().onBreak ?? null); // { start }
   const [breakMs, setBreakMs] = useState(() => loadTimer().breakMs ?? 0);
@@ -51,8 +68,8 @@ export default function Field({ store }) {
 
   // persist everything the clock needs to reconstruct itself
   useEffect(() => {
-    localStorage.setItem(TIMER_KEY, JSON.stringify({ running, log, onBreak, breakMs, lastNudge, lunchNudged }));
-  }, [running, log, onBreak, breakMs, lastNudge, lunchNudged]);
+    localStorage.setItem(TIMER_KEY, JSON.stringify({ running, log, onBreak, breakMs, lastNudge, lunchNudged, punch }));
+  }, [running, log, onBreak, breakMs, lastNudge, lunchNudged, punch]);
 
   // broadcast live presence so the office board sees this timer tick in real time
   useEffect(() => {
@@ -75,7 +92,8 @@ export default function Field({ store }) {
       propId: p?.id || properties[0].id, unit: w.unit || '—',
       category: w.category || 'general', start: Date.now(), woId: w.id, woTask: w.task,
     });
-    setElapsed(0);
+    setElapsed(0); resetBreaks();
+    capturePunch(p || properties[0]);
   };
 
   useEffect(() => {
@@ -104,20 +122,29 @@ export default function Field({ store }) {
   const ss = String(Math.floor(elapsed % 60)).padStart(2, '0');
 
   const resetBreaks = () => { setOnBreak(null); setBreakMs(0); setBreakNow(0); setLastNudge(0); setLunchNudged(false); };
-  const start = () => { setRunning({ propId: prop, unit: unit || '—', category: cat, start: Date.now() }); setElapsed(0); resetBreaks(); };
+  const start = () => {
+    const selected = properties.find((x) => x.id === prop);
+    setRunning({ propId: prop, unit: unit || '—', category: cat, start: Date.now() });
+    setElapsed(0); resetBreaks();
+    capturePunch(selected);
+  };
   const stop = async () => {
     const hrs = Math.round(Math.max(0.05, elapsed / 3600) * 100) / 100;
     const p = properties.find((x) => x.id === running.propId);
     const pName = p?.name || 'Unassigned';
+    const punchAtStop = punch;
     const entryId = Date.now();
-    setLog([{ id: entryId, at: entryId, prop: pName, unit: running.unit, category: running.category, hrs, cost: hrs * me.rate, sync: 'saving' }, ...log]);
-    setRunning(null); setElapsed(0); resetBreaks();
-    // land the hours in the cloud so management sees them — queued if offline
+    setLog([{ id: entryId, at: entryId, prop: pName, unit: running.unit, category: running.category, hrs, cost: hrs * me.rate, verified: punchAtStop?.verified ?? null, distance: punchAtStop?.distance ?? null, sync: 'saving' }, ...log]);
+    setRunning(null); setElapsed(0); resetBreaks(); setPunch(null);
+    // land the hours in the cloud so management sees them — queued if offline.
+    // The verified punch rides along so the office/owner P&L sees on-site labor.
     const res = await store.addTimerEntry({
       propLabel: pName, unit: running.unit === '—' ? null : running.unit,
       date: new Date().toISOString().slice(0, 10), category: running.category,
       durationHrs: hrs, note: running.woTask || null, workOrderId: running.woId || null,
       issue: running.woTask || null,
+      gpsLat: punchAtStop?.lat ?? null, gpsLng: punchAtStop?.lng ?? null,
+      verified: punchAtStop?.verified ?? null, distanceM: punchAtStop?.distance ?? null,
     });
     setLog((l) => l.map((e) => (e.id === entryId ? { ...e, sync: res.status, dbId: res.id, note: running.woTask || null } : e)));
   };
@@ -146,6 +173,24 @@ export default function Field({ store }) {
     store.audit && store.audit('edit_timer', `${pName} ${unit} · ${hrs}h`);
     setEditBusy(false); setEditing(null);
   };
+
+  // live "on-site / off-site" chip from the clock-in punch
+  const selectedProp = properties.find((p) => p.id === (running ? running.propId : prop));
+  const hasFence = selectedProp && selectedProp.lat != null;
+  const punchChip = (() => {
+    if (locating) return { txt: 'Locating…', color: 'var(--text-dim)', bg: 'var(--surface-2)', bd: 'var(--line)' };
+    if (!punch) return null;
+    if (punch.verified === true) return { txt: `On-site · ${fmtDistance(punch.distance)}`, color: 'var(--money)', bg: '#4ade8012', bd: '#4ade8033', on: true };
+    if (punch.verified === false) return { txt: `Off-site · ${fmtDistance(punch.distance)} from ${selectedProp?.name || 'site'}`, color: 'var(--warn)', bg: '#f59e0b12', bd: '#f59e0b33' };
+    if (punch.denied) return { txt: 'Location off — punch not verified', color: 'var(--text-faint)', bg: 'var(--surface-2)', bd: 'var(--line)' };
+    return { txt: 'Logged — no fence set for this building', color: 'var(--text-faint)', bg: 'var(--surface-2)', bd: 'var(--line)' };
+  })();
+  const PunchChip = () => punchChip && (
+    <div className="offline" style={{ textAlign: 'left', color: punchChip.color, borderColor: punchChip.bd, background: punchChip.bg, marginBottom: 12 }}>
+      {punchChip.on ? <IcCheck width={15} height={15} /> : <IcMapPin width={15} height={15} />}
+      <span style={{ marginLeft: 2, fontWeight: 700 }}>{punchChip.txt}</span>
+    </div>
+  );
 
   const median = categoryMedian(allTimers, cat);
 
@@ -216,6 +261,7 @@ export default function Field({ store }) {
                 onClick={() => { setLastNudge(elapsed); if (nudge === 'lunch') setLunchNudged(true); }}>Later</button>
             </div>
           )}
+          <PunchChip />
           <div className="clock grad-text settle">{hh}:{mm}:{ss}</div>
           <div className="meta">
             {running.woTask ? `${running.woTask} · ` : ''}{properties.find((p) => p.id === running.propId)?.name} · Unit {running.unit} · {running.category}
@@ -237,6 +283,10 @@ export default function Field({ store }) {
             style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontWeight: 700, fontSize: 14, padding: 12, borderRadius: 10, marginBottom: 16 }}>
             {properties.map((p) => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
           </select>
+          <p className="note" style={{ margin: '-8px 2px 16px', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <IcMapPin width={12} height={12} style={{ color: hasFence ? 'var(--money)' : 'var(--text-faint)' }} />
+            {hasFence ? 'Verified clock-in on — your punch is checked against this building.' : 'No location set for this building — punch logs without verification.'}
+          </p>
 
           <div className="field-label">Unit</div>
           <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="e.g. 4B"
@@ -292,7 +342,10 @@ export default function Field({ store }) {
             return (
               <div className="row" key={l.id}>
                 <div className="lead">
-                  <div className="t">{l.prop} · {l.unit}</div>
+                  <div className="t">{l.prop} · {l.unit}
+                    {l.verified === true && <span title={`On-site · ${fmtDistance(l.distance)}`} style={{ marginLeft: 6, color: 'var(--money)', fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 2 }}><IcCheck width={11} height={11} /> on-site</span>}
+                    {l.verified === false && <span title={`Off-site · ${fmtDistance(l.distance)}`} style={{ marginLeft: 6, color: 'var(--warn)', fontSize: 11, fontWeight: 700 }}>off-site</span>}
+                  </div>
                   <div className="s">{l.category}
                     {med > 0 && <> · {delta > 0.15 ? <span style={{ color: 'var(--warn)' }}>{fmtHrs(delta)}h over normal</span> : delta < -0.15 ? <span className="money">{fmtHrs(-delta)}h under</span> : 'on pace'}</>}
                   </div>

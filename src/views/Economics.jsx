@@ -50,6 +50,9 @@ export default function Economics({ store, navigate }) {
         <div className="kpi-c"><span className="v mono" style={{ color: 'var(--danger)' }}>{money0(tot.opex)}</span><span className="k">labor + materials</span></div>
         <div className="kpi-c"><span className="v mono" style={{ color: 'var(--money)' }}>{money0(tot.noi)}</span><span className="k">net / mo (est.)</span></div>
         <div className="kpi-c"><span className="v mono">{money0(tot.costPerDoor)}</span><span className="k">avg cost / door</span></div>
+        {tot.verifiedPct != null && (
+          <div className="kpi-c"><span className="v mono" style={{ color: tot.verifiedPct >= 80 ? 'var(--money)' : 'var(--warn)' }}>{tot.verifiedPct}%</span><span className="k">labor verified on-site</span></div>
+        )}
       </div>
 
       <p className="note" style={{ margin: '2px 2px 14px' }}>Rent is monthly; labor + materials are the maintenance spend captured to date. Net is illustrative — it shows how measured labor flows to per-door economics.</p>

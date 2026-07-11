@@ -121,3 +121,32 @@ export const DEMO_PORTFOLIO = PORTFOLIO.map((b) => ({
 // building names in the sample portfolio — used to route sample maintenance /
 // expenses onto real buildings for the owner persona.
 export const DEMO_PORTFOLIO_BUILDINGS = PORTFOLIO.map((b) => ({ name: b.name, city: b.city }));
+
+// geofence pins for the sample buildings (real-ish NY coords) so verified
+// clock-in demonstrates out of the box. name → { lat, lng, geofence }
+export const BUILDING_GEO = {
+  'Parkview Lofts': { lat: 43.1570, lng: -77.6080, geofence: 150 },
+  'Elm Street Apartments': { lat: 43.1612, lng: -77.6155, geofence: 150 },
+  'Highland Court': { lat: 43.1340, lng: -77.6010, geofence: 150 },
+  '210 Water Street': { lat: 42.8690, lng: -76.9780, geofence: 150 },
+  '88 Maple Row': { lat: 42.8872, lng: -77.2820, geofence: 150 },
+  '12 Lakeview Drive': { lat: 42.8820, lng: -77.2900, geofence: 150 },
+};
+
+// a little verified crew labor logged against the portfolio, so the per-door
+// P&L and the "% verified on-site" stat populate in demo. Same shape as the
+// labor spine; verified=true means the punch landed inside the building fence.
+const L = (propLabel, unit, category, hrs, rate, verified, day) => ({
+  id: `dl_${propLabel}_${unit}_${day}`.replace(/\W+/g, '_'),
+  techId: 't_demo_crew', techName: 'Marco Rossi', propId: null, propLabel, unit,
+  date: `2026-07-${String(day).padStart(2, '0')}`, category, issue: `${category} work`,
+  durationHrs: hrs, rate, verified,
+});
+export const DEMO_PORTFOLIO_LABOR = [
+  L('Parkview Lofts', '2A', 'painting', 6.5, 32, true, 2),
+  L('Parkview Lofts', '2A', 'general', 3.0, 32, true, 3),
+  L('Elm Street Apartments', '5', 'turn', 5.5, 32, true, 4),
+  L('Highland Court', 'D', 'plumbing', 2.5, 38, true, 5),
+  L('210 Water Street', '3', 'hvac', 4.0, 45, true, 6),
+  L('88 Maple Row', 'Left', 'general', 1.5, 32, false, 7), // one off-site punch
+];

@@ -75,6 +75,7 @@ export const IcMoon = P(<><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"
 export const IcShield = P(<><path d="M12 3l8 3v6c0 4.4-3 7.6-8 9-5-1.4-8-4.6-8-9V6z"/><path d="M9 12l2 2 4-4"/></>);
 export const IcCamera = P(<><path d="M3 7h3l2-2.5h8L18 7h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></>);
 export const IcCopy = P(<><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>);
+export const IcMapPin = P(<><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></>);
 
 const PALS = ['#ff7a18', '#ff3d81', '#4ade80', '#38bdf8', '#a855f7', '#ffd21a', '#ff5a5a', '#22d3ee'];
 export function Avatar({ name, i = 0 }) {

@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { byProp, byUnit, byCategory, totals, fmtMoney, fmtHrs, fmtMoneyC } from '../lib/rollups.js';
-import { IcChevron, IcReceipt, IcBuilding, IcWrench } from '../components/ui.jsx';
+import { IcChevron, IcReceipt, IcBuilding, IcWrench, IcMapPin, IcCheck } from '../components/ui.jsx';
 import { BUILDING_INFO } from '../data/leaseDemo.js';
+import { getPosition, fmtDistance } from '../lib/geo.js';
 
 const nameKey = (s) => (s || '').toLowerCase().trim();
 const money0 = (n) => (n == null ? '—' : '$' + Math.round(n).toLocaleString());
@@ -108,6 +109,11 @@ export default function Properties({ store, focus, navigate }) {
           );
         })()}
 
+        {/* geofence pin — powers the crew's verified clock-in */}
+        {prop && (store.role === 'admin' || store.role === 'manager') && (
+          <LocationCard prop={prop} setBuildingLocation={store.setBuildingLocation} />
+        )}
+
         {/* rent roll summary → drill to the live rent roll */}
         {rentable.length > 0 && (
           <div className="card clk-card" style={{ marginBottom: 'var(--gap)' }} onClick={() => go('leasing', { building: b.name })}>
@@ -206,6 +212,42 @@ export default function Properties({ store, focus, navigate }) {
         </div>
       </div>
       <p className="note">One row per building, pulling from the rent roll, the labor spine, and the work-order board — reconciled automatically instead of living in separate pay-log tabs.</p>
+    </div>
+  );
+}
+
+// building geofence pin — set once from the office (or on-site), then every
+// crew punch here is judged against it. This is what makes the labor "verified"
+// that flows to the owner's per-door P&L.
+function LocationCard({ prop, setBuildingLocation }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const hasPin = prop.lat != null;
+  const setHere = async () => {
+    setBusy(true); setErr('');
+    const pos = await getPosition();
+    setBusy(false);
+    if (!pos) { setErr('Couldn’t read your location. Allow location access, then try again.'); return; }
+    await setBuildingLocation(prop.id, { lat: pos.lat, lng: pos.lng, geofence: prop.geofence || 150 });
+  };
+  return (
+    <div className="card" style={{ marginBottom: 'var(--gap)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <span className="field-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <IcMapPin width={13} height={13} /> Verified clock-in
+        </span>
+        <button className="btn ghost sm" onClick={setHere} disabled={busy}>
+          {busy ? 'Reading GPS…' : hasPin ? 'Update pin to here' : 'Set location — use my GPS'}
+        </button>
+      </div>
+      {hasPin ? (
+        <p className="note" style={{ margin: '8px 0 0', color: 'var(--money)', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <IcCheck width={13} height={13} /> Pinned · crew punches within {fmtDistance(prop.geofence || 150)} count as on-site.
+        </p>
+      ) : (
+        <p className="note" style={{ margin: '8px 0 0' }}>No pin yet — crew hours here log without on-site verification. Set it from the building (or drop it later from the office).</p>
+      )}
+      {err && <p className="note" style={{ margin: '6px 0 0', color: 'var(--danger)' }}>{err}</p>}
     </div>
   );
 }

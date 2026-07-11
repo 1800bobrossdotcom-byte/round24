@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import seed from '../data/seed.json';
 import { useAuth } from '../components/AuthGate.jsx';
 import { DEMO_PROPERTIES, buildDemoTimers, DEMO_WORK_ORDERS, DEMO_PURCHASES } from './demoData.js';
-import { DEMO_LEASING, DEMO_PORTFOLIO } from '../data/leaseDemo.js';
+import { DEMO_LEASING, DEMO_PORTFOLIO, BUILDING_GEO, DEMO_PORTFOLIO_LABOR } from '../data/leaseDemo.js';
 import { DEMO_VENDORS, DEMO_VENDOR_PRODUCTS } from '../data/vendorDemo.js';
 import {
   isConfigured, listWorkOrders, insertWorkOrder, updateWorkOrderStatus,
@@ -20,6 +20,7 @@ import {
   getLaborState, saveLaborState,
   listAvailability, setAvailability, subscribeAvailability, logAudit,
   fetchMyOperatorId, insertTimer, updateTimer, insertProperties, getUserSettings,
+  setPropertyLocation,
 } from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
@@ -95,7 +96,13 @@ export function useStore() {
   // only its own imported/real data.
   const demoMode = !isConfigured();
   const techs = useMemo(() => [...(demoMode ? seed.techs : []), ...imported.techs], [imported.techs, demoMode]);
-  const allTimers = useMemo(() => [...(demoMode ? seed.timers : []), ...imported.timers], [imported.timers, demoMode]);
+  // allTimers is the labor spine the dashboards + per-door P&L read. In demo mode
+  // we also fold in a little verified portfolio labor so the owner's P&L and the
+  // "% verified on-site" stat populate out of the box.
+  const allTimers = useMemo(
+    () => [...(demoMode ? [...seed.timers, ...DEMO_PORTFOLIO_LABOR] : []), ...imported.timers],
+    [imported.timers, demoMode],
+  );
 
   const [range, setRange] = useState({ from: '2026-05-11', to: '2026-07-05' });
 
@@ -130,8 +137,30 @@ export function useStore() {
     return () => clearTimeout(t);
   }, [imported, impProps, range, laborBackend, orgId, isStaffMember]);
 
-  const properties = useMemo(() => [...(demoMode ? seed.properties : []), ...impProps], [impProps, demoMode]);
+  // per-building geofence pins for verified clock-in. A pin can come from three
+  // places, in priority order: a location the office just set (override), the
+  // property's own stored lat/lng (cloud), or the sample BUILDING_GEO (demo).
+  const [propLoc, setPropLoc] = useState({}); // id → { lat, lng, geofence }
+  const properties = useMemo(() => {
+    const base = [...(demoMode ? seed.properties : []), ...impProps];
+    return base.map((p) => {
+      const o = propLoc[p.id];
+      const geo = o || (p.lat != null ? { lat: p.lat, lng: p.lng, geofence: p.geofence_m ?? p.geofence ?? 150 } : BUILDING_GEO[p.name]);
+      return geo ? { ...p, lat: geo.lat, lng: geo.lng, geofence: geo.geofence ?? 150 } : p;
+    });
+  }, [impProps, demoMode, propLoc]);
   const propById = useMemo(() => Object.fromEntries(properties.map((p) => [p.id, p])), [properties]);
+
+  // set a building's geofence pin (office/owner action). Updates locally at once
+  // and, for a connected org, persists to the property row so the crew's next
+  // punch is judged against it.
+  const setBuildingLocation = useCallback(async (propId, loc) => {
+    setPropLoc((m) => ({ ...m, [propId]: { lat: loc.lat, lng: loc.lng, geofence: loc.geofence ?? 150 } }));
+    const p = properties.find((x) => x.id === propId);
+    if (isConfigured() && orgId && !demoMode && p?.name) {
+      try { await setPropertyLocation(orgId, p.name, loc); audit('set_location', p.name); } catch { /* keep local */ }
+    }
+  }, [properties, orgId, demoMode]);
   const techById = useMemo(() => Object.fromEntries(techs.map((t) => [t.id, t])), [techs]);
 
   // resolve building labels → ids, creating a native property for any label
@@ -855,6 +884,7 @@ export function useStore() {
     // cloud timers
     addTimerEntry, updateTimerEntry, operatorId,
     leasing, setLeaseField, importLeases, loadLeasing, canSeeLeasing, addUnit, removeUnit,
+    setBuildingLocation,
     vendors, vendorProducts, canEditVendors, saveVendor, removeVendor, setVendorField,
     saveProduct, removeProduct, setProductField,
     // live presence + availability + audit

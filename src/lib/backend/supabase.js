@@ -581,6 +581,9 @@ export async function insertTimer(orgId, operatorId, t) {
     work_date: t.date, category: t.category || 'general',
     issue: t.issue || null, duration_hrs: t.durationHrs,
     note: t.note || null, work_order_id: t.workOrderId || null,
+    // verified clock-in: the punch location + whether it landed inside the fence
+    gps_lat: t.gpsLat ?? null, gps_lng: t.gpsLng ?? null,
+    verified: t.verified ?? null, distance_m: t.distanceM ?? null,
     source: 'timer',
   }).select('id').single();
   if (error) throw error;
@@ -880,6 +883,21 @@ export async function insertProperties(orgId, props) {
   }));
   const { error } = await supabase.from('properties').insert(rows);
   if (error) throw error;
+}
+
+// set a building's geofence pin (verified clock-in). Matches by name; creates
+// the property row if the org doesn't have one yet. Staff-only via RLS.
+export async function setPropertyLocation(orgId, name, { lat, lng, geofence = 150 } = {}) {
+  const patch = { lat, lng, geofence_m: geofence };
+  const { data: found } = await supabase.from('properties')
+    .select('id').eq('org_id', orgId).ilike('name', name).limit(1).maybeSingle();
+  if (found?.id) {
+    const { error } = await supabase.from('properties').update(patch).eq('id', found.id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from('properties').insert({ org_id: orgId, name, units: 0, external_src: 'native', ...patch });
+    if (error) throw error;
+  }
 }
 
 // ---- Rent Manager sync ----

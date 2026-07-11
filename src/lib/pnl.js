@@ -26,10 +26,12 @@ export function portfolioPnl({ leasing = [], timers = [], purchases = [], propBy
     if (u.status === 'leased') { b.occ++; b.rentBilled += u.rent || 0; }
   }
   // verified labor cost — the timers the crew logged, resolved to their building
+  let verifiedHrs = 0, judgedHrs = 0; // judged = punch had a fence to check against
   for (const t of timers) {
     const p = propById[t.propId]; const name = p?.name || t.propLabel;
     const b = name ? ensure(name) : null;
     if (b) b.labor += (t.durationHrs || 0) * (t.rate || 0);
+    if (t.verified != null) { judgedHrs += t.durationHrs || 0; if (t.verified) verifiedHrs += t.durationHrs || 0; }
   }
   // materials — approved receipts filed to the building
   for (const pu of purchases) {
@@ -63,6 +65,9 @@ export function portfolioPnl({ leasing = [], timers = [], purchases = [], propBy
   tot.costPerDoor = tot.units ? tot.opex / tot.units : 0;
   tot.noiPerDoor = tot.units ? tot.noi / tot.units : 0;
   tot.rentPerDoor = tot.units ? tot.rentBilled / tot.units : 0;
+  tot.verifiedHrs = verifiedHrs;
+  tot.judgedHrs = judgedHrs;
+  tot.verifiedPct = judgedHrs ? Math.round((verifiedHrs / judgedHrs) * 100) : null;
 
   return { rows, tot };
 }
