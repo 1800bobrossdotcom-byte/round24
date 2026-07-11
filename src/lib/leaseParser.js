@@ -27,7 +27,7 @@ const isoDate = (v) => {
   m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? m[0] : null;
 };
-const noteOf = (v) => { const s = norm(v); return s && !isoDate(s) ? s : ''; };
+const noteOf = (v) => { if (v instanceof Date) return ''; const s = norm(v); return s && !isoDate(s) ? s : ''; };
 
 const SKIP = /rr\s*\d|\brr\b|rent roll|as of|notesvendors|notes|referral|leases ending|^sheet\d+|biltmore|^rge$/i;
 const DIR = new Set(['st', 'street', 'ave', 'avenue', 'rd', 'road', 'dr', 'drive', 'ln', 'lane', 'n', 's', 'e', 'w', 'north', 'south', 'east', 'west', 'the']);

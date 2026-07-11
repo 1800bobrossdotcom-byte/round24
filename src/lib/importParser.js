@@ -122,7 +122,7 @@ export function parseSheet(ws, sheetName) {
     for (let i = 1; i < row.length; i++) {
       const c = row[i];
       if (typeof c === 'string') {
-        if (/off/i.test(c)) { hours = 0; }
+        if (/\boff\b/i.test(c)) { hours = 0; }   // whole word — not "Office", "Offset", …
         else if (/\*\s*(\d+(\.\d+)?)\s*\/?hr/i.test(c)) { override = parseFloat(c.match(/(\d+(\.\d+)?)/)[1]); }
         else if (c.trim() && !/paid by/i.test(c)) { note = c.trim(); texts.push(c.trim()); }
         continue;

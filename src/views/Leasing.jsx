@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useAuth } from '../components/AuthGate.jsx';
 import { isConfigured } from '../lib/backend/supabase.js';
-import { parseLeaseWorkbook } from '../lib/leaseParser.js';
+import { interpretRentRoll } from '../lib/rentRollInterpret.js';
 import { IcBuilding, IcImport, IcChevron, IcX, IcWrench, IcReceipt, IcCal, IcCheck } from '../components/ui.jsx';
 
 const UNIT_STATUS = [['leased', 'Leased', 'var(--money)'], ['vacant', 'Vacant', 'var(--warn)'], ['turning', 'Turning', 'var(--info)']];
@@ -145,7 +145,7 @@ export default function Leasing({ store, navigate, focus }) {
     if (!file) return;
     setMsg(null); setBusy('parse');
     try {
-      const { buildings: parsed } = parseLeaseWorkbook(await file.arrayBuffer());
+      const { buildings: parsed } = interpretRentRoll(await file.arrayBuffer());
       const n = parsed.reduce((a, b) => a + b.units.length, 0);
       if (!n) { setMsg({ e: true, t: 'No lease worksheets found in that file.' }); setBusy(null); return; }
       setBusy('load');

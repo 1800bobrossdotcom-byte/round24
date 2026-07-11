@@ -3,7 +3,7 @@ import { AuthGate, SignOutButton, AccountButton, useAuth } from './components/Au
 import TopStrip from './components/TopStrip.jsx';
 import { useStore } from './lib/store.js';
 import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip, IcShield, IcTag, IcChart, IcTable, IcChevron } from './components/ui.jsx';
-import { isPlatformAdmin } from './lib/backend/supabase.js';
+import { isPlatformAdmin, isConfigured } from './lib/backend/supabase.js';
 import Dashboard from './views/Dashboard.jsx';
 import DayOverview from './views/DayOverview.jsx';
 import Chat from './views/Chat.jsx';
@@ -236,7 +236,9 @@ function Shell() {
                 </div>
               ))}
             </div>
-            {isOffice && (
+            {/* sample data is a demo-only affordance — a live org never injects
+                test data (go-live: keep the real workspace clean) */}
+            {isOffice && !isConfigured() && (
               <button className="btn grad" style={{ margin: '14px 4px 4px', width: 'auto' }} onClick={seedDemo} disabled={seeding}>
                 {seeding ? 'Filling…' : 'Load sample data'}
               </button>
