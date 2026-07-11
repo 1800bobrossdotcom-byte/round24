@@ -54,7 +54,7 @@ export function useVoiceCommands({ enabled, onCommand, onHeard }) {
     recRef.current = rec;
     setError(null);
 
-    rec.onstart = () => setListening(true);
+    rec.onstart = () => { setListening(true); setError(null); }; // a clean (re)start clears any transient "paused" state
     rec.onresult = (e) => {
       const res = e.results[e.results.length - 1];
       if (!res || !res.isFinal) return;
@@ -69,23 +69,24 @@ export function useVoiceCommands({ enabled, onCommand, onHeard }) {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
         setError('Microphone blocked — allow mic access to use voice.');
         enabledRef.current = false;             // don't fight a denied permission
-      } else if (e.error === 'no-speech' || e.error === 'aborted') {
-        /* transient — the auto-restart in onend keeps us going */
-      } else {
-        setError('Voice paused — tap to restart.');
       }
+      // everything else ('no-speech', 'aborted', 'audio-capture' when the phone
+      // backgrounds for the food map, transient 'network') is recoverable — the
+      // onend auto-restart + the visibility handler below bring it back, so we
+      // don't flash a scary "paused" message the crew would have to tap away.
     };
-    rec.onend = () => {
-      setListening(false);
-      // the engine stops itself periodically; resume while still enabled
-      if (enabledRef.current) {
-        try { rec.start(); } catch { /* already starting */ }
-      }
-    };
+    const kick = () => { if (enabledRef.current) { try { rec.start(); } catch { /* already running */ } } };
+    rec.onend = () => { setListening(false); kick(); };
+
+    // when the crew taps "Food near the job site" (opens Maps in another tab) the
+    // page is suspended and the mic stops; resume listening the moment they're back.
+    const onVisible = () => { if (document.visibilityState === 'visible') kick(); };
+    document.addEventListener('visibilitychange', onVisible);
 
     try { rec.start(); } catch { /* start races settle via onend */ }
     return () => {
       enabledRef.current = false;
+      document.removeEventListener('visibilitychange', onVisible);
       try { rec.onend = null; rec.stop(); } catch { /* already stopped */ }
       recRef.current = null;
       setListening(false);
