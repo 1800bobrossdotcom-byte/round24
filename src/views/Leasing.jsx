@@ -69,6 +69,9 @@ export default function Leasing({ store, navigate, focus }) {
   };
   const delRow = (u) => { if (window.confirm(`Delete unit ${u.number || ''}${u.tenant ? ` — ${u.tenant}` : ''}? This removes the unit and its lease.`)) { store.removeUnit(u.id); setEditRow(null); } };
   const addUnitTo = async (building) => {
+    // clear any active filter/search first, or the brand-new vacant unit is
+    // filtered out of view and its editor never renders (orphaned blank row)
+    setFilter('all'); setQuery('');
     const id = await store.addUnit(building);
     setCollapsed((s) => { const x = new Set(s); x.delete(building); return x; });
     setEditRow({ id, draft: { number: '', beds: '', type: 'residential', furnished: false, tenant: '', phone: '', rent: '', deposit: '', leaseStart: '', leaseEnd: '', status: 'vacant' } });
@@ -296,7 +299,7 @@ export default function Leasing({ store, navigate, focus }) {
                           <td className="num">
                             {land ? <span className="mono" style={{ color: 'var(--text-faint)' }}>—</span>
                               : canEdit
-                              ? <input className="rr-num" type="number" defaultValue={u.rent ?? ''} onBlur={(e) => { const v = parseFloat(e.target.value); if (!Number.isNaN(v) && v !== u.rent) store.setLeaseField(u.id, { rent: v }); }} />
+                              ? <input key={`rent-${u.id}-${u.rent ?? ''}`} className="rr-num" type="number" defaultValue={u.rent ?? ''} onBlur={(e) => { const raw = e.target.value.trim(); const v = raw === '' ? null : parseFloat(raw); if (v !== null && Number.isNaN(v)) return; if (v !== (u.rent ?? null)) store.setLeaseField(u.id, { rent: v }); }} />
                               : <span className="mono">{money0(u.rent)}</span>}
                           </td>
                           <td className="num mono" style={{ color: 'var(--text-dim)' }}>{!land && feeSum(u.fees) ? money0(feeSum(u.fees)) : '—'}</td>

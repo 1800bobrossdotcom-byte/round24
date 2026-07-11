@@ -199,7 +199,7 @@ export default function Purchases({ store }) {
               <span className="ut-title">{file ? file.name : scanning ? 'Reading…' : 'Snap or upload a receipt'}</span>
               <span className="ut-sub">{isConfigured() ? 'Photo or PDF — we’ll read it for you' : 'Camera & AI reading activate once connected'}</span>
             </span>
-            <input type="file" accept="image/*,application/pdf" onChange={(e) => onPickReceipt(e.target.files[0] || null)} />
+            <input type="file" accept="image/*,application/pdf" onChange={(e) => { const f = e.target.files[0] || null; e.target.value = ''; onPickReceipt(f); }} />
           </label>
           {scanning && <p className="note" style={{ marginTop: 6 }}>◐ Reading receipt with AI…</p>}
           {scanMsg && <p className="note" style={{ marginTop: 6, color: scanMsg.kind === 'err' ? 'var(--danger)' : 'var(--money)' }}>{scanMsg.text}</p>}

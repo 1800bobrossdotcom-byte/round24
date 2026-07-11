@@ -973,7 +973,7 @@ export function useStore() {
     [IMP_KEY, WO_KEY, PUR_KEY, PROP_KEY, TQ_KEY, MSG_KEY, CHAN_KEY, 'caliper_cards_v1', 'caliper_salaries_v1']
       .forEach((k) => { try { localStorage.removeItem(k); } catch { /* no storage */ } });
     clearImported();
-    setWorkOrders([]); setPurchases([]); setMessages([]); setCards([]); setTimesheet([]);
+    setWorkOrders([]); setPurchases([]); setMessages([]); setCards([]); setTimesheet([]); setDocuments([]);
     // clear pay config too so a "clear test data" reset can't leave salaries or
     // P&L inputs behind (and the write-through can't re-upload them to the cloud)
     setSalaries({});

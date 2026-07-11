@@ -4,7 +4,7 @@
 
 // meters between two lat/lng points
 export function distanceM(a, b) {
-  if (!a || !b || a.lat == null || b.lat == null) return null;
+  if (!a || !b || a.lat == null || a.lng == null || b.lat == null || b.lng == null) return null;
   const R = 6371000; // earth radius, m
   const toRad = (d) => (d * Math.PI) / 180;
   const dLat = toRad(b.lat - a.lat);
@@ -18,11 +18,9 @@ export function distanceM(a, b) {
 // returns { verified, distance } — verified is null when we can't judge
 // (building has no pin, or no punch location).
 export function geofenceCheck(buildingLoc, punchLoc, radiusM = 150) {
-  if (!buildingLoc || buildingLoc.lat == null || !punchLoc || punchLoc.lat == null) {
-    return { verified: null, distance: null };
-  }
   const d = distanceM(buildingLoc, punchLoc);
-  return { verified: d <= (radiusM || 150), distance: d };
+  if (d == null) return { verified: null, distance: null };
+  return { verified: d <= (radiusM ?? 150), distance: d };
 }
 
 // human distance

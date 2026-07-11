@@ -44,7 +44,8 @@ export function parseVoice(text, properties, techs) {
   if (best && bestScore > 0) out.propLabel = best.name;
 
   for (const tech of techs) {
-    if (new RegExp(`\\b${tech.name.split(' ')[0].toLowerCase()}\\b`).test(t)) {
+    const first = (tech.name.split(' ')[0] || '').toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // escape regex metachars in names
+    if (first && new RegExp(`\\b${first}\\b`).test(t)) {
       out.assigneeLabel = tech.name; break;
     }
   }
@@ -253,6 +254,14 @@ export default function WorkOrders({ store, focus }) {
             ))}
           </div>
 
+          <div className="field-label" style={{ marginTop: 12 }}>Priority</div>
+          <div className="pick">
+            {Object.entries(WO_PRIORITIES).map(([v, p]) => (
+              <button key={v} className={(draft.priority ?? 3) === Number(v) ? 'on' : ''} onClick={() => setDraft({ ...draft, priority: Number(v) })}
+                style={(draft.priority ?? 3) === Number(v) ? { color: p.color, borderColor: p.color } : undefined}>{p.label}</button>
+            ))}
+          </div>
+
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button className="btn ghost" style={{ width: 'auto', flex: 1 }} onClick={() => setDraft(null)}>Cancel</button>
             <button className="btn grad" style={{ flex: 2 }} onClick={save} disabled={!draft.task?.trim()}>Create work order</button>
@@ -404,9 +413,9 @@ const billInput = { width: '100%', background: 'var(--surface-2)', border: '1px 
 function WoBilling({ w, matTotal = 0, onSave }) {
   const [fee, setFee] = useState(w.serviceFee ?? '');
   const [cost, setCost] = useState(w.repairCost ?? '');
-  const num = (v) => (v === '' || v == null ? null : Math.round(parseFloat(v) * 100) / 100);
+  const num = (v) => { if (v === '' || v == null) return null; const n = Math.round(parseFloat(v) * 100) / 100; return Number.isFinite(n) ? n : null; };
   const feeN = num(fee) || 0;
-  const costN = num(cost) != null ? num(cost) : matTotal;   // default cost to logged materials
+  const costN = num(cost) ?? matTotal;   // default cost to logged materials (NaN → materials, never NaN margin)
   const margin = feeN - costN;
   const STATES = [['no', 'Not billed'], ['billed', 'Billed'], ['paid', 'Paid']];
   return (

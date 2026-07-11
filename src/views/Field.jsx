@@ -31,7 +31,14 @@ function loadTimer() {
 
 export default function Field({ store }) {
   const { properties, allTimers, workOrders, setWoStatus } = store;
-  const me = store.techs.find((t) => t.id === 't_gianni') || { id: 'me', name: 'You', rate: 0 };
+  // the crew member IS the signed-in user — not a hardcoded demo tech. Rate is
+  // matched from the roster by name when known (imported orgs carry rates);
+  // otherwise 0 (the office holds the real rate server-side).
+  const me = {
+    id: store.myId || 'me',
+    name: store.myName || 'You',
+    rate: store.techs.find((t) => t.name && store.myName && t.name === store.myName)?.rate || 0,
+  };
   const [running, setRunning] = useState(() => loadTimer().running ?? null); // {propId, unit, category, start, woId}
   const [elapsed, setElapsed] = useState(() => {
     const s = loadTimer();
@@ -42,7 +49,13 @@ export default function Field({ store }) {
   const [prop, setProp] = useState(properties[0]?.id || '');
   const [unit, setUnit] = useState('');
   const [cat, setCat] = useState('plumbing');
-  const [log, setLog] = useState(() => loadTimer().log ?? []);
+  // "logged this session" persists across reloads, but prune to the last week
+  // (and cap the size) so it doesn't show stale jobs or grow unbounded on-device.
+  const [log, setLog] = useState(() => {
+    const l = loadTimer().log ?? [];
+    const wk = Date.now() - 7 * 86400000;
+    return l.filter((e) => !e.at || e.at >= wk).slice(0, 60);
+  });
   const tick = useRef();
 
   // verified clock-in: where the punch happened + whether it landed inside the
@@ -50,9 +63,12 @@ export default function Field({ store }) {
   // held on the running session, and stamped onto the logged entry on stop.
   const [punch, setPunch] = useState(() => loadTimer().punch ?? null); // { lat, lng, verified, distance }
   const [locating, setLocating] = useState(false);
+  const punchTokenRef = useRef(0);
   const capturePunch = async (selected) => {
+    const token = ++punchTokenRef.current; // supersede any in-flight capture
     setPunch(null); setLocating(true);
     const pos = await getPosition();
+    if (punchTokenRef.current !== token) return; // a newer clock-in already ran — ignore this stale result
     setLocating(false);
     if (!pos) { setPunch({ verified: null, distance: null, denied: true }); return; }
     const fence = selected && selected.lat != null
@@ -96,7 +112,7 @@ export default function Field({ store }) {
     const p = properties.find((x) => x.name === w.propLabel);
     setWoStatus(w.id, 'in_progress');
     setRunning({
-      propId: p?.id || properties[0].id, unit: w.unit || '—',
+      propId: p?.id || properties[0]?.id || '', unit: w.unit || '—',
       category: w.category || 'general', start: Date.now(), woId: w.id, woTask: w.task, rate: me.rate,
     });
     setElapsed(0); resetBreaks();
@@ -115,7 +131,7 @@ export default function Field({ store }) {
   }, [running, onBreak, breakMs]);
 
   const startBreak = () => { setOnBreak({ start: Date.now() }); setBreakNow(0); };
-  const endBreak = () => { setBreakMs((b) => b + (Date.now() - onBreak.start)); setOnBreak(null); setLastNudge(elapsed); };
+  const endBreak = () => { if (!onBreak) return; setBreakMs((b) => b + (Date.now() - onBreak.start)); setOnBreak(null); setLastNudge(elapsed); };
 
   const hour = new Date().getHours();
   const lunchTime = hour >= 11 && hour < 14;
@@ -136,6 +152,8 @@ export default function Field({ store }) {
     capturePunch(selected);
   };
   const stop = async () => {
+    if (!running) return;             // guard a double-tap from logging the job twice
+    punchTokenRef.current++;          // invalidate any GPS capture still in flight
     const hrs = Math.round(Math.max(0.05, elapsed / 3600) * 100) / 100;
     const p = properties.find((x) => x.id === running.propId);
     const pName = p?.name || 'Unassigned';

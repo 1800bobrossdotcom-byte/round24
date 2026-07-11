@@ -125,7 +125,7 @@ function NeedsAccess() {
 
   const join = async () => {
     setErr(null); setBusy(true);
-    try { await redeemInvite(code.trim().toUpperCase()); window.location.reload(); }
+    try { await redeemInvite(code.trim().toUpperCase()); clearPendingInvite(); window.location.reload(); }
     catch (e) { setErr(e.message || 'That invite code isn’t valid or has been used.'); setBusy(false); }
   };
   const request = async () => {
@@ -306,7 +306,7 @@ function Login({ invite }) {
       if (info?.kind === 'owner') { setProduct('portfolio'); localStorage.setItem('caliper_product', 'portfolio'); }
       else if (info?.kind) { setProduct('pro'); localStorage.setItem('caliper_product', 'pro'); }
       clearTimeout(t); setResolving(false);
-    });
+    }).catch(() => { if (on) { clearTimeout(t); setResolving(false); } }); // a failed lookup shouldn't hang the splash
     return () => { on = false; clearTimeout(t); };
   }, [invite]);
 
