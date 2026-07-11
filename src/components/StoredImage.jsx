@@ -8,12 +8,16 @@ export default function StoredImage({ bucket, path, data, alt = '', className = 
   const [url, setUrl] = useState(data || null);
   const [err, setErr] = useState(false);
   useEffect(() => {
+    // reset on every input change so a reused instance (list keyed by index, after a
+    // delete/reorder) never keeps showing the previous item's image
     let live = true;
-    if (!url && path && isConfigured()) {
+    if (data) { setUrl(data); setErr(false); return () => { live = false; }; }
+    setUrl(null); setErr(false);
+    if (path && isConfigured()) {
       signedFileUrl(bucket, path).then((u) => live && setUrl(u)).catch(() => live && setErr(true));
     }
     return () => { live = false; };
-  }, [path, bucket]);
+  }, [path, bucket, data]);
 
   if (err) return <div className={className} style={{ ...style, display: 'grid', placeItems: 'center', color: 'var(--text-faint)', fontSize: 11 }}>✕</div>;
   if (!url) return <div className={`${className} thumb-loading`} style={style} aria-label="loading image" />;

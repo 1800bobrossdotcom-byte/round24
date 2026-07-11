@@ -39,10 +39,11 @@ async function encStr(v) {
   try { return ENC_PREFIX + await encryptField(await orgKey(), String(v)); }
   catch { return v; } // KMS unavailable → leave plaintext rather than block the write
 }
+const DEC_MASK = '•••'; // shown when a field can't be decrypted (KMS down) — must never be saved back over ciphertext
 async function decStr(v) {
   if (!isEncrypted(v)) return v; // legacy plaintext (or empty) — pass through
   try { return await decryptField(await orgKey(), v.slice(ENC_PREFIX.length)); }
-  catch { return '•••'; } // key unavailable (e.g. KMS down) → mask, never show ciphertext
+  catch { return DEC_MASK; } // key unavailable (e.g. KMS down) → mask, never show ciphertext
 }
 // encrypt/decrypt several fields of a row object at once
 async function encFields(row, fields) {
@@ -460,7 +461,10 @@ export async function updateWorkOrderBilling(id, patch) {
   if (patch.tenantBilled !== undefined) upd.tenant_billed = patch.tenantBilled;
   if (!Object.keys(upd).length) return;
   const { error } = await supabase.from('work_orders').update(upd).eq('id', id);
-  if (error && /service_fee|repair_cost|tenant_billed|column/i.test(error.message || '')) return;
+  // tolerate a DB without the 0032 billing columns, but ONLY for a genuine
+  // missing-column error — a substring match on "column" would also swallow
+  // not-null/constraint violations and silently drop a real write.
+  if (error && (error.code === 'PGRST204' || error.code === '42703' || /schema cache|does not exist/i.test(error.message || ''))) return;
   if (error) throw error;
 }
 
@@ -724,8 +728,10 @@ export async function updateLeaseRow(leaseId, patch) {
   if (patch.rent !== undefined) upd.rent = patch.rent;
   if (patch.renewalStatus !== undefined) upd.renewal_status = patch.renewalStatus;
   if (patch.notes !== undefined) upd.notes = patch.notes;
-  if (patch.tenant !== undefined) upd.tenant_name = patch.tenant ? await encStr(patch.tenant) : null;
-  if (patch.phone !== undefined) upd.tenant_phone = patch.phone ? await encStr(patch.phone) : null;
+  // skip when the field still shows the decrypt mask — the user never saw the real
+  // value (KMS was down), so persisting it would encrypt '•••' over the real PII
+  if (patch.tenant !== undefined && patch.tenant !== DEC_MASK) upd.tenant_name = patch.tenant ? await encStr(patch.tenant) : null;
+  if (patch.phone !== undefined && patch.phone !== DEC_MASK) upd.tenant_phone = patch.phone ? await encStr(patch.phone) : null;
   if (patch.deposit !== undefined) upd.deposit = patch.deposit;
   if (patch.leaseStart !== undefined) upd.lease_start = patch.leaseStart || null;
   if (patch.leaseEnd !== undefined) upd.lease_end = patch.leaseEnd || null;

@@ -24,7 +24,7 @@ export default function Documents({ store }) {
   };
 
   const download = async (d) => {
-    try { const url = await signedFileUrl('docs', d.path); window.open(url, '_blank'); }
+    try { const url = await signedFileUrl('docs', d.path); if (!url) { setErr('Could not open that document.'); return; } window.open(url, '_blank'); }
     catch { setErr('Could not open that document.'); }
   };
 

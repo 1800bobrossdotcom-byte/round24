@@ -22,6 +22,7 @@ const inputStyle = {
 export default function Access({ store }) {
   const { orgId, orgName } = useAuth();
   const [wsName, setWsName] = useState(orgName || '');
+  useEffect(() => { setWsName(orgName || ''); }, [orgName]); // orgName arrives async from auth — keep the field in sync
   const [savedName, setSavedName] = useState(false);
   const [members, setMembers] = useState([]);
   const [invites, setInvites] = useState([]);

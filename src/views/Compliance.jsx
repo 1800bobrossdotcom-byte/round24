@@ -4,7 +4,14 @@ import { isConfigured, orgMemberCompliance, listAudit } from '../lib/backend/sup
 import { IcClip, IcCheck, IcActivity } from '../components/ui.jsx';
 
 const ROLE_LABEL = { admin: 'Admin', manager: 'Manager', tech: 'Contractor', viewer: 'Viewer' };
-const daysTo = (d) => Math.ceil((new Date(d) - Date.now()) / 86400000);
+const daysTo = (d) => {
+  // parse 'YYYY-MM-DD' as LOCAL midnight (not UTC) so US users don't see a
+  // credential read as expired a day early in the evening
+  const parts = String(d || '').split('-').map(Number);
+  const exp = parts.length === 3 && parts.every(Number.isFinite) ? new Date(parts[0], parts[1] - 1, parts[2]) : new Date(d);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.round((exp - today) / 86400000);
+};
 const ACTION_LABEL = {
   approve_purchase: 'Approved purchase', reject_purchase: 'Rejected purchase',
   export_data: 'Exported personal data', create_invite: 'Created invite',

@@ -17,6 +17,14 @@ export default function TopStrip() {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
+  // TopStrip is mounted once and never remounts — pick up clock-format changes made
+  // from Settings (same tab via custom event, other tabs via storage event)
+  useEffect(() => {
+    const sync = () => setMil(localStorage.getItem('caliper_clock12') !== '1');
+    window.addEventListener('caliper-clock', sync);
+    window.addEventListener('storage', sync);
+    return () => { window.removeEventListener('caliper-clock', sync); window.removeEventListener('storage', sync); };
+  }, []);
 
   const secure = isConfigured();
   const h = now.getHours();

@@ -62,6 +62,11 @@ export default function Chat({ store }) {
   const recRef = useRef(null);
   const chunksRef = useRef([]);
   const tickRef = useRef(null);
+  const secsRef = useRef(0);   // authoritative elapsed seconds — onstop's closure over recSecs is stale
+  const streamRef = useRef(null);
+  // if the user leaves the tab mid-recording, onstop never fires — stop the mic + interval so the
+  // hardware indicator turns off and we don't setState on an unmounted component
+  useEffect(() => () => { clearInterval(tickRef.current); streamRef.current?.getTracks?.().forEach((t) => t.stop()); }, []);
 
   useEffect(() => { if (scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight; }, [thread.length, channel]);
 
@@ -79,20 +84,22 @@ export default function Chat({ store }) {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) { setRecErr('Voice notes need mic access (Chrome/Safari).'); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const rec = new MediaRecorder(stream);
       recRef.current = rec; chunksRef.current = [];
       rec.ondataavailable = (e) => e.data.size && chunksRef.current.push(e.data);
       rec.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
         clearInterval(tickRef.current);
-        const secs = recSecs;
+        const secs = secsRef.current;
         const blob = new Blob(chunksRef.current, { type: rec.mimeType || 'audio/webm' });
         setRecording(false); setRecSecs(0);
         if (blob.size > 0) send(blob, secs);
       };
       rec.start();
-      setRecording(true); setRecSecs(0);
-      tickRef.current = setInterval(() => setRecSecs((s) => s + 1), 1000);
+      setRecording(true); setRecSecs(0); secsRef.current = 0;
+      tickRef.current = setInterval(() => { secsRef.current += 1; setRecSecs((s) => s + 1); }, 1000);
     } catch { setRecErr('Microphone permission denied.'); }
   };
   const stopRec = () => recRef.current?.state === 'recording' && recRef.current.stop();

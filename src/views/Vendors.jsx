@@ -12,8 +12,9 @@ const inputStyle = {
 };
 
 function Stars({ n }) {
-  if (!n) return null;
-  return <span style={{ color: '#f5b301', fontSize: 12, letterSpacing: 1 }}>{'★'.repeat(n)}<span style={{ color: 'var(--line)' }}>{'★'.repeat(5 - n)}</span></span>;
+  const c = Math.max(0, Math.min(5, Math.round(Number(n) || 0))); // out-of-range/typed rating must never RangeError on .repeat
+  if (!c) return null;
+  return <span style={{ color: '#f5b301', fontSize: 12, letterSpacing: 1 }}>{'★'.repeat(c)}<span style={{ color: 'var(--line)' }}>{'★'.repeat(5 - c)}</span></span>;
 }
 
 function FavBtn({ on, onClick, label }) {
@@ -47,7 +48,7 @@ export default function Vendors({ store }) {
         if (query && !(`${v.name} ${v.trade} ${v.contactName} ${v.notes}`.toLowerCase().includes(query))) return false;
         return true;
       })
-      .sort((a, b) => (Number(b.favorite) - Number(a.favorite)) || a.name.localeCompare(b.name));
+      .sort((a, b) => (Number(b.favorite) - Number(a.favorite)) || (a.name || "").localeCompare(b.name || ""));
   }, [vendors, kind, trade, q]);
 
   const shownProducts = useMemo(() => {
@@ -56,14 +57,14 @@ export default function Vendors({ store }) {
       .filter((p) => (kind === 'favorite' ? p.favorite : true))
       .filter((p) => (trade !== 'all' ? p.category === trade : true))
       .filter((p) => (query ? `${p.name} ${p.category} ${vName(p.vendorId)} ${p.notes}`.toLowerCase().includes(query) : true))
-      .sort((a, b) => (Number(b.favorite) - Number(a.favorite)) || a.name.localeCompare(b.name));
+      .sort((a, b) => (Number(b.favorite) - Number(a.favorite)) || (a.name || "").localeCompare(b.name || ""));
   }, [vendorProducts, kind, trade, q, vendors]);
 
   const favCount = vendors.filter((v) => v.favorite).length + vendorProducts.filter((p) => p.favorite).length;
 
   const startVendor = () => setEditV({ name: '', kind: 'contractor', trade: 'plumbing', contactName: '', phone: '', email: '', website: '', license: '', rating: '', approved: true, favorite: false, notes: '' });
   const startProduct = () => setEditP({ name: '', vendorId: '', category: 'plumbing', sku: '', price: '', url: '', favorite: true, notes: '' });
-  const commitVendor = async () => { if (!editV.name.trim()) return; await saveVendor({ ...editV, name: editV.name.trim(), rating: editV.rating ? Number(editV.rating) : null }); setEditV(null); };
+  const commitVendor = async () => { if (!editV.name.trim()) return; const r = editV.rating ? Math.max(1, Math.min(5, Math.round(Number(editV.rating)))) : null; await saveVendor({ ...editV, name: editV.name.trim(), rating: Number.isFinite(r) ? r : null }); setEditV(null); };
   const commitProduct = async () => { if (!editP.name.trim()) return; await saveProduct({ ...editP, name: editP.name.trim(), price: editP.price === '' ? null : Number(editP.price), vendorId: editP.vendorId || null }); setEditP(null); };
 
   return (

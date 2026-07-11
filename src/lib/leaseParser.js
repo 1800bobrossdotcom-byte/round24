@@ -12,11 +12,16 @@ const norm = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 const money = (v) => {
   if (v == null || v === '') return null;
   if (typeof v === 'number') return Math.abs(v) < 1e6 ? v : null;
-  const f = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
-  return Number.isFinite(f) && Math.abs(f) < 1e6 ? f : null;
+  const raw = String(v);
+  const neg = /^\s*\(.*\)\s*$/.test(raw); // accounting-style negative, e.g. "(500)"
+  const f = parseFloat(raw.replace(/[^0-9.\-]/g, ''));
+  if (!Number.isFinite(f) || Math.abs(f) >= 1e6) return null;
+  return neg ? -Math.abs(f) : f;
 };
 const isoDate = (v) => {
   if (v instanceof Date && !isNaN(v)) return v.toISOString().slice(0, 10);
+  // Excel serial date (days since 1899-12-30) when the cell wasn't date-formatted
+  if (typeof v === 'number' && v > 20000 && v < 90000) return new Date(Date.UTC(1899, 11, 30) + v * 86400000).toISOString().slice(0, 10);
   const s = norm(v);
   let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (m) {

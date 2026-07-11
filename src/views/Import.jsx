@@ -13,7 +13,7 @@ const PROP_STOP = new Set(['st', 'street', 'ave', 'avenue', 'rd', 'road', 'dr', 
 // A row is "allocated" when its text names a building (by distinctive word
 // or street number). Anything else is left for the uploader to fix.
 function buildMatcher(properties) {
-  const idx = properties.map((p) => ({
+  const idx = (properties || []).filter((p) => p && p.name).map((p) => ({
     id: p.id,
     num: (p.name.match(/^\d+/) || [])[0],
     words: p.name.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !PROP_STOP.has(w) && !/^\d+$/.test(w)),
@@ -135,7 +135,7 @@ export default function Import({ store }) {
   const rateSet = techsNeeding.every((t) => rates[t.name] > 0);
   const canImport = rateSet && (alloc.allocatedDays + alloc.unallocatedDays) > 0;
 
-  const reset = () => { setStep(0); setSheets([]); setSelected([]); setResult(null); };
+  const reset = () => { setStep(0); setSheets([]); setSelected([]); setResult(null); setErr(null); if (fileRef.current) fileRef.current.value = ''; };
 
   return (
     <div>
@@ -193,7 +193,7 @@ export default function Import({ store }) {
             <div className="big">Drop your pay-log spreadsheet here</div>
             <div className="sm">or tap to browse · .xlsx files</div>
           </div>
-          <input ref={fileRef} type="file" accept=".xlsx,.xls" hidden onChange={(e) => handleFile(e.target.files[0])} />
+          <input ref={fileRef} type="file" accept=".xlsx,.xls" hidden onChange={(e) => { handleFile(e.target.files[0]); e.target.value = ''; }} />
           <p className="note">Reads most timesheet shapes — a plain Date/Hours/Property table, a column-per-property grid, or a recurring allocation matrix like Evolution24's. It auto-detects the layout, pulls hours, dates, pay periods, rates, and per-property allocation, then shows you everything before saving a thing.</p>
         </>
       )}

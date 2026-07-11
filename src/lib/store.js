@@ -36,6 +36,13 @@ function loadLS(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
   catch { return fallback; }
 }
+// Cache write that can't crash an effect. Demo/local mode stashes inline data URLs
+// (photos, voice notes) that can blow past the ~5MB quota — a QuotaExceededError here
+// must degrade to "not cached", never throw out of the render/effect.
+function saveLS(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); return true; }
+  catch { return false; }
+}
 
 // One-time purge of pre-fix imported caches. Older builds appended every
 // upload, so browsers carry compounded test data that a code deploy can't
@@ -79,13 +86,13 @@ export function useStore() {
 
   // ---- imported pay-log data (merged into the same spine the charts read) ----
   const [imported, setImported] = useState(() => loadLS(IMP_KEY, { timers: [], techs: [] }));
-  useEffect(() => { localStorage.setItem(IMP_KEY, JSON.stringify(imported)); }, [imported]);
+  useEffect(() => { saveLS(IMP_KEY, imported); }, [imported]);
 
   // ---- nav notification badges: count items newer than the last time the
   // user opened that tab. Seed stamps to "now" on first run so pre-existing
   // items don't all badge. markSeen(tab) clears a tab's badge on open.
   const [seen, setSeen] = useState(() => loadLS(SEEN_KEY, null) || { wo: Date.now(), pur: Date.now(), docs: Date.now(), chat: Date.now() });
-  useEffect(() => { localStorage.setItem(SEEN_KEY, JSON.stringify(seen)); }, [seen]);
+  useEffect(() => { saveLS(SEEN_KEY, seen); }, [seen]);
   const markSeen = useCallback((tab) => {
     if (!['wo', 'pur', 'docs', 'chat'].includes(tab)) return;
     setSeen((s) => ({ ...s, [tab]: Date.now() }));
@@ -108,7 +115,7 @@ export function useStore() {
 
   // ---- buildings discovered from imports (non-integrated shops start empty) ----
   const [impProps, setImpProps] = useState(() => loadLS(PROP_KEY, []));
-  useEffect(() => { localStorage.setItem(PROP_KEY, JSON.stringify(impProps)); }, [impProps]);
+  useEffect(() => { saveLS(PROP_KEY, impProps); }, [impProps]);
   const impPropsRef = useRef(impProps);
   useEffect(() => { impPropsRef.current = impProps; }, [impProps]);
 
@@ -117,7 +124,7 @@ export function useStore() {
   // real org the cloud is authoritative and we never touch localStorage, so
   // salaries can't bleed between tenants on a shared browser; demo uses local.
   const [salaries, setSalaries] = useState(() => (demoMode ? loadLS('caliper_salaries_v1', {}) : {}));
-  useEffect(() => { if (demoMode) localStorage.setItem('caliper_salaries_v1', JSON.stringify(salaries)); }, [salaries, demoMode]);
+  useEffect(() => { if (demoMode) saveLS('caliper_salaries_v1', salaries); }, [salaries, demoMode]);
   const setSalary = useCallback((techId, val) => {
     setSalaries((s) => {
       const next = { ...s };
@@ -131,7 +138,7 @@ export function useStore() {
   // Kept in a single localStorage doc keyed by org, so plConfig is derived (never
   // a lagging copy) and can't bleed between tenants on a shared browser.
   const [plAll, setPlAll] = useState(() => loadLS('caliper_plconfig_v2', {}));
-  useEffect(() => { localStorage.setItem('caliper_plconfig_v2', JSON.stringify(plAll)); }, [plAll]);
+  useEffect(() => { saveLS('caliper_plconfig_v2', plAll); }, [plAll]);
   const plKey = demoMode ? '__demo__' : (orgId || '__none__');
   const plConfig = useMemo(
     () => (demoMode ? { ...DEMO_PL_CONFIG, ...(plAll.__demo__ || {}) } : (plAll[plKey] || {})),
@@ -146,24 +153,36 @@ export function useStore() {
   // source of truth so dashboards/team/properties are the same on every device.
   const [laborBackend, setLaborBackend] = useState('local');
   const hydratedRef = useRef(false);
+  const loadedOrgRef = useRef(null); // which org the current spine was hydrated for
   const isStaffMember = role === 'admin' || role === 'manager';
   useEffect(() => {
-    if (!isConfigured() || !orgId || !isStaffMember) { hydratedRef.current = true; return; }
+    if (!isConfigured() || !orgId || !isStaffMember) { hydratedRef.current = true; return undefined; }
+    // switching orgs: shut the write-through gate FIRST so a debounced flush can't
+    // push the previous org's spine into this one before its real data loads. The
+    // cloud record is authoritative, so an org with no saved state clears the spine
+    // (rather than leaving the prior tenant's timers/props/range/salaries showing).
+    hydratedRef.current = false;
+    setLaborBackend('local');
+    let alive = true;
     getLaborState(orgId).then((s) => {
-      if (s) {
-        if (s.imported && (s.imported.timers?.length || s.imported.techs?.length)) setImported(s.imported);
-        if (Array.isArray(s.props)) { impPropsRef.current = s.props; setImpProps(s.props); }
-        if (s.range?.from && s.range?.to) setRange(s.range);
-      }
-      // authoritative per-org: clear any prior org's salaries when this one has none
+      if (!alive) return;
+      if (s?.imported && (s.imported.timers?.length || s.imported.techs?.length)) setImported(s.imported);
+      else setImported({ timers: [], techs: [] });
+      if (s && Array.isArray(s.props)) { impPropsRef.current = s.props; setImpProps(s.props); }
+      else { impPropsRef.current = []; setImpProps([]); }
+      if (s?.range?.from && s?.range?.to) setRange(s.range);
+      else setRange({ from: '2026-05-11', to: '2026-07-05' });
       setSalaries(s?.salaries && typeof s.salaries === 'object' ? s.salaries : {});
+      loadedOrgRef.current = orgId;
       setLaborBackend('db');
       hydratedRef.current = true;
-    }).catch(() => { setLaborBackend('local'); hydratedRef.current = true; });
+    }).catch(() => { if (alive) { setLaborBackend('local'); hydratedRef.current = true; } });
+    return () => { alive = false; };
   }, [orgId, isStaffMember]);
-  // write-through: after hydration, sync any spine change up (debounced)
+  // write-through: after hydration, sync any spine change up (debounced). The
+  // loadedOrg guard is a belt-and-suspenders against writing before the new org resolves.
   useEffect(() => {
-    if (laborBackend !== 'db' || !hydratedRef.current || !orgId || !isStaffMember) return;
+    if (laborBackend !== 'db' || !hydratedRef.current || !orgId || !isStaffMember || loadedOrgRef.current !== orgId) return undefined;
     const t = setTimeout(() => { saveLaborState(orgId, { imported, props: impProps, range, salaries }).catch(() => {}); }, 900);
     return () => clearTimeout(t);
   }, [imported, impProps, range, salaries, laborBackend, orgId, isStaffMember]);
@@ -297,7 +316,7 @@ export function useStore() {
   // ---- work orders: DB-backed when connected, localStorage otherwise ----
   const [workOrders, setWorkOrders] = useState(() => loadLS(WO_KEY, []));
   const [woBackend, setWoBackend] = useState('local'); // 'db' | 'local'
-  useEffect(() => { localStorage.setItem(WO_KEY, JSON.stringify(workOrders)); }, [workOrders]);
+  useEffect(() => { saveLS(WO_KEY, workOrders); }, [workOrders]);
 
   useEffect(() => {
     if (!isConfigured() || !orgId) return;
@@ -397,8 +416,12 @@ export function useStore() {
         const n = payload.new;
         const wo = {
           id: n.id, propLabel: n.property_label, unit: n.unit, task: n.task,
-          category: n.category, assigneeLabel: n.assignee_label, due: n.due_date,
+          detail: n.detail, category: n.category, assigneeLabel: n.assignee_label, due: n.due_date,
           status: n.status, priority: n.priority ?? 3, source: n.source, createdAt: n.created_at,
+          transcript: n.voice_transcript, photos: n.photos || [], files: n.files || [],
+          serviceFee: n.service_fee != null ? Number(n.service_fee) : null,
+          repairCost: n.repair_cost != null ? Number(n.repair_cost) : null,
+          tenantBilled: n.tenant_billed || 'no',
         };
         if (!woRef.current.some((w) => w.id === wo.id)) {
           setWorkOrders((l) => l.some((w) => w.id === wo.id) ? l : [wo, ...l]);
@@ -426,7 +449,7 @@ export function useStore() {
   // ---- purchases: DB-backed when connected, localStorage otherwise ----
   const [purchases, setPurchases] = useState(() => loadLS(PUR_KEY, []));
   const [purBackend, setPurBackend] = useState('local');
-  useEffect(() => { localStorage.setItem(PUR_KEY, JSON.stringify(purchases)); }, [purchases]);
+  useEffect(() => { saveLS(PUR_KEY, purchases); }, [purchases]);
   const purchasesRef = useRef(purchases);
   useEffect(() => { purchasesRef.current = purchases; }, [purchases]);
 
@@ -771,7 +794,7 @@ export function useStore() {
   // ---- per-property credit cards: auto-file receipts by card ----
   const [cards, setCards] = useState(() => loadLS('caliper_cards_v1', []));
   const [cardBackend, setCardBackend] = useState('local');
-  useEffect(() => { if (cardBackend === 'local') localStorage.setItem('caliper_cards_v1', JSON.stringify(cards)); }, [cards, cardBackend]);
+  useEffect(() => { if (cardBackend === 'local') saveLS('caliper_cards_v1', cards); }, [cards, cardBackend]);
   useEffect(() => {
     if (!isConfigured() || !orgId) return;
     listPropertyCards(orgId).then((rows) => { setCards(rows); setCardBackend('db'); }).catch(() => setCardBackend('local'));
@@ -803,7 +826,7 @@ export function useStore() {
   // ---- team comms: Slack-style messages + voice notes ----
   const [messages, setMessages] = useState(() => loadLS(MSG_KEY, []));
   const [msgBackend, setMsgBackend] = useState('local'); // 'db' | 'local'
-  useEffect(() => { if (msgBackend === 'local') localStorage.setItem(MSG_KEY, JSON.stringify(messages.slice(-300))); }, [messages, msgBackend]);
+  useEffect(() => { if (msgBackend === 'local') saveLS(MSG_KEY, messages.slice(-300)); }, [messages, msgBackend]);
 
   useEffect(() => {
     if (!isConfigured() || !orgId) return;

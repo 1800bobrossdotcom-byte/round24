@@ -7,12 +7,15 @@ import { IcDoc } from './ui.jsx';
 export function FileChip({ bucket = 'attachments', path, data, name = 'file' }) {
   const [url, setUrl] = useState(data || null);
   useEffect(() => {
+    // reset on input change so an index-keyed chip never opens the previous file after a delete/reorder
     let live = true;
-    if (!url && path && isConfigured()) {
+    if (data) { setUrl(data); return () => { live = false; }; }
+    setUrl(null);
+    if (path && isConfigured()) {
       signedFileUrl(bucket, path).then((u) => live && setUrl(u)).catch(() => {});
     }
     return () => { live = false; };
-  }, [path, bucket]);
+  }, [path, bucket, data]);
 
   const ext = (name.split('.').pop() || '').toUpperCase().slice(0, 4);
   const open = () => { if (url) window.open(url, '_blank', 'noopener'); };

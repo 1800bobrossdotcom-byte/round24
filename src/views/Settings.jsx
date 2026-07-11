@@ -96,7 +96,7 @@ export default function Settings({ store }) {
       <div className="card" style={{ marginBottom: 'var(--gap)' }}>
         <span className="field-label">Preferences</span>
         <Row label="24-hour clock" hint="Also switches the top bar clock">
-          <Toggle on={clock24} onChange={(v) => { setClock24(v); localStorage.setItem('caliper_clock12', v ? '0' : '1'); }} />
+          <Toggle on={clock24} onChange={(v) => { setClock24(v); localStorage.setItem('caliper_clock12', v ? '0' : '1'); window.dispatchEvent(new Event('caliper-clock')); }} />
         </Row>
         <Row label="Work-order alerts" hint="New & re-prioritized jobs"><Toggle on={notif.workOrders} onChange={(v) => setNotif('workOrders', v)} /></Row>
         <Row label="Chat notifications"><Toggle on={notif.chat} onChange={(v) => setNotif('chat', v)} /></Row>
