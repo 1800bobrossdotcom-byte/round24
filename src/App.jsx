@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { AuthGate, SignOutButton, AccountButton, useAuth } from './components/AuthGate.jsx';
 import TopStrip from './components/TopStrip.jsx';
 import { useStore } from './lib/store.js';
-import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip, IcShield, IcTag, IcChart, IcTable, IcChevron } from './components/ui.jsx';
+import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip, IcShield, IcTag, IcChart, IcTable, IcChevron, IcTrend } from './components/ui.jsx';
 import { isPlatformAdmin, isConfigured } from './lib/backend/supabase.js';
 import Dashboard from './views/Dashboard.jsx';
 import DayOverview from './views/DayOverview.jsx';
@@ -20,6 +20,7 @@ import Integrations from './views/Integrations.jsx';
 import Access from './views/Access.jsx';
 import Compliance from './views/Compliance.jsx';
 import Economics from './views/Economics.jsx';
+import Forecast from './views/Forecast.jsx';
 import Timesheet from './views/Timesheet.jsx';
 import Vendors from './views/Vendors.jsx';
 import Settings from './views/Settings.jsx';
@@ -55,6 +56,7 @@ const TABS = [
   { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, roles: ['admin', 'manager', 'viewer'], cat: 'work' },
   { id: 'pur', label: 'Purchases', Icon: IcReceipt, View: Purchases, roles: ['admin', 'manager', 'tech'], cat: 'money', primary: true },
   { id: 'pnl', label: 'P&L', Icon: IcChart, View: Economics, roles: ['admin', 'manager', 'viewer'], cat: 'money' },
+  { id: 'forecast', label: 'Forecast', Icon: IcTrend, View: Forecast, roles: ['admin', 'manager', 'viewer'], cat: 'money' },
   { id: 'leasing', label: 'Rent Roll', Icon: IcBuilding, View: Leasing, roles: ['admin', 'manager', 'viewer'], cat: 'portfolio' },
   { id: 'props', label: 'Properties', Icon: IcBuilding, View: Properties, roles: ['admin', 'manager', 'viewer'], cat: 'portfolio' },
   { id: 'vendors', label: 'Vendors', Icon: IcTag, View: Vendors, roles: ['admin', 'manager', 'tech', 'viewer'], cat: 'portfolio' },
@@ -75,6 +77,7 @@ const OWNER_TABS = [
   { id: 'props', label: 'Buildings', Icon: IcBuilding, View: Properties, cat: 'portfolio', primary: true },
   { id: 'pnl', label: 'P&L', Icon: IcChart, View: Economics, cat: 'money', primary: true },
   { id: 'pur', label: 'Expenses', Icon: IcReceipt, View: Purchases, cat: 'money' },
+  { id: 'forecast', label: 'Forecast', Icon: IcTrend, View: Forecast, cat: 'money' },
   { id: 'wo', label: 'Maintenance', Icon: IcWrench, View: WorkOrders, cat: 'operations', primary: true },
   { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, cat: 'operations' },
   { id: 'vendors', label: 'Vendors', Icon: IcTag, View: Vendors, cat: 'operations' },

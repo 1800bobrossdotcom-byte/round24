@@ -118,3 +118,37 @@ export const DEMO_PURCHASES = [
   { vendor: 'Lowe\'s', amount: 449.0, propLabel: '31 Genesee', note: 'dishwasher', submittedBy: 'Luis Fernandez' },
   { vendor: 'Grainger', amount: 61.2, propLabel: '301 Central Ave', note: 'smoke detectors 4-pack', submittedBy: 'Dawn Whitfield' },
 ];
+
+// dated expense history (approved) so the expense forecast has something to
+// learn from in the demo: recurring buys on a cadence, plus warrantied
+// appliances/HVAC whose coverage lapses down the road.
+const X = (vendor, amount, propLabel, note, date, warrantyMonths) => ({
+  id: `dx_${date}_${vendor}`.replace(/\W+/g, '_'), vendor, amount, propLabel, note,
+  createdAt: `${date}T15:00:00.000Z`, status: 'approved', submittedBy: 'Gianni Arone',
+  ...(warrantyMonths ? { warrantyMonths } : {}),
+});
+export const DEMO_EXPENSE_HISTORY = [
+  // recurring HVAC filters (~monthly, Grainger)
+  X('Grainger', 46.8, '168-176 N Water St', 'HVAC filters 20x25 case', '2026-02-10'),
+  X('Grainger', 48.2, '168-176 N Water St', 'HVAC filters 20x25 case', '2026-03-12'),
+  X('Grainger', 46.8, '168-176 N Water St', 'HVAC filters 20x25 case', '2026-04-11'),
+  X('Grainger', 49.9, '168-176 N Water St', 'HVAC filters 20x25 case', '2026-05-13'),
+  X('Grainger', 47.5, '168-176 N Water St', 'HVAC filters 20x25 case', '2026-06-10'),
+  X('Grainger', 48.2, '168-176 N Water St', 'HVAC filters 20x25 case', '2026-07-09'),
+  // recurring turnover paint (Sherwin-Williams)
+  X('Sherwin-Williams', 112.07, '121 Park', '2 gal eggshell + roller kit', '2026-03-05'),
+  X('Sherwin-Williams', 98.4, '301 Central', 'unit turn paint', '2026-05-20'),
+  X('Sherwin-Williams', 120.5, '145 S Fitzhugh', 'unit turn paint + supplies', '2026-06-28'),
+  // recurring plumbing consumables (Home Depot)
+  X('Home Depot', 77.88, '179-189 St Paul', 'faucet cartridge + supply lines', '2026-02-18'),
+  X('Home Depot', 63.25, '31 Genesee', 'wax rings + supply lines', '2026-04-22'),
+  X('Home Depot', 54.1, '561 S.Main', 'p-trap + sharkbite fittings', '2026-06-15'),
+  // warrantied capital items
+  X('Ferguson', 318.0, '440 Armstrong', 'furnace igniter + flame sensor', '2026-01-20', 120),
+  X('Lowe’s', 449.0, '31 Genesee', 'dishwasher — GE 24"', '2026-04-02', 12),
+  X('Ferguson', 519.0, '168-176 N Water St', 'water heater 50gal', '2026-05-08', 72),
+  X('Home Depot', 610.0, '121 Park', 'refrigerator — Whirlpool', '2026-06-05', 12),
+  X('Grainger', 61.2, '301 Central', 'smoke detectors 4-pack', '2026-03-15'),
+  // an older appliance whose 1-yr coverage lapses soon — the warranty watch
+  X('Lowe’s', 429.0, '561 S.Main', 'dishwasher — Frigidaire 24"', '2025-08-15', 12),
+];
