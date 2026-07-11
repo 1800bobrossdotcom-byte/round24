@@ -20,7 +20,7 @@ import {
   getLaborState, saveLaborState,
   listAvailability, setAvailability, subscribeAvailability, logAudit,
   fetchMyOperatorId, insertTimer, updateTimer, insertProperties, getUserSettings,
-  setPropertyLocation, listTimers, deleteTimer, wipeOrgData,
+  setPropertyLocation, listTimers, deleteTimer, wipeOrgData, listProperties,
 } from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
@@ -191,14 +191,32 @@ export function useStore() {
   // places, in priority order: a location the office just set (override), the
   // property's own stored lat/lng (cloud), or the sample BUILDING_GEO (demo).
   const [propLoc, setPropLoc] = useState({}); // id → { lat, lng, geofence }
+  // the org's buildings from the properties table — loaded for EVERY role (crew
+  // included) so the Field timer + timesheet dropdowns populate even for crew,
+  // who never hydrate the staff-only labor state that carries impProps.
+  const [cloudProps, setCloudProps] = useState([]);
+  useEffect(() => {
+    if (demoMode || !isConfigured() || !orgId) { setCloudProps([]); return undefined; }
+    let alive = true;
+    listProperties(orgId).then((r) => { if (alive) setCloudProps(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, [orgId, demoMode]);
   const properties = useMemo(() => {
-    const base = [...(demoMode ? seed.properties : []), ...impProps];
-    return base.map((p) => {
+    // merge labor-derived buildings (impProps) with the properties table (cloudProps),
+    // deduped by name so a building known to both appears once
+    const seenName = new Set();
+    const merged = [];
+    for (const p of [...(demoMode ? seed.properties : []), ...impProps, ...cloudProps]) {
+      const k = (p.name || '').toLowerCase().trim();
+      if (!k || seenName.has(k)) continue;
+      seenName.add(k); merged.push(p);
+    }
+    return merged.map((p) => {
       const o = propLoc[p.id];
       const geo = o || (p.lat != null ? { lat: p.lat, lng: p.lng, geofence: p.geofence_m ?? p.geofence ?? 150 } : BUILDING_GEO[p.name]);
       return geo ? { ...p, lat: geo.lat, lng: geo.lng, geofence: geo.geofence ?? 150 } : p;
     });
-  }, [impProps, demoMode, propLoc]);
+  }, [impProps, cloudProps, demoMode, propLoc]);
   const propById = useMemo(() => Object.fromEntries(properties.map((p) => [p.id, p])), [properties]);
 
   // set a building's geofence pin (office/owner action). Updates locally at once

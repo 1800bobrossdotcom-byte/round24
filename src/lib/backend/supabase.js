@@ -960,6 +960,18 @@ export async function wipeOrgData(orgId, { includePortfolio = false } = {}) {
 }
 
 // native buildings discovered from an Excel import (non-integrated shops)
+// the org's buildings for the pickers — readable by every member (crew included)
+// so the Field timer + timesheet property dropdowns populate regardless of role
+export async function listProperties(orgId) {
+  const { data, error } = await supabase.from('properties')
+    .select('id,name,city,units,lat,lng,geofence_m').eq('org_id', orgId).order('name');
+  if (error) throw error;
+  return (data || []).map((p) => ({
+    id: p.id, name: p.name, city: p.city || '', units: p.units || 0,
+    lat: p.lat ?? null, lng: p.lng ?? null, geofence: p.geofence_m ?? null,
+  }));
+}
+
 export async function insertProperties(orgId, props) {
   const rows = props.map((p) => ({
     org_id: orgId, name: p.name, city: p.city || null, units: p.units || 0, external_src: 'native',
