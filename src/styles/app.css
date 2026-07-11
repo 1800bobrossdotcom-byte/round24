@@ -115,6 +115,41 @@
 .ts-alloc-bar { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
 .ts-alloc-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
 
+/* ---- @-property mention input + chips ---- */
+.ts-mention { display: inline-flex; align-items: center; gap: 2px; font-weight: 600; font-size: 11px;
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 6px; padding: 0 5px; line-height: 1.5; white-space: nowrap; }
+.mention-wrap { position: relative; }
+.mention-menu { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30; max-height: 208px; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,.28); padding: 4px; }
+.mention-opt { display: flex; align-items: center; gap: 7px; width: 100%; text-align: left; padding: 7px 9px; border-radius: 7px;
+  background: none; border: none; color: var(--text); font-family: var(--font); font-size: 13px; cursor: pointer; }
+.mention-opt:hover, .mention-opt.on { background: var(--surface-2); }
+.mention-opt .mo-hint { margin-left: auto; font-size: 10.5px; color: var(--text-faint); font-family: var(--mono); }
+
+/* ---- week planner (the work week, scheduled out) ---- */
+.ts-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 900px) { .ts-week { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .ts-week { grid-template-columns: 1fr; } }
+.ts-day { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; min-height: 132px; overflow: hidden; }
+.ts-day.today { border-color: color-mix(in srgb, var(--money) 55%, var(--line)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--money) 30%, transparent) inset; }
+.ts-day.other { opacity: .78; }
+.ts-day-hd { display: flex; align-items: baseline; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid var(--line-soft); }
+.ts-day-dow { font-family: var(--mono); font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--text-faint); }
+.ts-day-num { font-size: 15px; font-weight: 700; }
+.ts-day-tot { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--money); }
+.ts-day-body { display: flex; flex-direction: column; gap: 5px; padding: 8px; flex: 1; }
+.ts-chip { text-align: left; width: 100%; background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 8px; padding: 6px 8px; cursor: pointer; }
+.ts-chip:hover { border-color: var(--accent); }
+.ts-chip .tc-top { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.ts-chip .tc-hrs { font-family: var(--mono); font-weight: 700; font-size: 12px; }
+.ts-chip .tc-prop { font-size: 11.5px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-day-add { margin: 0 8px 8px; padding: 5px; border: 1px dashed var(--line); border-radius: 8px; background: none; color: var(--text-faint);
+  font-family: var(--font); font-size: 12px; cursor: pointer; }
+.ts-day-add:hover { border-color: var(--accent); color: var(--accent); }
+.ts-editor { display: grid; gap: 8px; }
+.ts-editor .te-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+
 /* ---- "What is Caliper" landing ---- */
 .landing { min-height: 100vh; display: grid; place-items: center; padding: 32px 20px; }
 .landing-inner { width: 100%; max-width: 860px; text-align: center; animation: landing-in .7s cubic-bezier(.2,.7,.2,1) both; }

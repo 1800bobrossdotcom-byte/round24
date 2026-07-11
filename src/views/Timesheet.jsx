@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { signedFileUrl } from '../lib/backend/supabase.js';
-import { IcTable, IcReceipt, IcCheck, IcX, IcTrash, IcMapPin, IcBuilding } from '../components/ui.jsx';
+import { IcTable, IcReceipt, IcCheck, IcX, IcTrash, IcMapPin, IcBuilding, IcChevron, IcCal, IcClock } from '../components/ui.jsx';
 
 // live view of the crew's running Field timer (same localStorage the timer
 // persists to). Ticks once a second so hours + pay compile in real time on the
@@ -19,17 +19,26 @@ function useLiveTimer(propById) {
     propLabel: propById[run.propId]?.name || run.propLabel || 'Unassigned',
     unit: run.unit === '—' ? '' : run.unit, category: run.category,
     hrs, rate: run.rate || 0, onBreak: !!s.onBreak, woTask: run.woTask,
+    date: localISO(new Date()),
   };
 }
 
 const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'painting', 'turn', 'general', 'inspection'];
 const money = (n) => (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2);
 const nameKey = (s) => (s || '').toLowerCase().trim();
-const todayISO = () => new Date().toISOString().slice(0, 10);
+
+// --- local (not UTC) date helpers so "today" and the week never drift a day ---
+function localISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+const todayISO = () => localISO(new Date());
+const addDays = (iso, n) => { const d = new Date(`${iso}T00:00:00`); d.setDate(d.getDate() + n); return localISO(d); };
+const WEEK_START = 6; // Saturday — matches Evolution24's pay week (and the rollup engine)
+const weekStartOf = (iso) => { const d = new Date(`${iso}T00:00:00`); const diff = (d.getDay() - WEEK_START + 7) % 7; return addDays(iso, -diff); };
 
 const cellInput = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, padding: '6px 7px', borderRadius: 7,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, padding: '7px 8px', borderRadius: 8,
 };
 
 // the work window: we store duration + when it was logged, so start = logged−hours.
@@ -44,56 +53,173 @@ const fmtDate = (iso) => {
   const d = new Date(`${iso}T00:00:00`);
   return isNaN(d.getTime()) ? iso : d.toLocaleDateString([], { month: 'short', day: 'numeric', weekday: 'short' });
 };
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// @-mention tokens are stored inline as @[Property Name] so a note is a single
+// string that still round-trips through the labor spine + payroll.
+const MENTION_RE = /@\[([^\]]+)\]/g;
+const tagsOf = (note) => (String(note || '').match(MENTION_RE) || []).map((s) => s.slice(2, -1));
+function renderNote(note) {
+  if (!note) return null;
+  const out = []; let last = 0; let m; let i = 0; MENTION_RE.lastIndex = 0;
+  while ((m = MENTION_RE.exec(note))) {
+    if (m.index > last) out.push(<span key={i++}>{note.slice(last, m.index)}</span>);
+    out.push(<span key={i++} className="ts-mention"><IcBuilding width={9} height={9} />{m[1]}</span>);
+    last = MENTION_RE.lastIndex;
+  }
+  if (last < note.length) out.push(<span key={i++}>{note.slice(last)}</span>);
+  return out;
+}
+
+// comment field that turns "@" into a live property picker
+function MentionInput({ value, onChange, options, placeholder }) {
+  const ref = useRef(null);
+  const [menu, setMenu] = useState(null); // { query, start, end } | null
+  const [active, setActive] = useState(0);
+  const detect = (el) => {
+    const pos = el.selectionStart ?? el.value.length;
+    const m = el.value.slice(0, pos).match(/@([^@[\]]{0,24})$/);
+    if (!m) { setMenu(null); return; }
+    setMenu({ query: m[1], start: pos - m[0].length, end: pos }); setActive(0);
+  };
+  const suggestions = useMemo(() => {
+    if (!menu) return [];
+    const q = menu.query.trim().toLowerCase();
+    return options.filter((o) => !q || o.toLowerCase().includes(q)).slice(0, 6);
+  }, [menu, options]);
+  const insert = (name) => {
+    if (!menu) return;
+    const next = value.slice(0, menu.start) + `@[${name}] ` + value.slice(menu.end);
+    onChange(next); setMenu(null);
+    requestAnimationFrame(() => { const el = ref.current; if (el) { const c = menu.start + name.length + 4; el.focus(); el.setSelectionRange(c, c); } });
+  };
+  return (
+    <div className="mention-wrap">
+      <input ref={ref} style={cellInput} value={value || ''} placeholder={placeholder}
+        onChange={(e) => { onChange(e.target.value); detect(e.target); }}
+        onKeyUp={(e) => { if (!['ArrowUp', 'ArrowDown', 'Enter', 'Escape'].includes(e.key)) detect(e.target); }}
+        onKeyDown={(e) => {
+          if (!menu || !suggestions.length) return;
+          if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => (a + 1) % suggestions.length); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => (a - 1 + suggestions.length) % suggestions.length); }
+          else if (e.key === 'Enter') { e.preventDefault(); insert(suggestions[active]); }
+          else if (e.key === 'Escape') { setMenu(null); }
+        }}
+        onBlur={() => setTimeout(() => setMenu(null), 150)} />
+      {menu && suggestions.length > 0 && (
+        <div className="mention-menu">
+          {suggestions.map((s, i) => (
+            <button key={s} type="button" className={'mention-opt' + (i === active ? ' on' : '')}
+              onMouseDown={(e) => { e.preventDefault(); insert(s); }}>
+              <IcBuilding width={13} height={13} style={{ color: 'var(--accent)' }} /> {s}
+              <span className="mo-hint">tag</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// shared entry editor — used inline in the list AND inside a day card in the week view
+function TsEditor({ draft, setDraft, propNames, onSave, onCancel, busy }) {
+  return (
+    <div className="ts-editor">
+      <div className="te-grid">
+        <div><div className="field-label">Date</div>
+          <input style={cellInput} type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /></div>
+        <div><div className="field-label">Hours</div>
+          <input style={cellInput} type="number" step="0.25" min="0" inputMode="decimal" value={draft.durationHrs}
+            onChange={(e) => setDraft({ ...draft, durationHrs: e.target.value })} /></div>
+        <div><div className="field-label">For</div>
+          <select style={cellInput} value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}>
+            {CATS.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select></div>
+        <div><div className="field-label">Property</div>
+          <select style={cellInput} value={draft.propLabel} onChange={(e) => setDraft({ ...draft, propLabel: e.target.value })}>
+            <option value="Unassigned">Unassigned</option>
+            {propNames.map((n) => <option key={n} value={n}>{n}</option>)}
+            {draft.propLabel && draft.propLabel !== 'Unassigned' && !propNames.includes(draft.propLabel) && <option value={draft.propLabel}>{draft.propLabel}</option>}
+          </select></div>
+        <div><div className="field-label">Unit</div>
+          <input style={cellInput} value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} placeholder="unit" /></div>
+      </div>
+      <div>
+        <div className="field-label">Comment — type <b style={{ color: 'var(--accent)' }}>@</b> to tag a property</div>
+        <MentionInput value={draft.note} onChange={(v) => setDraft({ ...draft, note: v })} options={propNames}
+          placeholder="e.g. replaced disposal @121 → tag routes the hours to that door" />
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn grad sm" onClick={onSave} disabled={busy || !(Number(draft.durationHrs) > 0)}>{busy ? '…' : 'Save entry'}</button>
+        <button className="btn ghost sm" onClick={onCancel} disabled={busy}>Cancel</button>
+      </div>
+    </div>
+  );
+}
 
 const PERIODS = [['7', '7 days'], ['14', '2 weeks'], ['30', '30 days'], ['all', 'All']];
 
 export default function Timesheet({ store }) {
   const { timesheet = [], purchases = [], properties = [], techById = {}, role } = store;
   const isOffice = role === 'admin' || role === 'manager';
+  const [view, setView] = useState('week');          // week | list
   const [period, setPeriod] = useState('14');
-  const [editId, setEditId] = useState(null); // row.id | '__new__'
+  const [weekAnchor, setWeekAnchor] = useState(todayISO());
+  const [editId, setEditId] = useState(null);        // row.id | '__new__'
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
 
-  // property options for the picker (rent-roll + labor buildings, de-duped)
+  // property options for the picker / mentions (rent-roll + labor buildings, de-duped)
   const propNames = useMemo(() => {
     const s = new Set(properties.map((p) => p.name));
-    timesheet.forEach((r) => r.propLabel && s.add(r.propLabel));
+    timesheet.forEach((r) => r.propLabel && r.propLabel !== 'Unassigned' && s.add(r.propLabel));
     return [...s].filter(Boolean).sort();
   }, [properties, timesheet]);
 
   const rows = useMemo(() => {
     let list = [...timesheet];
-    if (period !== 'all') {
-      const cut = new Date(); cut.setDate(cut.getDate() - Number(period));
-      const cutISO = cut.toISOString().slice(0, 10);
-      list = list.filter((r) => r.date >= cutISO);
-    }
+    if (period !== 'all') list = list.filter((r) => r.date >= addDays(todayISO(), -Number(period) + 1));
     return list.sort((a, b) => (b.date < a.date ? -1 : b.date > a.date ? 1 : (b.createdAt || '').localeCompare(a.createdAt || '')));
   }, [timesheet, period]);
 
   const live = useLiveTimer(store.propById || {});
 
-  const CAP = 250;
-  const shown = rows.slice(0, CAP);
+  // ---- the work week, scheduled out ----
+  const weekStart = weekStartOf(weekAnchor);
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+  const weekEntries = useMemo(() => {
+    const set = new Set(weekDays);
+    return timesheet.filter((r) => set.has(r.date));
+  }, [timesheet, weekDays]);
+  const byDay = useMemo(() => {
+    const m = {}; weekDays.forEach((d) => { m[d] = []; });
+    weekEntries.forEach((r) => { (m[r.date] = m[r.date] || []).push(r); });
+    Object.values(m).forEach((arr) => arr.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')));
+    return m;
+  }, [weekEntries, weekDays]);
+  const mdFmt = (iso) => { const d = new Date(`${iso}T00:00:00`); return isNaN(d.getTime()) ? iso : d.toLocaleDateString([], { month: 'short', day: 'numeric' }); };
+  const weekLabel = `${mdFmt(weekStart)} – ${mdFmt(weekDays[6])}`; // e.g. "Jul 5 – Jul 11"
+
+  // scope the totals + allocation to what's actually on screen
+  const scopeRows = view === 'week' ? weekEntries : rows;
   const liveHrs = live ? live.hrs : 0;
   const livePay = live ? live.hrs * live.rate : 0;
-  const totHrs = rows.reduce((a, r) => a + (r.durationHrs || 0), 0) + liveHrs;
-  const totPay = rows.reduce((a, r) => a + (r.durationHrs || 0) * (r.rate || 0), 0) + livePay;
-  const hasPay = rows.some((r) => r.rate > 0) || livePay > 0;
+  const liveInScope = live && (view === 'list' ? true : weekDays.includes(live.date));
+  const totHrs = scopeRows.reduce((a, r) => a + (r.durationHrs || 0), 0) + (liveInScope ? liveHrs : 0);
+  const totPay = scopeRows.reduce((a, r) => a + (r.durationHrs || 0) * (r.rate || 0), 0) + (liveInScope ? livePay : 0);
+  const hasPay = scopeRows.some((r) => r.rate > 0) || (liveInScope && livePay > 0);
 
-  // live allocation by property: filtered rows + the running timer as it accrues
   const alloc = useMemo(() => {
     const m = new Map();
     const add = (name, hrs, pay) => {
       const k = name || 'Unassigned'; const e = m.get(nameKey(k)) || { name: k, hrs: 0, pay: 0 };
       e.hrs += hrs; e.pay += pay; m.set(nameKey(k), e);
     };
-    rows.forEach((r) => add(r.propLabel, r.durationHrs || 0, (r.durationHrs || 0) * (r.rate || 0)));
-    if (live) add(live.propLabel, live.hrs, live.hrs * live.rate);
+    scopeRows.forEach((r) => add(r.propLabel, r.durationHrs || 0, (r.durationHrs || 0) * (r.rate || 0)));
+    if (liveInScope) add(live.propLabel, live.hrs, live.hrs * live.rate);
     return [...m.values()].sort((a, b) => b.hrs - a.hrs);
-  }, [rows, live]);
+  }, [scopeRows, live, liveInScope]);
   const allocMax = Math.max(...alloc.map((a) => a.hrs), 1);
 
   // receipts filed to the same job: match the work order, else the building
@@ -107,18 +233,21 @@ export default function Timesheet({ store }) {
   };
 
   const startEdit = (row) => { setEditId(row.id); setDraft({ ...row }); };
-  const startNew = () => {
+  const startNew = (date = todayISO()) => {
     setEditId('__new__');
-    setDraft({ date: todayISO(), durationHrs: 1, propLabel: propNames[0] || '', unit: '', category: 'general', note: '' });
+    setDraft({ date, durationHrs: 1, propLabel: 'Unassigned', unit: '', category: 'general', note: '' });
   };
   const cancel = () => { setEditId(null); setDraft(null); };
   const save = async () => {
     if (!draft) return;
     setBusy(true);
+    const note = (draft.note || '').trim();
+    // an @-tagged property on an otherwise-unassigned entry routes those hours to that door
+    const tags = tagsOf(note);
+    const propLabel = (draft.propLabel && draft.propLabel !== 'Unassigned') ? draft.propLabel : (tags[0] || 'Unassigned');
     const patch = {
       date: draft.date, durationHrs: Math.round((Number(draft.durationHrs) || 0) * 100) / 100,
-      propLabel: draft.propLabel || 'Unassigned', unit: (draft.unit || '').trim(),
-      category: draft.category, note: (draft.note || '').trim(),
+      propLabel, unit: (draft.unit || '').trim(), category: draft.category, note,
     };
     if (editId === '__new__') await store.addTimesheet(patch);
     else await store.updateTimesheet(editId, patch);
@@ -126,65 +255,47 @@ export default function Timesheet({ store }) {
   };
   const del = async (id) => { setConfirmDel(null); await store.deleteTimesheet(id); if (editId === id) cancel(); };
 
+  const editorEl = draft && <TsEditor draft={draft} setDraft={setDraft} propNames={propNames} onSave={save} onCancel={cancel} busy={busy} />;
+
+  const CAP = 250;
+  const shown = rows.slice(0, CAP);
   const colspan = isOffice ? 9 : 8;
-  const editorCells = draft && (
-    <>
-      <td><input style={cellInput} type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /></td>
-      <td className="ts-dim">auto</td>
-      <td><input style={{ ...cellInput, width: 62 }} type="number" step="0.25" min="0" inputMode="decimal" value={draft.durationHrs} onChange={(e) => setDraft({ ...draft, durationHrs: e.target.value })} /></td>
-      <td>
-        <select style={cellInput} value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}>
-          {CATS.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <input style={{ ...cellInput, marginTop: 4 }} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder="what for (note)" />
-      </td>
-      <td>
-        <select style={cellInput} value={draft.propLabel} onChange={(e) => setDraft({ ...draft, propLabel: e.target.value })}>
-          {propNames.map((n) => <option key={n} value={n}>{n}</option>)}
-          {!propNames.includes(draft.propLabel) && draft.propLabel && <option value={draft.propLabel}>{draft.propLabel}</option>}
-        </select>
-      </td>
-      <td><input style={{ ...cellInput, width: 64 }} value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} placeholder="unit" /></td>
-      <td className="ts-dim">—</td>
-      {isOffice && <td className="ts-dim">—</td>}
-      <td>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <button className="btn grad sm" onClick={save} disabled={busy || !(Number(draft.durationHrs) > 0)}>{busy ? '…' : 'Save'}</button>
-          <button className="btn ghost sm" onClick={cancel} disabled={busy}>Cancel</button>
-        </div>
-      </td>
-    </>
-  );
 
   return (
     <div>
       <div className="view-head">
         <h1>Timesheet</h1>
-        <p>{isOffice ? 'Every hour the crew logged — correct a run-long timer, a wrong unit, a missing note.' : 'Your logged hours. A timer ran long or landed on the wrong unit? Fix it right here.'}</p>
+        <p>{isOffice ? 'Every hour the crew logged — the week laid out, editable, tagged to the right door.' : 'Your week, scheduled out. Log hours on any day, and @tag a property in the comment to route them.'}</p>
       </div>
 
-      {/* period + totals + add */}
+      {/* view toggle + totals + add */}
       <div className="card" style={{ marginBottom: 'var(--gap)', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <div className="pick" style={{ margin: 0 }}>
-          {PERIODS.map(([v, l]) => <button key={v} className={period === v ? 'on' : ''} onClick={() => setPeriod(v)}>{l}</button>)}
+          <button className={view === 'week' ? 'on' : ''} onClick={() => setView('week')}><IcCal width={12} height={12} style={{ verticalAlign: -1, marginRight: 4 }} />Week</button>
+          <button className={view === 'list' ? 'on' : ''} onClick={() => setView('list')}><IcTable width={12} height={12} style={{ verticalAlign: -1, marginRight: 4 }} />List</button>
         </div>
+        {view === 'list' && (
+          <div className="pick" style={{ margin: 0 }}>
+            {PERIODS.map(([v, l]) => <button key={v} className={period === v ? 'on' : ''} onClick={() => setPeriod(v)}>{l}</button>)}
+          </div>
+        )}
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', gap: 16, alignItems: 'baseline' }}>
-          <div><span className="mono" style={{ fontSize: 20, fontWeight: 700 }}>{Math.round(totHrs * 10) / 10}</span> <span className="s" style={{ color: 'var(--text-dim)' }}>hrs</span></div>
+          <div><span className="mono" style={{ fontSize: 20, fontWeight: 700 }}>{Math.round(totHrs * 10) / 10}</span> <span className="s" style={{ color: 'var(--text-dim)' }}>{view === 'week' ? 'wk hrs' : 'hrs'}</span></div>
           {hasPay && <div><span className="mono" style={{ fontSize: 20, fontWeight: 700, color: 'var(--money)' }}>{money(totPay)}</span> <span className="s" style={{ color: 'var(--text-dim)' }}>pay</span></div>}
         </div>
-        <button className="btn grad sm" onClick={startNew} disabled={editId === '__new__'}>+ Add entry</button>
+        <button className="btn grad sm" onClick={() => startNew()} disabled={editId === '__new__'}>+ Add entry</button>
       </div>
 
-      {/* live allocation by property — updates as the timer ticks */}
+      {/* allocation by property — updates as the timer ticks */}
       {alloc.length > 0 && (
         <div className="card" style={{ marginBottom: 'var(--gap)' }}>
           <span className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <IcBuilding width={13} height={13} /> Allocation by property{live && <span className="ts-live-dot" style={{ marginLeft: 2 }} />}
+            <IcBuilding width={13} height={13} /> {view === 'week' ? 'This week by property' : 'Allocation by property'}{liveInScope && <span className="ts-live-dot" style={{ marginLeft: 2 }} />}
           </span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
             {alloc.slice(0, 8).map((a) => {
-              const isLive = live && nameKey(a.name) === nameKey(live.propLabel);
+              const isLive = liveInScope && nameKey(a.name) === nameKey(live.propLabel);
               return (
                 <div key={a.name} style={{ display: 'grid', gridTemplateColumns: '150px 1fr auto', gap: 10, alignItems: 'center' }}>
                   <span style={{ fontSize: 13, color: isLive ? 'var(--money)' : 'var(--text-dim)', fontWeight: isLive ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</span>
@@ -199,89 +310,165 @@ export default function Timesheet({ store }) {
         </div>
       )}
 
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div className="rr-scroll">
-          <table className="rr-tbl ts-tbl">
-            <thead><tr>
-              <th>Date</th><th>Time</th><th className="num">Hrs</th><th>For</th>
-              <th>Property</th><th>Unit</th><th>Receipts</th>
-              {isOffice && <th>Crew</th>}
-              <th aria-label="actions"></th>
-            </tr></thead>
-            <tbody>
-              {live && (
-                <tr className="ts-live-row">
-                  <td style={{ whiteSpace: 'nowrap', fontWeight: 700 }}><span className="ts-live-dot" />Now</td>
-                  <td className="ts-dim mono" style={{ fontSize: 12 }}>{live.onBreak ? 'on break' : 'running'}</td>
-                  <td className="num mono" style={{ fontWeight: 700, color: 'var(--money)' }}>{live.hrs.toFixed(2)}</td>
-                  <td>
-                    <span style={{ textTransform: 'capitalize' }}>{live.category}</span>
-                    {live.rate > 0 && <span className="ts-dim" style={{ fontSize: 11 }}> @ ${live.rate}/hr · <span className="money" style={{ fontWeight: 700 }}>{money(live.hrs * live.rate)}</span></span>}
-                    {live.woTask && <div className="ts-dim" style={{ fontSize: 11 }}>{live.woTask}</div>}
-                  </td>
-                  <td>{live.propLabel}</td>
-                  <td className="mono">{live.unit || <span className="ts-dim">—</span>}</td>
-                  <td className="ts-dim">—</td>
-                  {isOffice && <td className="ts-dim" style={{ fontSize: 12 }}>on the clock</td>}
-                  <td className="ts-dim" style={{ fontSize: 11 }}>compiling…</td>
-                </tr>
-              )}
-              {editId === '__new__' && <tr className="ts-edit-row">{editorCells}</tr>}
-              {shown.length === 0 && editId !== '__new__' && !live && (
-                <tr><td colSpan={colspan} style={{ padding: 20, textAlign: 'center', color: 'var(--text-faint)' }}>No entries in this period. Log time in the Field timer, or “+ Add entry”.</td></tr>
-              )}
-              {shown.map((r) => {
-                if (editId === r.id) return <tr key={r.id} className="ts-edit-row">{editorCells}</tr>;
-                const recs = receiptsFor(r);
-                return (
-                  <tr key={r.id}>
-                    <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.date)}</td>
-                    <td className="ts-dim mono" style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{timeWindow(r)}</td>
-                    <td className="num mono" style={{ fontWeight: 700 }}>{r.durationHrs}</td>
-                    <td>
-                      <span style={{ textTransform: 'capitalize' }}>{r.category}</span>
-                      {r.note && <div className="ts-dim" style={{ fontSize: 11 }}>{r.note}</div>}
-                    </td>
-                    <td>
-                      {r.propLabel || <span className="ts-dim">—</span>}
-                      {r.verified === true && <IcMapPin width={11} height={11} style={{ color: 'var(--money)', marginLeft: 4, verticalAlign: -1 }} title="verified on-site" />}
-                    </td>
-                    <td className="mono">{r.unit || <span className="ts-dim">—</span>}</td>
-                    <td>
-                      {recs.length === 0 ? <span className="ts-dim">—</span> : (
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          {recs.slice(0, 2).map((p) => (
-                            <button key={p.id} className="ts-rec" onClick={() => openReceipt(p)} title={`${p.vendor || 'Receipt'} — $${(p.amount || 0).toFixed(2)}`}>
-                              <IcReceipt width={11} height={11} /> ${Math.round(p.amount || 0)}
-                            </button>
-                          ))}
-                          {recs.length > 2 && <span className="ts-dim" style={{ fontSize: 11 }}>+{recs.length - 2}</span>}
-                        </div>
-                      )}
-                    </td>
-                    {isOffice && <td className="ts-dim" style={{ fontSize: 12 }}>{techById[r.techId]?.name || '—'}</td>}
-                    <td>
-                      {confirmDel === r.id ? (
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button className="btn ghost sm icon-btn" style={{ color: 'var(--danger)' }} onClick={() => del(r.id)} aria-label="Confirm delete"><IcCheck width={14} height={14} /></button>
-                          <button className="btn ghost sm icon-btn" onClick={() => setConfirmDel(null)} aria-label="Cancel"><IcX width={14} height={14} /></button>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', gap: 2 }}>
-                          <button className="btn ghost sm" onClick={() => startEdit(r)}>Edit</button>
-                          <button className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)' }} onClick={() => setConfirmDel(r.id)} aria-label="Delete"><IcTrash width={13} height={13} /></button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* new-entry editor (shared) — shown at top when adding from the list toolbar */}
+      {editId === '__new__' && view === 'list' && (
+        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'var(--accent)' }}>{editorEl}</div>
+      )}
+
+      {/* week view keeps the editor full-width above the grid — a 1/7 column is too cramped for it */}
+      {view === 'week' && draft && (
+        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'var(--accent)' }}>
+          <span className="field-label" style={{ marginBottom: 8, display: 'block' }}>{editId === '__new__' ? 'Log hours' : 'Edit entry'} · {fmtDate(draft.date)}</span>
+          {editorEl}
         </div>
-      </div>
-      {rows.length > CAP && <p className="note">Showing the {CAP} most recent of {rows.length} entries — narrow the period to see the rest.</p>}
-      <p className="note"><IcTable width={12} height={12} style={{ verticalAlign: -2 }} /> Edits flow straight to the labor spine — change an entry here and it moves the dashboards, per-door P&amp;L, and payroll together.</p>
+      )}
+
+      {view === 'week' ? (
+        <>
+          {/* week navigator */}
+          <div className="card" style={{ marginBottom: 'var(--gap)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button className="btn ghost sm icon-btn" onClick={() => setWeekAnchor(addDays(weekStart, -7))} aria-label="Previous week"><IcChevron width={15} height={15} style={{ transform: 'rotate(180deg)' }} /></button>
+            <div style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ fontWeight: 700 }}>{weekLabel}</div>
+              <div className="s" style={{ color: 'var(--text-faint)' }}>week of {fmtDate(weekStart)}</div>
+            </div>
+            <button className="btn ghost sm icon-btn" onClick={() => setWeekAnchor(addDays(weekStart, 7))} aria-label="Next week"><IcChevron width={15} height={15} /></button>
+            {weekStart !== weekStartOf(todayISO()) && <button className="btn ghost sm" onClick={() => setWeekAnchor(todayISO())}>This week</button>}
+          </div>
+
+          <div className="ts-week">
+            {weekDays.map((iso) => {
+              const entries = byDay[iso] || [];
+              const isToday = iso === todayISO();
+              const showLive = live && liveInScope && live.date === iso;
+              const dayHrs = entries.reduce((a, r) => a + (r.durationHrs || 0), 0) + (showLive ? live.hrs : 0);
+              const targetsHere = draft && draft.date === iso;   // this day is the one being added/edited
+              const d = new Date(`${iso}T00:00:00`);
+              return (
+                <div key={iso} className={'ts-day' + (isToday ? ' today' : '') + (targetsHere ? ' today' : '')}>
+                  <div className="ts-day-hd">
+                    <div>
+                      <div className="ts-day-dow">{DOW[d.getDay()]}{isToday && ' • today'}</div>
+                      <div className="ts-day-num">{d.getDate()}</div>
+                    </div>
+                    {dayHrs > 0 && <div className="ts-day-tot">{Math.round(dayHrs * 10) / 10}h</div>}
+                  </div>
+                  <div className="ts-day-body">
+                    {showLive && (
+                      <div className="ts-chip" style={{ borderColor: 'color-mix(in srgb, var(--money) 45%, var(--line))' }}>
+                        <div className="tc-top"><span style={{ fontSize: 11.5 }}><span className="ts-live-dot" style={{ width: 6, height: 6 }} />{live.onBreak ? 'on break' : 'running'}</span><span className="tc-hrs" style={{ color: 'var(--money)' }}>{live.hrs.toFixed(2)}h</span></div>
+                        <div className="tc-prop">{live.propLabel}</div>
+                      </div>
+                    )}
+                    {entries.map((r) => (
+                      <button key={r.id} className="ts-chip" onClick={() => startEdit(r)} style={editId === r.id ? { borderColor: 'var(--accent)' } : undefined}>
+                        <div className="tc-top">
+                          <span style={{ fontSize: 11.5, textTransform: 'capitalize', color: 'var(--text-dim)' }}>{r.category}</span>
+                          <span className="tc-hrs">{r.durationHrs}h</span>
+                        </div>
+                        <div className="tc-prop">
+                          {r.propLabel && r.propLabel !== 'Unassigned' ? r.propLabel : <span style={{ color: 'var(--text-faint)' }}>unassigned</span>}
+                          {r.verified === true && <IcMapPin width={10} height={10} style={{ color: 'var(--money)', marginLeft: 3, verticalAlign: -1 }} />}
+                          {r.unit && <span className="ts-dim"> · {r.unit}</span>}
+                        </div>
+                        {r.note && <div style={{ fontSize: 11, marginTop: 3, lineHeight: 1.35 }}>{renderNote(r.note)}</div>}
+                      </button>
+                    ))}
+                    {entries.length === 0 && !showLive && <div className="ts-dim" style={{ fontSize: 11.5, padding: '4px 2px' }}>—</div>}
+                  </div>
+                  <button className="ts-day-add" onClick={() => startNew(iso)}>+ log</button>
+                </div>
+              );
+            })}
+          </div>
+          <p className="note"><IcClock width={12} height={12} style={{ verticalAlign: -2 }} /> Tap any entry to fix it, or <b>+ log</b> to add hours to a day. Type <b style={{ color: 'var(--accent)' }}>@</b> in a comment to tag a property — an unassigned entry then routes its hours to that door.</p>
+        </>
+      ) : (
+        <>
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div className="rr-scroll">
+              <table className="rr-tbl ts-tbl">
+                <thead><tr>
+                  <th>Date</th><th>Time</th><th className="num">Hrs</th><th>For / comment</th>
+                  <th>Property</th><th>Unit</th><th>Receipts</th>
+                  {isOffice && <th>Crew</th>}
+                  <th aria-label="actions"></th>
+                </tr></thead>
+                <tbody>
+                  {live && (
+                    <tr className="ts-live-row">
+                      <td style={{ whiteSpace: 'nowrap', fontWeight: 700 }}><span className="ts-live-dot" />Now</td>
+                      <td className="ts-dim mono" style={{ fontSize: 12 }}>{live.onBreak ? 'on break' : 'running'}</td>
+                      <td className="num mono" style={{ fontWeight: 700, color: 'var(--money)' }}>{live.hrs.toFixed(2)}</td>
+                      <td>
+                        <span style={{ textTransform: 'capitalize' }}>{live.category}</span>
+                        {live.rate > 0 && <span className="ts-dim" style={{ fontSize: 11 }}> @ ${live.rate}/hr · <span className="money" style={{ fontWeight: 700 }}>{money(live.hrs * live.rate)}</span></span>}
+                        {live.woTask && <div className="ts-dim" style={{ fontSize: 11 }}>{live.woTask}</div>}
+                      </td>
+                      <td>{live.propLabel}</td>
+                      <td className="mono">{live.unit || <span className="ts-dim">—</span>}</td>
+                      <td className="ts-dim">—</td>
+                      {isOffice && <td className="ts-dim" style={{ fontSize: 12 }}>on the clock</td>}
+                      <td className="ts-dim" style={{ fontSize: 11 }}>compiling…</td>
+                    </tr>
+                  )}
+                  {shown.length === 0 && editId !== '__new__' && !live && (
+                    <tr><td colSpan={colspan} style={{ padding: 20, textAlign: 'center', color: 'var(--text-faint)' }}>No entries in this period. Log time in the Field timer, or “+ Add entry”.</td></tr>
+                  )}
+                  {shown.map((r) => {
+                    if (editId === r.id) return <tr key={r.id} className="ts-edit-row"><td colSpan={colspan}>{editorEl}</td></tr>;
+                    const recs = receiptsFor(r);
+                    return (
+                      <tr key={r.id}>
+                        <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.date)}</td>
+                        <td className="ts-dim mono" style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{timeWindow(r)}</td>
+                        <td className="num mono" style={{ fontWeight: 700 }}>{r.durationHrs}</td>
+                        <td>
+                          <span style={{ textTransform: 'capitalize' }}>{r.category}</span>
+                          {r.note && <div className="ts-dim" style={{ fontSize: 11 }}>{renderNote(r.note)}</div>}
+                        </td>
+                        <td>
+                          {r.propLabel && r.propLabel !== 'Unassigned' ? r.propLabel : <span className="ts-dim">—</span>}
+                          {r.verified === true && <IcMapPin width={11} height={11} style={{ color: 'var(--money)', marginLeft: 4, verticalAlign: -1 }} title="verified on-site" />}
+                        </td>
+                        <td className="mono">{r.unit || <span className="ts-dim">—</span>}</td>
+                        <td>
+                          {recs.length === 0 ? <span className="ts-dim">—</span> : (
+                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                              {recs.slice(0, 2).map((p) => (
+                                <button key={p.id} className="ts-rec" onClick={() => openReceipt(p)} title={`${p.vendor || 'Receipt'} — $${(p.amount || 0).toFixed(2)}`}>
+                                  <IcReceipt width={11} height={11} /> ${Math.round(p.amount || 0)}
+                                </button>
+                              ))}
+                              {recs.length > 2 && <span className="ts-dim" style={{ fontSize: 11 }}>+{recs.length - 2}</span>}
+                            </div>
+                          )}
+                        </td>
+                        {isOffice && <td className="ts-dim" style={{ fontSize: 12 }}>{techById[r.techId]?.name || '—'}</td>}
+                        <td>
+                          {confirmDel === r.id ? (
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button className="btn ghost sm icon-btn" style={{ color: 'var(--danger)' }} onClick={() => del(r.id)} aria-label="Confirm delete"><IcCheck width={14} height={14} /></button>
+                              <button className="btn ghost sm icon-btn" onClick={() => setConfirmDel(null)} aria-label="Cancel"><IcX width={14} height={14} /></button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', gap: 2 }}>
+                              <button className="btn ghost sm" onClick={() => startEdit(r)}>Edit</button>
+                              <button className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)' }} onClick={() => setConfirmDel(r.id)} aria-label="Delete"><IcTrash width={13} height={13} /></button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {rows.length > CAP && <p className="note">Showing the {CAP} most recent of {rows.length} entries — narrow the period to see the rest.</p>}
+          <p className="note"><IcTable width={12} height={12} style={{ verticalAlign: -2 }} /> Edits flow straight to the labor spine — change an entry here and it moves the dashboards, per-door P&amp;L, and payroll together.</p>
+        </>
+      )}
     </div>
   );
 }
