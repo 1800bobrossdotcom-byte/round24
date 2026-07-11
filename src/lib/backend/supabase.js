@@ -888,20 +888,45 @@ export async function signedFileUrl(bucket, path) {
 // ---- cloud labor persistence: the imported spine follows the account ----
 // staff-only (carries rates). Stored as a single per-org document.
 export async function getLaborState(orgId) {
-  const { data, error } = await supabase
-    .from('labor_state').select('imported, props, range').eq('org_id', orgId).maybeSingle();
+  const sel = (cols) => supabase.from('labor_state').select(cols).eq('org_id', orgId).maybeSingle();
+  let { data, error } = await sel('imported, props, range, salaries');
+  // tolerate a DB that hasn't added the salaries column yet (no regression)
+  if (error && /salaries/i.test(error.message || '')) ({ data, error } = await sel('imported, props, range'));
   if (error) throw error;
   if (!data) return null;
-  // labor rows carry pay rates → imported/props blobs are encrypted at rest
-  return { imported: await decBlob(data.imported), props: await decBlob(data.props), range: data.range };
+  // labor rows carry pay rates → imported/props/salaries blobs encrypted at rest
+  return {
+    imported: await decBlob(data.imported), props: await decBlob(data.props), range: data.range,
+    salaries: data.salaries ? await decBlob(data.salaries) : null,
+  };
 }
 
 export async function saveLaborState(orgId, s) {
-  const { error } = await supabase.from('labor_state').upsert({
+  const base = {
     org_id: orgId, imported: await encBlob(s.imported), props: await encBlob(s.props),
     range: s.range, updated_at: new Date().toISOString(),
-  }, { onConflict: 'org_id' });
+  };
+  const withSal = s.salaries !== undefined ? { ...base, salaries: await encBlob(s.salaries) } : base;
+  let { error } = await supabase.from('labor_state').upsert(withSal, { onConflict: 'org_id' });
+  if (error && /salaries/i.test(error.message || '')) ({ error } = await supabase.from('labor_state').upsert(base, { onConflict: 'org_id' }));
   if (error) throw error;
+}
+
+// go-live reset: clear an org's TEST/operational rows so a beta workspace
+// starts clean. Each table is deleted independently (a missing/edge table never
+// aborts the rest). RLS keeps it scoped to this org, and office-only. Portfolio
+// (rent roll + vendors) is preserved unless includePortfolio is set.
+export async function wipeOrgData(orgId, { includePortfolio = false } = {}) {
+  const del = async (table) => {
+    try { const { error } = await supabase.from(table).delete().eq('org_id', orgId); return { table, ok: !error }; }
+    catch { return { table, ok: false }; }
+  };
+  // operational first; portfolio (leases before units for the FK) only on request
+  const tables = ['timers', 'work_orders', 'purchases', 'documents', 'live_timers', 'messages', 'chat_channels', 'property_cards', 'availability', 'labor_state'];
+  if (includePortfolio) tables.push('leases', 'units', 'vendor_products', 'vendors');
+  const results = [];
+  for (const t of tables) results.push(await del(t));
+  return results;
 }
 
 // native buildings discovered from an Excel import (non-integrated shops)

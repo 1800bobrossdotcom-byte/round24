@@ -173,6 +173,9 @@ export default function Settings({ store }) {
         <VoiceCommandGuide />
       </div>
 
+      {/* go-live: clear test/beta data (office only) */}
+      {(role === 'admin' || role === 'manager') && <DangerZone store={store} />}
+
       {/* privacy & data */}
       <div className="card" style={{ marginBottom: 'var(--gap)' }}>
         <span className="field-label">Privacy &amp; data</span>
@@ -202,6 +205,46 @@ export default function Settings({ store }) {
       </div>
 
       <p className="note">We encrypt sensitive identity fields (legal name, tax identifiers, address, emergency contact) with AES-256 backed by AWS KMS, and isolate every workspace with row-level security. You control your data — export or request deletion anytime.</p>
+    </div>
+  );
+}
+
+// go-live reset — clears this workspace's test/operational data so a beta org
+// starts clean. Typed-confirm gated; portfolio kept unless opted in.
+function DangerZone({ store }) {
+  const [open, setOpen] = useState(false);
+  const [includePortfolio, setIncludePortfolio] = useState(false);
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(null);
+  const run = async () => {
+    setBusy(true);
+    try { await store.resetWorkspace({ cloud: true, includePortfolio }); setDone('Workspace cleared. Reload to start fresh.'); setConfirm(''); setOpen(false); }
+    catch { setDone('Cleared local data. Some cloud rows may remain — check the dashboard.'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'var(--danger)' }}>
+      <span className="field-label" style={{ color: 'var(--danger)' }}>Danger zone · go-live reset</span>
+      <p className="note" style={{ margin: '2px 0 8px' }}>
+        Clears this workspace's <b>test data</b> — timers, work orders, purchases, docs, messages, and the imported labor spine — so beta starts clean. Sample data is already off for a live org.
+      </p>
+      {!open ? (
+        <button className="btn ghost sm" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => setOpen(true)}>Clear test data…</button>
+      ) : (
+        <div style={{ background: 'var(--surface-2)', padding: 12, borderRadius: 10 }}>
+          <Row label="Also clear rent roll &amp; vendors" hint="Off = keep your imported portfolio, wipe only operational test data">
+            <Toggle on={includePortfolio} onChange={setIncludePortfolio} />
+          </Row>
+          <p className="note" style={{ margin: '8px 0 6px' }}>Type <b>RESET</b> to confirm — this can't be undone.</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input style={{ ...inputStyle, letterSpacing: '.15em' }} value={confirm} onChange={(e) => setConfirm(e.target.value.toUpperCase())} placeholder="RESET" />
+            <button className="btn" style={{ background: 'var(--danger)', color: '#fff', flex: 'none' }} disabled={confirm !== 'RESET' || busy} onClick={run}>{busy ? 'Clearing…' : 'Clear'}</button>
+            <button className="btn ghost sm" onClick={() => { setOpen(false); setConfirm(''); }} disabled={busy}>Cancel</button>
+          </div>
+        </div>
+      )}
+      {done && <p className="note" style={{ color: 'var(--money)', marginTop: 8 }}>{done}</p>}
     </div>
   );
 }

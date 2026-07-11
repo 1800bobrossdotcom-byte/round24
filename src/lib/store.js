@@ -20,7 +20,7 @@ import {
   getLaborState, saveLaborState,
   listAvailability, setAvailability, subscribeAvailability, logAudit,
   fetchMyOperatorId, insertTimer, updateTimer, insertProperties, getUserSettings,
-  setPropertyLocation, listTimers, deleteTimer,
+  setPropertyLocation, listTimers, deleteTimer, wipeOrgData,
 } from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
@@ -112,6 +112,20 @@ export function useStore() {
   const impPropsRef = useRef(impProps);
   useEffect(() => { impPropsRef.current = impProps; }, [impProps]);
 
+  // ---- salaried operators: a fixed salary, dispersed across doors by hours ----
+  // Rides the labor-state document so it syncs across the office's devices
+  // (encrypted at rest — it carries pay). localStorage is the fast local cache.
+  const [salaries, setSalaries] = useState(() => loadLS('caliper_salaries_v1', {}));
+  useEffect(() => { localStorage.setItem('caliper_salaries_v1', JSON.stringify(salaries)); }, [salaries]);
+  const setSalary = useCallback((techId, val) => {
+    setSalaries((s) => {
+      const next = { ...s };
+      if (!val || !(val.amount > 0)) delete next[techId];
+      else next[techId] = { amount: Number(val.amount), period: val.period || 'year' };
+      return next;
+    });
+  }, []);
+
   // ---- cloud labor persistence: the spine follows the account (staff only) ----
   // localStorage is the fast local cache; when connected, this org record is the
   // source of truth so dashboards/team/properties are the same on every device.
@@ -125,6 +139,7 @@ export function useStore() {
         if (s.imported && (s.imported.timers?.length || s.imported.techs?.length)) setImported(s.imported);
         if (Array.isArray(s.props)) { impPropsRef.current = s.props; setImpProps(s.props); }
         if (s.range?.from && s.range?.to) setRange(s.range);
+        if (s.salaries && typeof s.salaries === 'object') setSalaries(s.salaries);
       }
       setLaborBackend('db');
       hydratedRef.current = true;
@@ -133,9 +148,9 @@ export function useStore() {
   // write-through: after hydration, sync any spine change up (debounced)
   useEffect(() => {
     if (laborBackend !== 'db' || !hydratedRef.current || !orgId || !isStaffMember) return;
-    const t = setTimeout(() => { saveLaborState(orgId, { imported, props: impProps, range }).catch(() => {}); }, 900);
+    const t = setTimeout(() => { saveLaborState(orgId, { imported, props: impProps, range, salaries }).catch(() => {}); }, 900);
     return () => clearTimeout(t);
-  }, [imported, impProps, range, laborBackend, orgId, isStaffMember]);
+  }, [imported, impProps, range, salaries, laborBackend, orgId, isStaffMember]);
 
   // per-building geofence pins for verified clock-in. A pin can come from three
   // places, in priority order: a location the office just set (override), the
@@ -555,19 +570,6 @@ export function useStore() {
     }
   }, [demoMode]); // audit resolved via closure (defined below)
 
-  // ---- salaried operators: enter a fixed salary; it disperses by hours ----
-  // Stored locally for now (office device); cloud sync is a small future column.
-  const [salaries, setSalaries] = useState(() => loadLS('caliper_salaries_v1', {}));
-  useEffect(() => { localStorage.setItem('caliper_salaries_v1', JSON.stringify(salaries)); }, [salaries]);
-  const setSalary = useCallback((techId, val) => {
-    setSalaries((s) => {
-      const next = { ...s };
-      if (!val || !(val.amount > 0)) delete next[techId];
-      else next[techId] = { amount: Number(val.amount), period: val.period || 'year' };
-      return next;
-    });
-  }, []);
-
   // ---- documents: DB+storage only (no meaningful local fallback for files) ----
   const [documents, setDocuments] = useState([]);
   const [docBackend, setDocBackend] = useState('none'); // 'db' | 'none'
@@ -939,6 +941,23 @@ export function useStore() {
     return { timers: timerCount };
   }, [ensureProperties, addImported, addWorkOrder, addPurchase, setPurchaseStatus, purchases.length, importLeases, orgId, setLeasing, demoMode, saveVendor, saveProduct]);
 
+  // go-live reset: clear this workspace's test/operational data. Local always;
+  // cloud rows too when connected. Portfolio (rent roll + vendors) is preserved
+  // unless includePortfolio is set.
+  const resetWorkspace = useCallback(async ({ cloud = true, includePortfolio = false } = {}) => {
+    [IMP_KEY, WO_KEY, PUR_KEY, PROP_KEY, TQ_KEY, MSG_KEY, CHAN_KEY, 'caliper_cards_v1']
+      .forEach((k) => { try { localStorage.removeItem(k); } catch { /* no storage */ } });
+    clearImported();
+    setWorkOrders([]); setPurchases([]); setMessages([]); setCards([]); setTimesheet([]);
+    if (includePortfolio) { setLeasing([]); setVendors([]); setVendorProducts([]); }
+    let result = null;
+    if (cloud && isConfigured() && orgId && !demoMode) {
+      try { result = await wipeOrgData(orgId, { includePortfolio }); audit('reset_workspace', includePortfolio ? 'all data' : 'operational data'); }
+      catch { /* local clear already applied */ }
+    }
+    return result;
+  }, [orgId, demoMode, clearImported, audit]);
+
   // notification badges: items created since the tab was last opened
   const badges = useMemo(() => {
     const newer = (items, key) => items.filter((it) => it.createdAt && new Date(it.createdAt).getTime() > (seen[key] || 0)).length;
@@ -975,6 +994,8 @@ export function useStore() {
     timesheet, addTimesheet, updateTimesheet, deleteTimesheet, refreshTimesheet,
     // salaried operators
     salaries, setSalary,
+    // go-live reset
+    resetWorkspace,
     leasing, setLeaseField, importLeases, loadLeasing, canSeeLeasing, addUnit, removeUnit,
     setBuildingLocation,
     vendors, vendorProducts, canEditVendors, saveVendor, removeVendor, setVendorField,
