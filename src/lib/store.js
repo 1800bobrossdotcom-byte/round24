@@ -314,15 +314,20 @@ export function useStore() {
   }, []);
 
   // ---- work orders: DB-backed when connected, localStorage otherwise ----
-  const [workOrders, setWorkOrders] = useState(() => loadLS(WO_KEY, []));
+  // a configured deployment is cloud-authoritative — don't seed from the shared
+  // localStorage cache (it could hold another org's or the demo's rows)
+  const [workOrders, setWorkOrders] = useState(() => (isConfigured() ? [] : loadLS(WO_KEY, [])));
   const [woBackend, setWoBackend] = useState('local'); // 'db' | 'local'
-  useEffect(() => { saveLS(WO_KEY, workOrders); }, [workOrders]);
+  useEffect(() => { if (woBackend !== 'db') saveLS(WO_KEY, workOrders); }, [workOrders, woBackend]);
 
   useEffect(() => {
-    if (!isConfigured() || !orgId) return;
+    if (!isConfigured() || !orgId) return undefined;
+    let alive = true;
+    setWorkOrders([]); // drop the previous org's rows on switch; ignore a stale in-flight response
     listWorkOrders(orgId)
-      .then((rows) => { setWorkOrders(rows); setWoBackend('db'); })
-      .catch(() => setWoBackend('local')); // table not migrated yet → keep local
+      .then((rows) => { if (alive) { setWorkOrders(rows); setWoBackend('db'); } })
+      .catch(() => { if (alive) setWoBackend('local'); }); // table not migrated yet → keep local
+    return () => { alive = false; };
   }, [orgId]);
 
   const addWorkOrder = useCallback(async (wo) => {
@@ -447,17 +452,20 @@ export function useStore() {
   }, [orgId, woBackend]);
 
   // ---- purchases: DB-backed when connected, localStorage otherwise ----
-  const [purchases, setPurchases] = useState(() => loadLS(PUR_KEY, []));
+  const [purchases, setPurchases] = useState(() => (isConfigured() ? [] : loadLS(PUR_KEY, [])));
   const [purBackend, setPurBackend] = useState('local');
-  useEffect(() => { saveLS(PUR_KEY, purchases); }, [purchases]);
+  useEffect(() => { if (purBackend !== 'db') saveLS(PUR_KEY, purchases); }, [purchases, purBackend]);
   const purchasesRef = useRef(purchases);
   useEffect(() => { purchasesRef.current = purchases; }, [purchases]);
 
   useEffect(() => {
-    if (!isConfigured() || !orgId) return;
+    if (!isConfigured() || !orgId) return undefined;
+    let alive = true;
+    setPurchases([]);
     listPurchases(orgId)
-      .then((rows) => { setPurchases(rows); setPurBackend('db'); })
-      .catch(() => setPurBackend('local'));
+      .then((rows) => { if (alive) { setPurchases(rows); setPurBackend('db'); } })
+      .catch(() => { if (alive) setPurBackend('local'); });
+    return () => { alive = false; };
   }, [orgId]);
 
   const addPurchase = useCallback(async (p, receiptFile) => {
@@ -562,9 +570,12 @@ export function useStore() {
     // demo seeds from the sample spine (editable copy); cloud loads the table.
     // Deliberately keyed on [orgId, demoMode] only — re-running on every spine
     // change would clobber in-progress edits.
-    if (demoMode) { setTimesheet(allTimers.map(tsRowFromSpine)); return; }
-    if (!isConfigured() || !orgId) return;
-    listTimers(orgId).then(setTimesheet).catch(() => {});
+    if (demoMode) { setTimesheet(allTimers.map(tsRowFromSpine)); return undefined; }
+    if (!isConfigured() || !orgId) return undefined;
+    let alive = true;
+    setTimesheet([]); // drop the prior org's timesheet on switch; ignore a stale in-flight response
+    listTimers(orgId).then((r) => { if (alive) setTimesheet(r); }).catch(() => {});
+    return () => { alive = false; };
   }, [orgId, demoMode]);
   const refreshTimesheet = useCallback(() => {
     if (demoMode || !isConfigured() || !orgId) return;
@@ -622,10 +633,13 @@ export function useStore() {
   const [documents, setDocuments] = useState([]);
   const [docBackend, setDocBackend] = useState('none'); // 'db' | 'none'
   useEffect(() => {
-    if (!isConfigured() || !orgId) return;
+    if (!isConfigured() || !orgId) return undefined;
+    let alive = true;
+    setDocuments([]);
     listDocuments(orgId)
-      .then((rows) => { setDocuments(rows); setDocBackend('db'); })
-      .catch(() => setDocBackend('none'));
+      .then((rows) => { if (alive) { setDocuments(rows); setDocBackend('db'); } })
+      .catch(() => { if (alive) setDocBackend('none'); });
+    return () => { alive = false; };
   }, [orgId]);
 
   const addDocument = useCallback(async (file, opts) => {
@@ -637,10 +651,13 @@ export function useStore() {
   // ---- live presence: who's on the clock (crew timers → office board) ----
   const [liveTimers, setLiveTimers] = useState([]);
   useEffect(() => {
-    if (!isConfigured() || !orgId) return;
-    const refresh = () => listLiveTimers(orgId).then(setLiveTimers).catch(() => {});
+    if (!isConfigured() || !orgId) return undefined;
+    let alive = true;
+    setLiveTimers([]);
+    const refresh = () => listLiveTimers(orgId).then((r) => { if (alive) setLiveTimers(r); }).catch(() => {});
     refresh();
-    return subscribeLiveTimers(orgId, refresh);
+    const unsub = subscribeLiveTimers(orgId, refresh);
+    return () => { alive = false; if (typeof unsub === 'function') unsub(); };
   }, [orgId]);
 
   // Field timer calls this: pass the running session (or null on stop) to
@@ -654,10 +671,13 @@ export function useStore() {
   // ---- availability: on shift / off / PTO (feeds the Day board) ----
   const [availability, setAvail] = useState([]);
   useEffect(() => {
-    if (!isConfigured() || !orgId) return;
-    const refresh = () => listAvailability(orgId).then(setAvail).catch(() => {});
+    if (!isConfigured() || !orgId) return undefined;
+    let alive = true;
+    setAvail([]);
+    const refresh = () => listAvailability(orgId).then((r) => { if (alive) setAvail(r); }).catch(() => {});
     refresh();
-    return subscribeAvailability(orgId, refresh);
+    const unsub = subscribeAvailability(orgId, refresh);
+    return () => { alive = false; if (typeof unsub === 'function') unsub(); };
   }, [orgId]);
   const setMyAvailability = useCallback(async (status, note) => {
     if (!isConfigured() || !orgId) return;
@@ -679,7 +699,13 @@ export function useStore() {
     if (!isConfigured() || !orgId || !canSeeLeasing) return;
     listLeasing(orgId).then(setLeasing).catch(() => {});
   }, [orgId, canSeeLeasing]);
-  useEffect(loadLeasing, [loadLeasing]);
+  useEffect(() => {
+    if (demoMode || !isConfigured() || !orgId || !canSeeLeasing) return undefined;
+    let alive = true;
+    setLeasing([]); // clear the prior org's rent roll on switch; drop a stale in-flight response
+    listLeasing(orgId).then((r) => { if (alive) setLeasing(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, [orgId, canSeeLeasing, demoMode]);
 
   // edit a rent-roll cell — rent/renewal/notes/tenant live on the lease,
   // status lives on the unit. Optimistic locally, persisted in the cloud.
@@ -740,7 +766,14 @@ export function useStore() {
     listVendors(orgId).then(setVendors).catch(() => {});
     listVendorProducts(orgId).then(setVendorProducts).catch(() => {});
   }, [orgId]);
-  useEffect(loadVendors, [loadVendors]);
+  useEffect(() => {
+    if (demoMode || !isConfigured() || !orgId) return undefined;
+    let alive = true;
+    setVendors([]); setVendorProducts([]); // drop the prior org's rolodex on switch
+    listVendors(orgId).then((r) => { if (alive) setVendors(r); }).catch(() => {});
+    listVendorProducts(orgId).then((r) => { if (alive) setVendorProducts(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, [orgId, demoMode]);
   useEffect(() => {
     if (!isConfigured() || !orgId) return undefined;
     return subscribeVendors(orgId, loadVendors);
@@ -792,12 +825,15 @@ export function useStore() {
   }, [orgId, demoMode]);
 
   // ---- per-property credit cards: auto-file receipts by card ----
-  const [cards, setCards] = useState(() => loadLS('caliper_cards_v1', []));
+  const [cards, setCards] = useState(() => (isConfigured() ? [] : loadLS('caliper_cards_v1', [])));
   const [cardBackend, setCardBackend] = useState('local');
-  useEffect(() => { if (cardBackend === 'local') saveLS('caliper_cards_v1', cards); }, [cards, cardBackend]);
+  useEffect(() => { if (cardBackend !== 'db') saveLS('caliper_cards_v1', cards); }, [cards, cardBackend]);
   useEffect(() => {
-    if (!isConfigured() || !orgId) return;
-    listPropertyCards(orgId).then((rows) => { setCards(rows); setCardBackend('db'); }).catch(() => setCardBackend('local'));
+    if (!isConfigured() || !orgId) return undefined;
+    let alive = true;
+    setCards([]);
+    listPropertyCards(orgId).then((rows) => { if (alive) { setCards(rows); setCardBackend('db'); } }).catch(() => { if (alive) setCardBackend('local'); });
+    return () => { alive = false; };
   }, [orgId]);
 
   const addCard = useCallback(async (c) => {
@@ -829,17 +865,28 @@ export function useStore() {
   useEffect(() => { if (msgBackend === 'local') saveLS(MSG_KEY, messages.slice(-300)); }, [messages, msgBackend]);
 
   useEffect(() => {
-    if (!isConfigured() || !orgId) return;
+    if (!isConfigured() || !orgId) return undefined;
+    let alive = true;
+    setMessages([]); // drop the prior org's thread on switch; ignore a stale in-flight response
     listMessages(orgId)
-      .then((rows) => { setMessages(rows); setMsgBackend('db'); })
-      .catch(() => setMsgBackend('local')); // table not migrated yet → keep local
+      .then((rows) => { if (alive) { setMessages(rows); setMsgBackend('db'); } })
+      .catch(() => { if (alive) setMsgBackend('local'); }); // table not migrated yet → keep local
+    return () => { alive = false; };
   }, [orgId]);
 
   // realtime: new messages stream in live (dedupe against optimistic copies)
   useEffect(() => {
-    if (!isConfigured() || !orgId || msgBackend !== 'db') return;
+    if (!isConfigured() || !orgId || msgBackend !== 'db') return undefined;
     return subscribeMessages(orgId, (m) => {
-      setMessages((l) => (l.some((x) => x.id === m.id) ? l : [...l, m]));
+      setMessages((l) => {
+        if (l.some((x) => x.id === m.id)) return l; // already have the saved row (insert remap won the race)
+        // my own just-sent message can arrive here before insertMessage resolves — upgrade the
+        // optimistic copy in place instead of appending a duplicate (which would collide on db id)
+        const pi = l.findIndex((x) => String(x.id).startsWith('msg_') && x.senderId === m.senderId
+          && (x.body || null) === (m.body || null) && Math.abs(new Date(x.createdAt) - new Date(m.createdAt)) < 15000);
+        if (pi >= 0) { const copy = [...l]; copy[pi] = m; return copy; }
+        return [...l, m];
+      });
     });
   }, [orgId, msgBackend]);
 
@@ -893,10 +940,12 @@ export function useStore() {
   const [localChannels, setLocalChannels] = useState(() => loadLS(CHAN_KEY, [])); // demo mode
 
   useEffect(() => {
-    if (!isConfigured() || !orgId || msgBackend !== 'db') return;
+    if (!isConfigured() || !orgId || msgBackend !== 'db') return undefined;
+    let alive = true;
     upsertChatMember(orgId, { label: myName, role: myCommsRole }).catch(() => {});
-    listChatMembers(orgId).then(setChatMembers).catch(() => {});
-    listChatChannels(orgId).then(setDbChannels).catch(() => {});
+    listChatMembers(orgId).then((r) => { if (alive) setChatMembers(r); }).catch(() => {});
+    listChatChannels(orgId).then((r) => { if (alive) setDbChannels(r); }).catch(() => {});
+    return () => { alive = false; };
   }, [orgId, msgBackend, myName, myCommsRole]);
 
   // who you can start a conversation with. Cloud: real app users (by uid).
