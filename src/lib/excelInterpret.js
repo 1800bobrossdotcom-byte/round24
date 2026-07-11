@@ -32,7 +32,16 @@ const HDR = {
 const RATE_MIN = 8, RATE_MAX = 80;
 const sane = (r) => (r != null && r >= RATE_MIN && r <= RATE_MAX ? r : null);
 const round2 = (n) => Math.round(n * 100) / 100;
-const numOf = (v) => (typeof v === 'number' && !Number.isNaN(v) ? v : (typeof v === 'string' && /^-?\$?\d/.test(v.trim()) ? parseFloat(v.replace(/[$,]/g, '')) : null));
+const numOf = (v) => {
+  if (typeof v === 'number') return Number.isNaN(v) ? null : v;
+  if (typeof v !== 'string') return null;
+  const s = v.trim();
+  const neg = /^\(.*\)$/.test(s);              // accounting negative, e.g. "(500)"
+  if (!neg && !/^-?\$?\d/.test(s)) return null;
+  const f = parseFloat(s.replace(/[$,()]/g, ''));
+  if (!Number.isFinite(f)) return null;
+  return neg ? -Math.abs(f) : f;
+};
 const strOf = (v) => (typeof v === 'string' ? v.trim() : v != null && typeof v !== 'object' ? String(v) : null);
 const isoOf = (d) => d.toISOString().slice(0, 10);
 
@@ -42,7 +51,13 @@ export function toISO(v) {
   if (typeof v === 'number' && v > 20000 && v < 80000) return isoOf(new Date(Date.UTC(1899, 11, 30) + v * 86400000));
   if (typeof v === 'string') {
     const s = v.trim();
-    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); // accept non-padded (2024-3-5) and validate
+    if (iso) {
+      const yr = +iso[1], mo = +iso[2], da = +iso[3];
+      const d = new Date(Date.UTC(yr, mo - 1, da));
+      // reject placeholders/impossible dates (0000-00-00, 2024-13-45) the old slice let through
+      return yr > 1900 && d.getUTCMonth() === mo - 1 && d.getUTCDate() === da ? isoOf(d) : null;
+    }
     const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
     if (m) {
       const mo = +m[1], da = +m[2], yr = +m[3] < 100 ? +m[3] + 2000 : +m[3];
@@ -120,7 +135,9 @@ function parseColumnar(rows, H, techName) {
     const hours = parseHours(M.hours != null ? row[M.hours] : null);
     if (hours == null) continue;
     const pay = M.pay != null ? numOf(row[M.pay]) : null;
-    let rate = M.rate != null ? numOf(row[M.rate]) : null;
+    // sane() rejects an implausible rate cell (e.g. a mis-keyed annual salary) so it can't
+    // inflate pay; a rate derived from real pay/hours below is trusted as-is
+    let rate = M.rate != null ? sane(numOf(row[M.rate])) : null;
     if (rate == null && pay && hours > 0) rate = round2(pay / hours);
     const prop = M.property != null ? strOf(row[M.property]) : null;
     const cleanProp = prop && !/^total/i.test(prop) ? prop : null;

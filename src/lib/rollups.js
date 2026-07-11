@@ -4,13 +4,16 @@
 // + date + rate, so every aggregate is a reduce over the same set.
 // ============================================================
 
+// a stray NaN/Infinity from a missing rate must never reach the DOM as "$NaN"
+const fin = (n) => (Number.isFinite(n) ? n : 0);
 export const fmtMoney = (n) =>
-  '$' + Math.round(n).toLocaleString('en-US');
+  '$' + Math.round(fin(n)).toLocaleString('en-US');
 export const fmtMoneyC = (n) =>
-  '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-export const fmtHrs = (n) => (Math.round(n * 10) / 10).toLocaleString('en-US');
+  '$' + fin(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const fmtHrs = (n) => (Math.round(fin(n) * 10) / 10).toLocaleString('en-US');
 
-export const cost = (t) => t.durationHrs * t.rate;
+const hrsOf = (t) => Number(t.durationHrs) || 0;
+export const cost = (t) => hrsOf(t) * (Number(t.rate) || 0);
 
 // ISO week key but honoring a configurable week start (Sat for Evolution24)
 export function periodKey(dateStr, grain, weekStartDay = 6) {
@@ -23,7 +26,9 @@ export function periodKey(dateStr, grain, weekStartDay = 6) {
   const diff = (day - weekStartDay + 7) % 7;
   const start = new Date(d);
   start.setDate(d.getDate() - diff);
-  return start.toISOString().slice(0, 10);
+  // format the LOCAL date — toISOString() would convert to UTC and shift the
+  // week key a day early for positive-offset timezones
+  return `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
 }
 
 export function periodLabel(key, grain) {
@@ -48,7 +53,7 @@ export function rollup(timers, keyFn) {
     const k = keyFn(t);
     if (!m.has(k)) m.set(k, { key: k, hrs: 0, cost: 0, count: 0 });
     const e = m.get(k);
-    e.hrs += t.durationHrs;
+    e.hrs += hrsOf(t);
     e.cost += cost(t);
     e.count += 1;
   }
@@ -68,14 +73,14 @@ export const byCategory = (timers) => rollup(timers, (t) => t.category);
 
 export function totals(timers) {
   return timers.reduce(
-    (a, t) => ({ hrs: a.hrs + t.durationHrs, cost: a.cost + cost(t), count: a.count + 1 }),
+    (a, t) => ({ hrs: a.hrs + hrsOf(t), cost: a.cost + cost(t), count: a.count + 1 }),
     { hrs: 0, cost: 0, count: 0 }
   );
 }
 
 // category median duration — powers "this job vs normal"
 export function categoryMedian(timers, category) {
-  const ds = timers.filter((t) => t.category === category).map((t) => t.durationHrs).sort((a, b) => a - b);
+  const ds = timers.filter((t) => t.category === category).map(hrsOf).sort((a, b) => a - b);
   if (!ds.length) return 0;
   const mid = Math.floor(ds.length / 2);
   return ds.length % 2 ? ds[mid] : (ds[mid - 1] + ds[mid]) / 2;

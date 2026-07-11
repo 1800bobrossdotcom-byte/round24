@@ -263,7 +263,7 @@ function MatRow({ pu }) {
         <div className="lead">
           <div className="t">{pu.vendor || 'Purchase'} — <span className="mono money">{fmtMoneyC(pu.amount || 0)}</span></div>
           <div className="s">
-            {[pu.workOrderId && 'on a work order', pu.note, new Date(pu.createdAt).toLocaleDateString()].filter(Boolean).join(' · ')}
+            {[pu.workOrderId && 'on a work order', pu.note, pu.createdAt && new Date(pu.createdAt).toLocaleDateString()].filter(Boolean).join(' · ')}
             {items.length > 0 && <> · <a onClick={() => setOpen((o) => !o)} style={{ color: 'var(--accent)', cursor: 'pointer' }}>{open ? 'hide items' : `${items.length} items`}</a></>}
           </div>
         </div>

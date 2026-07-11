@@ -19,16 +19,21 @@ const low = (s) => norm(s).toLowerCase();
 const money = (v) => {
   if (v == null || v === '') return null;
   if (typeof v === 'number') return Math.abs(v) < 1e6 ? v : null;
-  const f = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
-  return Number.isFinite(f) && Math.abs(f) < 1e6 ? f : null;
+  const raw = String(v);
+  const neg = /^\s*\(.*\)\s*$/.test(raw);      // accounting negative "(500)" → -500 (was flipped to +500)
+  const f = parseFloat(raw.replace(/[^0-9.\-]/g, ''));
+  if (!Number.isFinite(f) || Math.abs(f) >= 1e6) return null;
+  return neg ? -Math.abs(f) : f;
 };
 const isoDate = (v) => {
   if (v instanceof Date && !isNaN(v.getTime())) return v.toISOString().slice(0, 10);
+  if (typeof v === 'number' && v > 20000 && v < 90000) return new Date(Date.UTC(1899, 11, 30) + v * 86400000).toISOString().slice(0, 10);
   const s = norm(v);
   let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-  if (m) { let y = +m[3] < 100 ? 2000 + +m[3] : +m[3]; const d = new Date(Date.UTC(y, +m[1] - 1, +m[2])); return d.getUTCMonth() === +m[1] - 1 ? d.toISOString().slice(0, 10) : null; }
-  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? m[0] : null;
+  if (m) { const y = +m[3] < 100 ? 2000 + +m[3] : +m[3]; const d = new Date(Date.UTC(y, +m[1] - 1, +m[2])); return (d.getUTCMonth() === +m[1] - 1 && d.getUTCDate() === +m[2]) ? d.toISOString().slice(0, 10) : null; }
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); // accept non-padded + validate (was fixed \d{2}, let 0000-00-00 through)
+  if (m) { const y = +m[1], mo = +m[2], da = +m[3]; const d = new Date(Date.UTC(y, mo - 1, da)); return (y > 1900 && d.getUTCMonth() === mo - 1 && d.getUTCDate() === da) ? d.toISOString().slice(0, 10) : null; }
+  return null;
 };
 const bedsNum = (s) => { const t = low(s); if (t.includes('studio')) return 0; const m = t.match(/(\d+)/); return m ? +m[1] : null; };
 
@@ -42,11 +47,12 @@ const RR = {
   lstart: /^(lease\s*start|move[\s-]*in|start\s*date|from|commence(ment)?)$/i,
   lend: /^(lease\s*end|lease\s*expiration|expiration|end\s*date|move[\s-]*out|expires?|thru|through)$/i,
   beds: /^(beds?|bedrooms?|br|bd|#\s*of\s*beds|number\s*of\s*beds|bed\s*\/?\s*bath|floorplan|type|size)$/i,
-  status: /^(status|occupancy|occupied\??|state|vacancy)$/i,
+  status: /^(status|occupancy|occupied\??|vacancy)$/i, // dropped 'state' — matched an address State column
   building: /^(building|property|complex|community|site|location)$/i,
   phone: /^(phone|tel|telephone|contact|cell|mobile)$/i,
   total: /^(total|total\s*rent|total\s*due|total\s*amount|amount\s*due)$/i,
-  pet: /^pet(\s*fee)?/i, insurance: /^insurance/i, water: /^(water|utilit|trash)/i, cam: /^(cam|tax)/i,
+  // anchored so "Petroleum"/"Waterfront"/"Camden"/"Insurance Contact" don't pull a wrong column into fees
+  pet: /^pet(\s*fee)?$/i, insurance: /^insurance(\s*fee)?$/i, water: /^(water|utilit(y|ies)|trash)(\s*fee)?$/i, cam: /^(cam|tax(es)?)(\s*fee)?$/i,
 };
 
 function findHeader(rows) {
