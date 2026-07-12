@@ -162,9 +162,38 @@ export default function WorkOrders({ store, focus }) {
   };
   const stopVoice = () => recRef.current?.stop();
 
+  // dictate straight into one form field (What's wrong / Details) — hands-free
+  // fill-out for gloves-on field reports. Appends to whatever's already there.
+  const [dictating, setDictating] = useState(null); // 'task' | 'detail' | null
+  const dictRef = useRef(null);
+  const startDictation = (field) => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { setVoiceErr('Voice needs Chrome, Edge, or Android.'); return; }
+    if (dictating) { dictRef.current?.stop(); return; }
+    setVoiceErr(null); setDictating(field);
+    const rec = new SR(); dictRef.current = rec;
+    rec.lang = 'en-US'; rec.interimResults = true; rec.continuous = false;
+    const base = (draft[field] || '').trim();
+    rec.onresult = (e) => {
+      let text = ''; for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
+      text = text.replace(/\s+/g, ' ').trim();
+      setDraft((d) => ({ ...d, [field]: base ? `${base} ${text}` : text }));
+    };
+    rec.onerror = (e) => { setVoiceErr(e.error === 'not-allowed' ? 'Microphone permission denied.' : 'Voice error: ' + e.error); setDictating(null); };
+    rec.onend = () => setDictating(null);
+    rec.start();
+  };
+
+  const [saving, setSaving] = useState(false);
   const save = async () => {
-    await addWorkOrder(draft);
-    setDraft(null); setLiveText('');
+    setSaving(true);
+    try {
+      const wo = await addWorkOrder(draft);
+      // a field report requires a photo — attach it to the new work order
+      if (draft.photoFile && wo?.id) { try { await addWoAttachment(wo.id, draft.photoFile); } catch { /* WO still created */ } }
+      if (draft.photoPreview) URL.revokeObjectURL(draft.photoPreview);
+      setDraft(null); setLiveText('');
+    } finally { setSaving(false); }
   };
 
   return (
@@ -215,11 +244,21 @@ export default function WorkOrders({ store, focus }) {
             <p className="note" style={{ marginTop: 2, marginBottom: 12, fontStyle: 'italic', maxHeight: 72, overflowY: 'auto' }}>“{draft.transcript}”</p>
           )}
 
-          <div className="field-label">{draft.report ? 'What’s wrong' : 'Task'}</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span className="field-label" style={{ margin: 0 }}>{draft.report ? 'What’s wrong' : 'Task'}</span>
+            <button className={'btn sm ' + (dictating === 'task' ? 'stop' : 'ghost')} style={{ width: 'auto' }} onClick={() => startDictation('task')}>
+              <IcMic width={13} height={13} /> {dictating === 'task' ? 'Listening…' : 'Speak'}
+            </button>
+          </div>
           <input style={inputStyle} value={draft.task} onChange={(e) => setDraft({ ...draft, task: e.target.value })} placeholder={draft.report ? 'e.g. garage door won’t shut' : 'what needs doing'} />
           <div style={{ height: 12 }} />
 
-          <div className="field-label">Details {draft.report ? '· what you saw / tried' : '(optional)'}</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span className="field-label" style={{ margin: 0 }}>Details {draft.report ? '· what you saw / tried' : '(optional)'}</span>
+            <button className={'btn sm ' + (dictating === 'detail' ? 'stop' : 'ghost')} style={{ width: 'auto' }} onClick={() => startDictation('detail')}>
+              <IcMic width={13} height={13} /> {dictating === 'detail' ? 'Listening…' : 'Speak'}
+            </button>
+          </div>
           <textarea style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }} value={draft.detail || ''} onChange={(e) => setDraft({ ...draft, detail: e.target.value })}
             placeholder={draft.report ? 'e.g. temp shut by aligning the photo-eye sensors, but it needs a real look' : 'anything the tech should know'} />
           <div style={{ height: 12 }} />
@@ -282,6 +321,25 @@ export default function WorkOrders({ store, focus }) {
             ))}
           </div>
 
+          {/* photo — required on a field report (a picture is the whole point of reporting) */}
+          <div className="field-label" style={{ marginTop: 12 }}>Photo {draft.report ? <span style={{ color: 'var(--danger)' }}>· required</span> : '(optional)'}</div>
+          {draft.photoFile ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '8px 10px' }}>
+              <img src={draft.photoPreview} alt="attachment" style={{ width: 46, height: 46, objectFit: 'cover', borderRadius: 8 }} />
+              <span className="s" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{draft.photoFile.name || 'photo attached'}</span>
+              <button className="btn ghost sm" onClick={() => { if (draft.photoPreview) URL.revokeObjectURL(draft.photoPreview); setDraft({ ...draft, photoFile: null, photoPreview: null }); }}>Remove</button>
+            </div>
+          ) : (
+            <label className="btn ghost" style={{ width: 'auto', cursor: 'pointer', display: 'inline-flex' }}>
+              <IcCamera width={16} height={16} /> Take / attach a photo
+              <input type="file" accept="image/*" capture="environment" hidden onChange={(e) => {
+                const f = e.target.files?.[0] || null; e.target.value = '';
+                if (draft.photoPreview) URL.revokeObjectURL(draft.photoPreview);
+                setDraft({ ...draft, photoFile: f, photoPreview: f ? URL.createObjectURL(f) : null });
+              }} />
+            </label>
+          )}
+
           {/* crew report: surface who office would likely call, from the approved rolodex */}
           {draft.report && (() => {
             const want = draft.category === 'painting' ? 'paint' : draft.category;
@@ -293,9 +351,12 @@ export default function WorkOrders({ store, focus }) {
             ) : null;
           })()}
 
+          {draft.report && !draft.photoFile && <p className="note" style={{ marginTop: 10, marginBottom: 0, color: 'var(--text-faint)' }}>Add a photo to send — it’s how office sees what you’re looking at.</p>}
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-            <button className="btn ghost" style={{ width: 'auto', flex: 1 }} onClick={() => setDraft(null)}>Cancel</button>
-            <button className="btn grad" style={{ flex: 2 }} onClick={save} disabled={!draft.task?.trim()}>{draft.report ? 'Send report to office' : 'Create work order'}</button>
+            <button className="btn ghost" style={{ width: 'auto', flex: 1 }} onClick={() => { if (draft.photoPreview) URL.revokeObjectURL(draft.photoPreview); setDraft(null); }}>Cancel</button>
+            <button className="btn grad" style={{ flex: 2 }} onClick={save} disabled={saving || !draft.task?.trim() || (draft.report && !draft.photoFile)}>
+              {saving ? 'Sending…' : draft.report ? 'Send report to office' : 'Create work order'}
+            </button>
           </div>
         </div>
       )}
