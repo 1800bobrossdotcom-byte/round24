@@ -6,4 +6,4 @@
 -- imported spine + salaries; encrypted at rest (it reflects deal economics).
 -- ============================================================
 
-alter table labor_state add column if not exists plconfig bytea;
+alter table labor_state add column if not exists plconfig jsonb;

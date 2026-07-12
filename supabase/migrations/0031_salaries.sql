@@ -7,4 +7,4 @@
 -- sync — nothing breaks before it lands.
 -- ============================================================
 
-alter table labor_state add column if not exists salaries bytea;  -- AES-256-GCM { techId: {amount, period} }
+alter table labor_state add column if not exists salaries jsonb;  -- AES-256-GCM { techId: {amount, period} }
