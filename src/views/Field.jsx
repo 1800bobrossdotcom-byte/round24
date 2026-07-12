@@ -197,8 +197,9 @@ export default function Field({ store }) {
     }
     if (intent === 'confirm' || intent === 'cancel') return; // nothing to confirm
     if (cmd?.confirm) {
+      const LABEL = { start: 'start the job', stop: 'stop the job', done: 'mark it done', break: 'take a break', resume: 'get back to work' };
       armPending(intent);
-      speak(`Heard ${intent === 'done' ? 'mark it done' : 'stop the job'}. Say Caliper yes to confirm, or Caliper no.`);
+      speak(`Heard ${LABEL[intent] || intent}. Say Caliper yes to confirm, or Caliper no.`);
       return;
     }
     runIntent(intent);
@@ -329,7 +330,7 @@ export default function Field({ store }) {
             <div className="s" style={{ color: 'var(--danger)' }}>{voice.error}</div>
           ) : pendingVoice ? (
             <div className="s" style={{ color: 'var(--warn)', fontWeight: 600 }}>
-              Did you mean “<b>{pendingVoice.intent === 'done' ? 'mark it done' : 'stop the job'}</b>”? Say “<b>Caliper, yes</b>” to confirm or “<b>Caliper, no</b>”.
+              Did you mean “<b>{{ start: 'start the job', stop: 'stop the job', done: 'mark it done', break: 'take a break', resume: 'back to work' }[pendingVoice.intent] || pendingVoice.intent}</b>”? Say “<b>Caliper, yes</b>” to confirm or “<b>Caliper, no</b>”.
               {voice.lastHeard && <div style={{ color: 'var(--text-faint)', fontFamily: 'var(--mono)', fontSize: 11, marginTop: 2 }}>heard: “{voice.lastHeard}”</div>}
             </div>
           ) : handsFree ? (

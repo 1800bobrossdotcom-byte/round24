@@ -109,12 +109,16 @@ function validForContext(ctx) {
   return s;
 }
 
-// best fuzzy score of a command's anchors against the spoken tokens
+// best fuzzy score of a command's anchors against the spoken tokens. A fuzzy
+// (non-exact) match only counts when BOTH the token and anchor are >= 4 chars —
+// short words ("up","now","top","gone") are too collision-prone to infer from,
+// so they must match exactly. This keeps ambient 2-3 letter noise from firing a command.
 function scoreCommand(cmd, tokens) {
   let best = 0, hit = '';
   for (const a of cmd.anchors) {
     for (const tk of tokens) {
-      if (tk.length < 2 || a.length < 2) { if (tk === a && 1 > best) { best = 1; hit = a; } continue; }
+      if (tk === a) { best = 1; hit = a; continue; }         // exact token, any length
+      if (tk.length < 4 || a.length < 4) continue;           // too short to fuzzy-match safely
       const s = sim(tk, a);
       if (s > best) { best = s; hit = a; }
     }
@@ -144,15 +148,18 @@ export function parseCommand(raw, ctx) {
   const after = afterToks.join(' ');
   if (!after) return { intent: null, heard: '' };
 
-  // 1) exact phrase — fast, unambiguous, no confirmation needed
+  // 1) exact phrase — WHOLE-word/phrase match (space-padded so "breaker" can't
+  //    match "break", "yesterday" can't match "yes"). Fast, unambiguous, no confirm.
+  const hay = ` ${after} `;
   for (const { phrase, intent } of PHRASE_INDEX) {
-    if (after.includes(phrase)) return { intent, phrase, heard: after, confidence: 'exact', confirm: false };
+    if (hay.includes(` ${phrase} `)) return { intent, phrase, heard: after, confidence: 'exact', confirm: false };
   }
 
-  // 2) fuzzy — score every command, then keep the best that's valid for the
-  //    current timer state (this is what turns "stock job" into the right action)
+  // 2) fuzzy — score the COMMANDS only (yes/no are exact-only above; inferring them
+  //    from noise is pure risk), then keep the best valid for the current timer state
+  //    (this is what turns "stock job" into the right action).
   const valid = validForContext(ctx);
-  const ranked = ALL
+  const ranked = VOICE_COMMANDS
     .map((c) => ({ intent: c.intent, say: c.say, ...scoreCommand(c, afterToks) }))
     .sort((a, b) => b.score - a.score);
   const pick = ranked.find((c) => c.score >= FUZZY_MIN && (!valid || valid.has(c.intent)));
@@ -161,17 +168,19 @@ export function parseCommand(raw, ctx) {
     // timer action and the phrase carries a job word, infer it even when the verb
     // was too garbled to score (e.g. off the clock, "caliper stock job" → start)
     const JOB = /\b(job|jobs|task|work|working|clock|timer|gig)\b/;
-    if (valid && JOB.test(after)) {
+    // require a near-miss verb signal (not zero) so a random off-clock sentence that
+    // merely contains "job"/"work" doesn't auto-start the timer
+    if (valid && JOB.test(after) && ranked[0]?.score >= 0.4) {
       const timerActions = ['start', 'stop', 'done', 'break', 'resume'].filter((i) => valid.has(i));
       if (timerActions.length === 1) {
-        const only = timerActions[0];
-        const destructive = only === 'stop' || only === 'done';
-        return { intent: only, heard: after, confidence: 'fuzzy', confirm: destructive, score: 0 };
+        return { intent: timerActions[0], heard: after, confidence: 'fuzzy', confirm: true, score: 0 };
       }
     }
     const top = ranked[0];
     return { intent: null, heard: after, suggestion: top && top.score >= 0.45 ? top.intent : null };
   }
-  const destructive = pick.intent === 'stop' || pick.intent === 'done';
-  return { intent: pick.intent, heard: after, confidence: 'fuzzy', confirm: destructive, score: Math.round(pick.score * 100) / 100 };
+  // ANY fuzzy (inferred, not exact) match confirms before acting — inferring a command
+  // from a garbled/ambient word ("breaker"→break, "light"→stop) is too collision-prone
+  // to act on blind. Only 'status' is read-only enough to run without asking.
+  return { intent: pick.intent, heard: after, confidence: 'fuzzy', confirm: pick.intent !== 'status', score: Math.round(pick.score * 100) / 100 };
 }

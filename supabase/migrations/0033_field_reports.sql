@@ -32,3 +32,12 @@ create policy wo_tech_read on work_orders for select
     assigned_operator_id in (select current_operator_ids())
     or created_by = auth.uid()
   );
+
+-- 5) a tech may UPDATE the report they filed while it's still pending — this is how
+--    the required photo gets attached (uploadAttachment → update work_orders.photos).
+--    Scoped so they can't escalate it: the check keeps status = 'pending' (office
+--    approves it to 'open'). Combines (OR) with wo_tech_update for assigned work.
+drop policy if exists wo_tech_report_update on work_orders;
+create policy wo_tech_report_update on work_orders for update
+  using (created_by = auth.uid() and status = 'pending')
+  with check (created_by = auth.uid() and status = 'pending');

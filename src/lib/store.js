@@ -360,7 +360,9 @@ export function useStore() {
     if (isConfigured() && orgId && woBackend === 'db') {
       try {
         const saved = await insertWorkOrder(orgId, local);
-        if (saved?.id) setWorkOrders((l) => l.map((w) => (w.id === local.id ? saved : w)));
+        // return the PERSISTED row (real id) so a caller attaching a photo targets
+        // the right row — the temp id is already remapped out of state here
+        if (saved?.id) { setWorkOrders((l) => l.map((w) => (w.id === local.id ? saved : w))); return saved; }
       } catch { /* keep the local copy; it syncs on next migration */ }
     }
     return local;
@@ -452,7 +454,14 @@ export function useStore() {
           repairCost: n.repair_cost != null ? Number(n.repair_cost) : null,
           tenantBilled: n.tenant_billed || 'no',
         };
-        if (!woRef.current.some((w) => w.id === wo.id)) {
+        // our own just-created WO can arrive over realtime before the insert() call
+        // remaps its temp id — upgrade the optimistic row in place instead of adding a
+        // duplicate (and don't re-toast our own creation)
+        const optimistic = woRef.current.find((w) => String(w.id).startsWith('wo_') && w.task === wo.task
+          && Math.abs(new Date(w.createdAt) - new Date(wo.createdAt)) < 15000);
+        if (optimistic) {
+          setWorkOrders((l) => l.map((w) => (w.id === optimistic.id ? wo : w)));
+        } else if (!woRef.current.some((w) => w.id === wo.id)) {
           setWorkOrders((l) => l.some((w) => w.id === wo.id) ? l : [wo, ...l]);
           notify(`New work order: ${wo.task}`, PRIO_KIND[wo.priority] || 'info');
         }

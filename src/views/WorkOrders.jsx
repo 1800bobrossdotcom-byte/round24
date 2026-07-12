@@ -133,7 +133,7 @@ export default function WorkOrders({ store, focus }) {
 
   // drill-down from a unit ("New work order for this unit") → open a prefilled draft
   useEffect(() => {
-    if (focus?.newFor) setDraft({ task: '', detail: '', source: 'manual', priority: 3, ...focus.newFor });
+    if (focus?.newFor) setDraft((d) => { if (d?.photoPreview) URL.revokeObjectURL(d.photoPreview); return { task: '', detail: '', source: 'manual', priority: 3, ...focus.newFor }; });
   }, [focus]);
 
   const startVoice = () => {
@@ -158,7 +158,7 @@ export default function WorkOrders({ store, focus }) {
       setListening(false);
       if (latest) setDraft({ ...parseVoice(latest, properties, techs), transcript: latest, source: 'voice' });
     };
-    rec.start();
+    try { rec.start(); } catch { setListening(false); }
   };
   const stopVoice = () => recRef.current?.stop();
 
@@ -181,8 +181,10 @@ export default function WorkOrders({ store, focus }) {
     };
     rec.onerror = (e) => { setVoiceErr(e.error === 'not-allowed' ? 'Microphone permission denied.' : 'Voice error: ' + e.error); setDictating(null); };
     rec.onend = () => setDictating(null);
-    rec.start();
+    try { rec.start(); } catch { setDictating(null); } // start throws if a recognizer is still winding down — don't stick "Listening…"
   };
+  // stop any live recognizer when leaving the view (mic off, no setState-after-unmount)
+  useEffect(() => () => { try { recRef.current?.stop(); } catch { /* */ } try { dictRef.current?.stop(); } catch { /* */ } }, []);
 
   const [saving, setSaving] = useState(false);
   const save = async () => {
