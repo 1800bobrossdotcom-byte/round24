@@ -24,6 +24,7 @@ import * as XLSX from 'xlsx';
 import { interpretRentRoll } from '../src/lib/rentRollInterpret.js';
 import { interpretWorkbook } from '../src/lib/excelInterpret.js';
 import { interpretPLWorkbook } from '../src/lib/plSheetInterpret.js';
+import { allocatePayLogPeriods } from '../src/lib/payLogAllocate.js';
 
 // --- split a lease tab that stacks two buildings (e.g. "31 Genesee St" then
 // "379 Main St", each with its own header + units + TOTAL) into separate buildings ---
@@ -140,25 +141,41 @@ const techs = []; const timers = []; const techByName = new Map();
 let ti = 0;
 for (const s of laborSheets) {
   const name = String(s.techName || 'Operator').trim();
+  const sheetRows = rawRows(s.name);
+  const rate = (s.entries.find((e) => e.rate)?.rate) || 23;
   let tech = techByName.get(name.toLowerCase());
-  if (!tech) { tech = { id: 't_imp_' + name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, ''), name, rate: 0, role: 'tech', imported: true }; techByName.set(name.toLowerCase(), tech); techs.push(tech); }
-  // daily timers for this operator (preserve dates + hours)
-  const mine = s.entries.map((e) => ({ id: `imp_${++ti}`, techId: tech.id, propLabelRaw: null, unit: e.unit || '—', date: e.date, category: e.category || 'imported', issue: e.note || 'imported from pay log', durationHrs: e.hours || 0, rate: e.rate || 0, period: e.period || null, imported: true }));
-  // building weights from the $ grid → per-building target hours, then bin-pack days into buildings
-  const weights = gridWeights(rawRows(s.name));
-  const matchedW = {}; let sumMatched = 0;
-  for (const [label, d] of Object.entries(weights)) { const c = match(label); if (c) { matchedW[c] = (matchedW[c] || 0) + d; sumMatched += d; } else unmatchedLabor.add(label); }
-  const H = mine.reduce((a, t) => a + t.durationHrs, 0);
-  if (sumMatched > 0 && H > 0) {
-    const targets = Object.entries(matchedW).map(([b, d]) => ({ b, need: H * (d / sumMatched) })).sort((a, z) => z.need - a.need);
-    let bi = 0;
-    for (const t of mine) {
-      while (bi < targets.length && targets[bi].need <= 0.01) bi++;
-      if (bi >= targets.length) break;            // matched weight exhausted → rest stay unallocated
-      t.propLabelRaw = targets[bi].b; targets[bi].need -= t.durationHrs;
+  if (!tech) { tech = { id: 't_imp_' + name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, ''), name, rate: rate || 0, role: 'tech', imported: true }; techByName.set(name.toLowerCase(), tech); techs.push(tech); }
+
+  // Dollar-grid pay logs (Gianni-style matrix): the real allocation is the $ grid,
+  // not the building name printed by a given day. Allocate per pay period by dollars
+  // — hours(building) = $/rate — which reproduces the sheet's own totals box exactly.
+  const alloc = allocatePayLogPeriods(sheetRows, match, rate);
+  if (alloc.hasGrid) {
+    for (const a of alloc.entries) {
+      timers.push({ id: `imp_${++ti}`, techId: tech.id, propLabelRaw: a.building, unit: '—', date: a.date,
+        category: 'imported', issue: `imported from pay log · $${a.dollars.toFixed(2)}`,
+        durationHrs: a.hours, rate, period: null, imported: true });
     }
+    alloc.unmatched.forEach((u) => unmatchedLabor.add(u));
+  } else {
+    // other layouts (columnar, one building per row): keep the daily entries, and
+    // fall back to $-grid bin-packing only when a grid exists but wasn't period-shaped.
+    const mine = s.entries.map((e) => ({ id: `imp_${++ti}`, techId: tech.id, propLabelRaw: null, unit: e.unit || '—', date: e.date, category: e.category || 'imported', issue: e.note || 'imported from pay log', durationHrs: e.hours || 0, rate: e.rate || 0, period: e.period || null, imported: true }));
+    const weights = gridWeights(sheetRows);
+    const matchedW = {}; let sumMatched = 0;
+    for (const [label, d] of Object.entries(weights)) { const c = match(label); if (c) { matchedW[c] = (matchedW[c] || 0) + d; sumMatched += d; } else unmatchedLabor.add(label); }
+    const H = mine.reduce((a, t) => a + t.durationHrs, 0);
+    if (sumMatched > 0 && H > 0) {
+      const targets = Object.entries(matchedW).map(([b, d]) => ({ b, need: H * (d / sumMatched) })).sort((a, z) => z.need - a.need);
+      let bi = 0;
+      for (const t of mine) {
+        while (bi < targets.length && targets[bi].need <= 0.01) bi++;
+        if (bi >= targets.length) break;            // matched weight exhausted → rest stay unallocated
+        t.propLabelRaw = targets[bi].b; targets[bi].need -= t.durationHrs;
+      }
+    }
+    timers.push(...mine);
   }
-  timers.push(...mine);
 }
 const laborHrs = timers.reduce((a, t) => a + (t.durationHrs || 0), 0);
 console.log(`\nLABOR: ${techs.length} operators, ${timers.length} entries, ${Math.round(laborHrs * 10) / 10} hrs`);
