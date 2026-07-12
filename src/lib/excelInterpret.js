@@ -87,7 +87,7 @@ export function parseHours(v) {
 
 const techNameFromSheet = (name) => name
   .replace(/pay ?log|time ?sheet|timecard|hours/ig, '')
-  .replace(/\d{4}\s*-\s*\d{2,4}|\b\d{4}\b/g, '')
+  .replace(/\b\d{4}\s*-\s*\d{2,4}\b|\b\d{4,8}\b/g, '') // year, year-range, or concatenated "20242025"
   .replace(/\s+/g, ' ').trim() || name;
 
 const PERIOD_RE = /\d+\/\d+\s*-\s*\d+\/\d+/;
