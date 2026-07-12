@@ -120,7 +120,11 @@ if (stacked.length) {
   for (const s of stacked) rr.buildings.push({ name: s.name, city: '', units: s.units });
   console.log(`  (split ${stacked.length} stacked buildings from ${stackedSheets.size} tab: ${stacked.map((s) => s.name).join(' + ')})`);
 }
-const canonical = rr.buildings.map((b) => b.name);
+// extra buildings (in the labor/P&L but not the lease workbook) — created as
+// properties with no units yet, so labor allocates to them. e.g. --extra "Charlotte Square,440 Armstrong"
+const extra = String(args.extra || '').split(',').map((s) => s.trim()).filter(Boolean);
+const canonical = [...rr.buildings.map((b) => b.name), ...extra];
+if (extra.length) console.log(`  (+${extra.length} extra buildings, no units: ${extra.join(', ')})`);
 const match = buildMatcher(canonical);
 let unitN = 0; rr.buildings.forEach((b) => { unitN += b.units.length; });
 console.log(`\nRENT ROLL: ${rr.buildings.length} buildings, ${unitN} units`);
@@ -191,8 +195,15 @@ const supa = createClient(need('url'), need('key'), { auth: { persistSession: fa
 console.log('\nWriting… (rent roll: replace)');
 await supa.from('units').delete().eq('org_id', ORG);
 const propId = new Map();
+// look up an existing property by exact (case-insensitive) name, tolerating the
+// case where duplicates already exist — maybeSingle() throws on >1 row, which is
+// what silently grew the dupes every re-run; take the first match instead.
+const findProp = async (name) => {
+  const { data } = await supa.from('properties').select('id').eq('org_id', ORG).ilike('name', name).limit(1);
+  return data?.[0] || null;
+};
 for (const b of rr.buildings) {
-  let { data: p } = await supa.from('properties').select('id').eq('org_id', ORG).ilike('name', b.name).limit(1).maybeSingle();
+  let p = await findProp(b.name);
   if (!p) ({ data: p } = await supa.from('properties').insert({ org_id: ORG, name: b.name, city: b.city || null, units: b.units.length }).select('id').single());
   propId.set(b.name, p.id);
   let sort = 0;
@@ -200,6 +211,12 @@ for (const b of rr.buildings) {
     const { data: nu } = await supa.from('units').insert({ org_id: ORG, property_id: p.id, building: b.name, name: u.number, beds: u.beds ?? null, unit_type: u.type || 'residential', furnished: !!u.furnished, status: u.status || 'vacant', sort: sort++ }).select('id').single();
     if (nu) await supa.from('leases').insert({ org_id: ORG, unit_id: nu.id, tenant_name: u.tenant || null, tenant_phone: u.phone || null, rent: u.rent ?? null, deposit: u.deposit ?? null, lease_start: u.leaseStart || null, lease_end: u.leaseEnd || null, active: true });
   }
+}
+// create the extra buildings (no units) so labor can land on them
+for (const name of extra) {
+  let p = await findProp(name);
+  if (!p) ({ data: p } = await supa.from('properties').insert({ org_id: ORG, name, units: 0 }).select('id').single());
+  propId.set(name, p.id);
 }
 // resolve labor propId now that properties exist
 for (const t of timers) { const canon = t.propLabelRaw && match(t.propLabelRaw); t.propId = canon ? propId.get(canon) : null; t.propLabel = canon || null; delete t.propLabelRaw; }

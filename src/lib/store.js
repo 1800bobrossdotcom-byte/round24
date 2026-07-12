@@ -594,9 +594,12 @@ export function useStore() {
   // ---- timesheet: editable history of logged time (crew self / office review) ----
   // The timers spine, but as rows people can correct — a timer ran long, wrong
   // unit, forgot the note. RLS scopes reads/writes: office all, tech their own.
-  const [timesheet, setTimesheet] = useState([]);
-  const timesheetRef = useRef(timesheet);
-  useEffect(() => { timesheetRef.current = timesheet; }, [timesheet]);
+  // tsTable = the editable, cloud-backed timers-table rows (CRUD target). The
+  // imported pay-log spine (labor_state.imported) is folded in separately below
+  // so historicals show without being mistaken for editable table rows.
+  const [tsTable, setTsTable] = useState([]);
+  const tsTableRef = useRef(tsTable);
+  useEffect(() => { tsTableRef.current = tsTable; }, [tsTable]);
   const tsRowFromSpine = useCallback((t) => ({
     id: t.id, dbId: t.dbId || null, operatorId: null, techId: t.techId || null,
     date: t.date, createdAt: t.createdAt || `${t.date}T09:00:00.000Z`,
@@ -610,17 +613,30 @@ export function useStore() {
     // demo seeds from the sample spine (editable copy); cloud loads the table.
     // Deliberately keyed on [orgId, demoMode] only — re-running on every spine
     // change would clobber in-progress edits.
-    if (demoMode) { setTimesheet(allTimers.map(tsRowFromSpine)); return undefined; }
+    if (demoMode) { setTsTable([]); return undefined; }
     if (!isConfigured() || !orgId) return undefined;
     let alive = true;
-    setTimesheet([]); // drop the prior org's timesheet on switch; ignore a stale in-flight response
-    listTimers(orgId).then((r) => { if (alive) setTimesheet(r); }).catch(() => {});
+    setTsTable([]); // drop the prior org's timesheet on switch; ignore a stale in-flight response
+    listTimers(orgId).then((r) => { if (alive) setTsTable(r); }).catch(() => {});
     return () => { alive = false; };
   }, [orgId, demoMode]);
   const refreshTimesheet = useCallback(() => {
     if (demoMode || !isConfigured() || !orgId) return;
-    listTimers(orgId).then(setTimesheet).catch(() => {});
+    listTimers(orgId).then(setTsTable).catch(() => {});
   }, [orgId, demoMode]);
+
+  // The timesheet the office/crew see = live editable rows (tsTable) PLUS the
+  // imported pay-log historicals (allTimers spine), so every operator's logged
+  // time up to today shows. Reactive via memo, so the historicals appear the
+  // moment labor_state hydrates — no race with the one-shot listTimers load.
+  // Table rows win on any id collision; spine rows are read-only history.
+  const timesheet = useMemo(() => {
+    const spine = allTimers.map(tsRowFromSpine);
+    if (demoMode) return spine;               // demo has no cloud table
+    const seen = new Set(tsTable.map((r) => r.dbId || r.id));
+    const extra = spine.filter((r) => !seen.has(r.dbId || r.id));
+    return [...tsTable, ...extra];
+  }, [demoMode, tsTable, allTimers, tsRowFromSpine]);
 
   const addTimesheet = useCallback(async (row) => {
     const local = {
@@ -632,7 +648,7 @@ export function useStore() {
       durationHrs: Number(row.durationHrs) || 0, workOrderId: row.workOrderId || null,
       verified: null, distanceM: null, rate: row.rate || 0, source: 'manual',
     };
-    setTimesheet((l) => [local, ...l]);
+    setTsTable((l) => [local, ...l]);
     if (!demoMode && isConfigured() && orgId && operatorId) {
       try {
         const id = await insertTimer(orgId, operatorId, {
@@ -640,7 +656,7 @@ export function useStore() {
           category: local.category, issue: local.note || null, durationHrs: local.durationHrs,
           note: local.note || null, workOrderId: local.workOrderId,
         });
-        setTimesheet((l) => l.map((x) => (x.id === local.id ? { ...x, dbId: id } : x)));
+        setTsTable((l) => l.map((x) => (x.id === local.id ? { ...x, dbId: id } : x)));
         audit('add_timesheet', `${local.propLabel} · ${local.durationHrs}h`);
       } catch { /* keep local */ }
     }
@@ -648,8 +664,8 @@ export function useStore() {
   }, [demoMode, orgId, operatorId]); // audit resolved via closure (defined below)
 
   const updateTimesheet = useCallback(async (id, patch) => {
-    setTimesheet((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
-    const row = timesheetRef.current.find((x) => x.id === id);
+    setTsTable((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+    const row = tsTableRef.current.find((x) => x.id === id);
     if (!demoMode && isConfigured() && row?.dbId) {
       try {
         await updateTimer(row.dbId, {
@@ -662,8 +678,8 @@ export function useStore() {
   }, [demoMode]); // audit resolved via closure (defined below)
 
   const deleteTimesheet = useCallback(async (id) => {
-    const row = timesheetRef.current.find((x) => x.id === id);
-    setTimesheet((l) => l.filter((x) => x.id !== id));
+    const row = tsTableRef.current.find((x) => x.id === id);
+    setTsTable((l) => l.filter((x) => x.id !== id));
     if (!demoMode && isConfigured() && row?.dbId) {
       try { await deleteTimer(row.dbId); audit('delete_timesheet', row.propLabel || id); } catch { /* gone locally */ }
     }
@@ -1094,7 +1110,7 @@ export function useStore() {
     [IMP_KEY, WO_KEY, PUR_KEY, PROP_KEY, TQ_KEY, MSG_KEY, CHAN_KEY, 'caliper_cards_v1', 'caliper_salaries_v1']
       .forEach((k) => { try { localStorage.removeItem(k); } catch { /* no storage */ } });
     clearImported();
-    setWorkOrders([]); setPurchases([]); setMessages([]); setCards([]); setTimesheet([]); setDocuments([]);
+    setWorkOrders([]); setPurchases([]); setMessages([]); setCards([]); setTsTable([]); setDocuments([]);
     // clear pay config too so a "clear test data" reset can't leave salaries or
     // P&L inputs behind (and the write-through can't re-upload them to the cloud)
     setSalaries({});
