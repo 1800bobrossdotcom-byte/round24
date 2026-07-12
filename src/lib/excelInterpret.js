@@ -15,6 +15,7 @@
 
 import * as XLSX from 'xlsx';
 import { parseSheet as parseMatrix, looksLikeBuilding } from './importParser.js';
+import { allocatePayLogPeriods } from './payLogAllocate.js';
 
 // ---- header vocabulary: field → what its column header might be called ----
 const HDR = {
@@ -204,8 +205,18 @@ export function interpretSheet(ws, name) {
   const entries = useGeneral ? general : matrix;
   if (!useGeneral) layout = matrix.length ? 'matrix' : 'none';
 
+  // Dollar-grid pay logs carry the real allocation in the $ grid (per pay period),
+  // not in the building name printed next to each day. When present, this is the
+  // authoritative per-(period, building) split — it replaces the per-day building
+  // guess downstream (see toTimers). Building labels stay raw; the importer's
+  // matcher resolves them to properties.
+  const rate = (entries.find((e) => e.rate)?.rate) || 23;
+  const grid = allocatePayLogPeriods(rows, null, rate);
+
   return {
     name, techName, layout, entries,
+    payLogGrid: grid.hasGrid ? grid.entries : null,
+    payLogRate: grid.hasGrid ? rate : null,
     entryCount: entries.length,
     totalHours: entries.reduce((a, e) => a + (e.hours || 0), 0),
     totalPay: entries.reduce((a, e) => a + (e.pay || 0), 0),

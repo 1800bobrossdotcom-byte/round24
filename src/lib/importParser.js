@@ -244,6 +244,27 @@ export function toTimers(sheets, selectedNames, resolveBuildings) {
   let id = 0, allocated = 0, unallocated = 0;
   for (const s of sheets) {
     if (!selectedNames.includes(s.name)) continue;
+
+    // Dollar-grid pay log: allocate by the $ grid per pay period (the real split),
+    // one timer per (period, building). This reproduces the sheet's own totals box
+    // — instead of spreading a day's hours across the buildings merely named on it.
+    if (s.payLogGrid && s.payLogGrid.length) {
+      const rate = (s.entries.find((e) => e.rate)?.rate) || s.payLogRate || 0;
+      for (const g of s.payLogGrid) {
+        if (!(g.hours > 0)) continue;
+        const rid = resolveBuildings ? resolveBuildings([g.building])[0] : null;
+        id++;
+        if (rid) allocated++; else unallocated++;
+        timers.push({
+          id: `imp_${id}`, techName: s.techName, date: g.date, rate,
+          category: 'imported', issue: `imported from pay log · $${(g.dollars || 0).toFixed(2)}`,
+          unit: '—', period: null, durationHrs: g.hours, propId: rid || null,
+          ...(rid ? {} : { unallocated: true }),
+        });
+      }
+      continue; // grid is authoritative for this sheet — skip the per-day pass
+    }
+
     for (const e of s.entries) {
       if (e.hours <= 0) continue; // skip OFF days
       const names = e.buildings || [];
