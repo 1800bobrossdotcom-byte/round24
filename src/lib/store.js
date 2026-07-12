@@ -191,9 +191,11 @@ export function useStore() {
   // places, in priority order: a location the office just set (override), the
   // property's own stored lat/lng (cloud), or the sample BUILDING_GEO (demo).
   const [propLoc, setPropLoc] = useState({}); // id → { lat, lng, geofence }
-  // the org's buildings from the properties table — loaded for EVERY role (crew
-  // included) so the Field timer + timesheet dropdowns populate even for crew,
-  // who never hydrate the staff-only labor state that carries impProps.
+  // the org's buildings from the properties table — loaded for EVERY role. Kept
+  // SEPARATE from `properties` (below): the table can hold messy name-variants of
+  // the same building (e.g. "301 Central" vs "301 Central Ave"), so merging it into
+  // the authoritative list duplicates buildings in the office Buildings/P&L views.
+  // It's only a fallback for the crew picker, who have no impProps to pick from.
   const [cloudProps, setCloudProps] = useState([]);
   useEffect(() => {
     if (demoMode || !isConfigured() || !orgId) { setCloudProps([]); return undefined; }
@@ -201,23 +203,27 @@ export function useStore() {
     listProperties(orgId).then((r) => { if (alive) setCloudProps(r); }).catch(() => {});
     return () => { alive = false; };
   }, [orgId, demoMode]);
-  const properties = useMemo(() => {
-    // merge labor-derived buildings (impProps) with the properties table (cloudProps),
-    // deduped by name so a building known to both appears once
-    const seenName = new Set();
-    const merged = [];
-    for (const p of [...(demoMode ? seed.properties : []), ...impProps, ...cloudProps]) {
-      const k = (p.name || '').toLowerCase().trim();
-      if (!k || seenName.has(k)) continue;
-      seenName.add(k); merged.push(p);
-    }
-    return merged.map((p) => {
-      const o = propLoc[p.id];
-      const geo = o || (p.lat != null ? { lat: p.lat, lng: p.lng, geofence: p.geofence_m ?? p.geofence ?? 150 } : BUILDING_GEO[p.name]);
-      return geo ? { ...p, lat: geo.lat, lng: geo.lng, geofence: geo.geofence ?? 150 } : p;
-    });
-  }, [impProps, cloudProps, demoMode, propLoc]);
-  const propById = useMemo(() => Object.fromEntries(properties.map((p) => [p.id, p])), [properties]);
+  const decorateGeo = useCallback((p) => {
+    const o = propLoc[p.id];
+    const geo = o || (p.lat != null ? { lat: p.lat, lng: p.lng, geofence: p.geofence_m ?? p.geofence ?? 150 } : BUILDING_GEO[p.name]);
+    return geo ? { ...p, lat: geo.lat, lng: geo.lng, geofence: geo.geofence ?? 150 } : p;
+  }, [propLoc]);
+  // authoritative building list — rent-roll/labor spine only. Drives the office
+  // Buildings + per-door P&L views, so it must stay clean (no properties-table dupes).
+  const properties = useMemo(
+    () => [...(demoMode ? seed.properties : []), ...impProps].map(decorateGeo),
+    [impProps, demoMode, decorateGeo],
+  );
+  // list the Field timer + timesheet dropdowns pick from: the authoritative list
+  // when we have one, else the properties table so crew (no impProps) still get
+  // buildings to choose. Never feeds the office building/P&L views.
+  const pickProperties = useMemo(
+    () => (properties.length ? properties : cloudProps.map(decorateGeo)),
+    [properties, cloudProps, decorateGeo],
+  );
+  // index the picker list (superset for crew) so id lookups resolve for everyone;
+  // identical to `properties` for office where pickProperties === properties
+  const propById = useMemo(() => Object.fromEntries(pickProperties.map((p) => [p.id, p])), [pickProperties]);
 
   // set a building's geofence pin (office/owner action). Updates locally at once
   // and, for a connected org, persists to the property row so the crew's next
@@ -1093,6 +1099,7 @@ export function useStore() {
   return {
     meta: { ...seed.meta, org: (isConfigured() && orgName) ? orgName : seed.meta.org },
     properties,
+    pickProperties,
     techs,
     allTimers,
     timers,

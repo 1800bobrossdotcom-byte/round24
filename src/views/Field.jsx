@@ -30,7 +30,7 @@ function loadTimer() {
 }
 
 export default function Field({ store }) {
-  const { properties, allTimers, workOrders, setWoStatus } = store;
+  const { pickProperties: properties = [], allTimers, workOrders, setWoStatus } = store;
   // the crew member IS the signed-in user — not a hardcoded demo tech. Rate is
   // matched from the roster by name when known (imported orgs carry rates);
   // otherwise 0 (the office holds the real rate server-side).

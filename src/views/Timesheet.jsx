@@ -160,7 +160,7 @@ function TsEditor({ draft, setDraft, propNames, onSave, onCancel, busy }) {
 const PERIODS = [['7', '7 days'], ['14', '2 weeks'], ['30', '30 days'], ['all', 'All']];
 
 export default function Timesheet({ store }) {
-  const { timesheet = [], purchases = [], properties = [], techById = {}, role } = store;
+  const { timesheet = [], purchases = [], pickProperties: properties = [], techById = {}, role } = store;
   const isOffice = role === 'admin' || role === 'manager';
   const [view, setView] = useState('week');          // week | list
   const [period, setPeriod] = useState('14');

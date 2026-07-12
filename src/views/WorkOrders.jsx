@@ -101,7 +101,7 @@ const inputStyle = {
 };
 
 export default function WorkOrders({ store, focus }) {
-  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, addWoAttachment, properties, techs, role, woBackend, purchases = [], vendors = [] } = store;
+  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, addWoAttachment, pickProperties: properties = [], techs, role, woBackend, purchases = [], vendors = [] } = store;
   const receiptsByWo = useMemo(() => {
     const m = {};
     for (const p of purchases) if (p.workOrderId) (m[p.workOrderId] ||= []).push(p);
