@@ -357,10 +357,13 @@ export function useStore() {
     }));
   }, [ensureProperties]);
 
-  // wipe ALL locally-imported test data: pay-log timers, discovered operators
-  // and buildings, and reset the date window. Does not touch DB rows.
+  // wipe the imported labor spine: pay-log timers, discovered operators and
+  // buildings, and reset the date window. WARNING: for a connected org the
+  // labor-state write-through persists this empty state to the CLOUD — this is
+  // destructive to every operator's imported history, not just a local reset.
+  // The Import view gates it behind a type-to-confirm for that reason.
   const clearImported = useCallback(() => {
-    setImported({ timers: [], techs: [] });   // persistence effects write the empty state
+    setImported({ timers: [], techs: [] });   // persistence effects write the empty state up
     setImpProps([]); impPropsRef.current = [];
     setRange({ from: '2026-05-11', to: '2026-07-05' });
   }, []);

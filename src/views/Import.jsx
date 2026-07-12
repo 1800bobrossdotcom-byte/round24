@@ -40,6 +40,7 @@ export default function Import({ store }) {
   const [err, setErr] = useState(null);
   const [result, setResult] = useState(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [clearText, setClearText] = useState('');
   const [seeding, setSeeding] = useState(false);
   const fileRef = useRef();
 
@@ -161,12 +162,20 @@ export default function Import({ store }) {
             <div className="card" style={{ marginBottom: 'var(--gap)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 160 }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>{store.importedCount.toLocaleString()} imported entries in these charts</div>
-                <div className="note" style={{ margin: 0 }}>Uploading replaces this by default. Clear it to start fresh.</div>
+                <div className="note" style={{ margin: 0 }}>Uploading replaces this by default. Clearing removes every operator’s imported hours from the cloud — not just test data.</div>
               </div>
               {confirmClear ? (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn stop sm" onClick={() => { store.clearImported(); setConfirmClear(false); }}>Clear all</button>
-                  <button className="btn ghost sm" onClick={() => setConfirmClear(false)}>Cancel</button>
+                <div style={{ flex: 1, minWidth: 240 }}>
+                  <div className="note" style={{ margin: '0 0 8px', color: 'var(--danger)', fontWeight: 600, lineHeight: 1.4 }}>
+                    ⚠️ This permanently deletes all {store.importedCount.toLocaleString()} imported labor entries — <b>every operator’s hours for the whole org</b> — from the cloud. This is your live labor history, not just test data, and it can’t be undone. Type <b>CLEAR</b> to confirm.
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input value={clearText} onChange={(e) => setClearText(e.target.value)} placeholder="CLEAR" autoFocus
+                      style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, padding: '7px 10px', borderRadius: 8, width: 120 }} />
+                    <button className="btn stop sm" disabled={clearText.trim().toUpperCase() !== 'CLEAR'}
+                      onClick={() => { store.clearImported(); setConfirmClear(false); setClearText(''); }}>Clear all</button>
+                    <button className="btn ghost sm" onClick={() => { setConfirmClear(false); setClearText(''); }}>Cancel</button>
+                  </div>
                 </div>
               ) : (
                 <button className="btn ghost sm" onClick={() => setConfirmClear(true)}>Clear imported data</button>
