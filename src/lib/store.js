@@ -48,11 +48,13 @@ function saveLS(key, value) {
 // upload, so browsers carry compounded test data that a code deploy can't
 // reach. Bump SCHEMA_VERSION to force every client to start clean on load.
 const SCHEMA_KEY = 'caliper_import_schema';
-const SCHEMA_VERSION = '3';   // bump: prior imports may reference gated seed operator ids
+const SCHEMA_VERSION = '4';   // bump: purge shared org-data caches that bled across tenants on one browser
 try {
   if (typeof localStorage !== 'undefined' && localStorage.getItem(SCHEMA_KEY) !== SCHEMA_VERSION) {
-    localStorage.removeItem(IMP_KEY);
-    localStorage.removeItem(PROP_KEY);
+    // clear every non-org-scoped cache of org data — on a shared browser these leaked
+    // one tenant's labor/buildings/work-orders/messages into the next account. All of
+    // these re-fetch from the cloud for a configured org, so nothing real is lost.
+    [IMP_KEY, PROP_KEY, WO_KEY, PUR_KEY, MSG_KEY, 'caliper_cards_v1', 'caliper_salaries_v1'].forEach((k) => localStorage.removeItem(k));
     localStorage.setItem(SCHEMA_KEY, SCHEMA_VERSION);
   }
 } catch { /* private mode / no storage — nothing to purge */ }
@@ -85,8 +87,11 @@ export function useStore() {
   const myCommsRole = role === 'admin' || role === 'manager' ? 'office' : 'crew';
 
   // ---- imported pay-log data (merged into the same spine the charts read) ----
-  const [imported, setImported] = useState(() => loadLS(IMP_KEY, { timers: [], techs: [] }));
-  useEffect(() => { saveLS(IMP_KEY, imported); }, [imported]);
+  // A configured org is cloud-authoritative and re-hydrates its own labor state, so it
+  // must NOT seed from — or write to — this shared cache: on one browser it would bleed
+  // the previous tenant's labor into a new account. Only demo uses the localStorage copy.
+  const [imported, setImported] = useState(() => (isConfigured() ? { timers: [], techs: [] } : loadLS(IMP_KEY, { timers: [], techs: [] })));
+  useEffect(() => { if (!isConfigured()) saveLS(IMP_KEY, imported); }, [imported]);
 
   // ---- nav notification badges: count items newer than the last time the
   // user opened that tab. Seed stamps to "now" on first run so pre-existing
@@ -114,8 +119,8 @@ export function useStore() {
   const [range, setRange] = useState({ from: '2026-05-11', to: '2026-07-05' });
 
   // ---- buildings discovered from imports (non-integrated shops start empty) ----
-  const [impProps, setImpProps] = useState(() => loadLS(PROP_KEY, []));
-  useEffect(() => { saveLS(PROP_KEY, impProps); }, [impProps]);
+  const [impProps, setImpProps] = useState(() => (isConfigured() ? [] : loadLS(PROP_KEY, [])));
+  useEffect(() => { if (!isConfigured()) saveLS(PROP_KEY, impProps); }, [impProps]);
   const impPropsRef = useRef(impProps);
   useEffect(() => { impPropsRef.current = impProps; }, [impProps]);
 
@@ -893,7 +898,7 @@ export function useStore() {
   }, [cards]);
 
   // ---- team comms: Slack-style messages + voice notes ----
-  const [messages, setMessages] = useState(() => loadLS(MSG_KEY, []));
+  const [messages, setMessages] = useState(() => (isConfigured() ? [] : loadLS(MSG_KEY, [])));
   const [msgBackend, setMsgBackend] = useState('local'); // 'db' | 'local'
   useEffect(() => { if (msgBackend === 'local') saveLS(MSG_KEY, messages.slice(-300)); }, [messages, msgBackend]);
 
