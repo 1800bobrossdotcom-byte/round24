@@ -86,6 +86,7 @@ export function buildDemoTimers({ from = '2026-05-11', to = '2026-07-04' } = {})
 
 // work orders in the addWorkOrder() shape (propLabel strings, not ids)
 export const DEMO_WORK_ORDERS = [
+  { task: 'Garage door won’t shut', detail: 'Temp shut by aligning the photo-eye sensors, but it needs a real look — the door won’t hold closed.', propLabel: '179-189 St Paul', unit: 'Garage', category: 'doors', priority: 2, status: 'pending', source: 'field' },
   { task: 'Kitchen faucet leaking under sink', propLabel: '179-189 St Paul', unit: '3C', category: 'plumbing', assigneeLabel: 'Gianni Arone', priority: 1, status: 'in_progress', source: 'voice', transcript: 'unit 3C leaking faucet for Gianni at 179 St Paul' },
   { task: 'Replace hallway smoke detectors (2)', propLabel: '301 Central Ave', unit: '—', category: 'electrical', assigneeLabel: 'Dawn Whitfield', priority: 2, status: 'open', source: 'manual' },
   { task: 'Furnace not igniting — no heat', propLabel: '440 Armstrong', unit: '2B', category: 'hvac', assigneeLabel: 'Brent Kowalski', priority: 1, status: 'open', source: 'manual' },

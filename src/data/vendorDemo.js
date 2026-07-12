@@ -16,6 +16,7 @@ export const DEMO_VENDORS = [
   V('v5', 'GreenScape Lawn & Snow', 'contractor', 'landscaping', { rating: 4, phone: '(585) 555-0155', notes: 'Season contract — mowing + plowing all buildings.' }),
   V('v6', 'Handy Hands General Contracting', 'contractor', 'general', { favorite: true, rating: 5, phone: '(585) 555-0129', contactName: 'Marcus Bell', notes: 'Go-to for turnovers, drywall, doors, punch lists.' }),
   V('v7', 'ClearView Window & Glass', 'contractor', 'general', { rating: 4, phone: '(315) 555-0177' }),
+  V('v12', 'Overhead Door Co. of Rochester', 'contractor', 'doors', { favorite: true, rating: 5, phone: '(585) 555-0288', contactName: 'Rick Halloran', notes: 'Garage & overhead doors, openers, photo-eye sensors. Same-day on stuck doors.' }),
   // specialty suppliers
   V('v8', 'Ferguson Plumbing Supply', 'supplier', 'plumbing', { favorite: true, rating: 5, phone: '(585) 555-0400', website: 'ferguson.com', notes: 'Trade account — better pricing than retail on fixtures.' }),
   V('v9', 'Sherwin-Williams (Monroe Ave)', 'supplier', 'paint', { favorite: true, phone: '(585) 555-0412', website: 'sherwin-williams.com', notes: 'Contractor pricing on file. ProClassic is our standard.' }),

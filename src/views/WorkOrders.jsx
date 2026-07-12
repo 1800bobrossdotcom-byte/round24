@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { fmtMoneyC } from '../lib/rollups.js';
-import { IcMic, IcX, IcPlay, IcReceipt, IcCamera, IcDoc, IcClip } from '../components/ui.jsx';
+import { IcMic, IcX, IcPlay, IcReceipt, IcCamera, IcDoc, IcClip, IcSparkle, IcCheck } from '../components/ui.jsx';
 import StoredImage from '../components/StoredImage.jsx';
 import Lightbox from '../components/Lightbox.jsx';
 import { FileChip } from '../components/FileChip.jsx';
@@ -84,7 +84,8 @@ export function parseVoice(text, properties, techs) {
 }
 
 const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'doors', 'painting', 'turn', 'general', 'inspection'];
-const STATUS_COLORS = { open: 'var(--info)', in_progress: 'var(--warn)', done: 'var(--money)', cancelled: 'var(--text-faint)' };
+const STATUS_COLORS = { pending: 'var(--accent)', open: 'var(--info)', in_progress: 'var(--warn)', done: 'var(--money)', cancelled: 'var(--text-faint)' };
+const STATUS_LABEL = { pending: 'reported', open: 'open', in_progress: 'in progress', done: 'done', cancelled: 'cancelled' };
 export const WO_PRIORITIES = {
   1: { label: 'urgent', color: 'var(--danger)' },
   2: { label: 'high', color: 'var(--warn)' },
@@ -100,7 +101,7 @@ const inputStyle = {
 };
 
 export default function WorkOrders({ store, focus }) {
-  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoBilling, addWoAttachment, properties, techs, role, woBackend, purchases = [], vendors = [] } = store;
+  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, addWoAttachment, properties, techs, role, woBackend, purchases = [], vendors = [] } = store;
   const receiptsByWo = useMemo(() => {
     const m = {};
     for (const p of purchases) if (p.workOrderId) (m[p.workOrderId] ||= []).push(p);
@@ -115,10 +116,12 @@ export default function WorkOrders({ store, focus }) {
   const isStaff = role === 'admin' || role === 'manager';
   // only the field crew starts/stops a job. Office dispatches & prioritizes.
   const canRun = role === 'tech';
+  const canReport = role === 'tech';   // crew report a repair from the field → a pending WO
   const open = useMemo(
     () => workOrders.filter((w) => w.status === 'open' || w.status === 'in_progress').sort(byPriority),
     [workOrders]
   );
+  const pending = useMemo(() => workOrders.filter((w) => w.status === 'pending').sort(byPriority), [workOrders]);
   const closed = useMemo(() => workOrders.filter((w) => w.status === 'done' || w.status === 'cancelled'), [workOrders]);
 
   // crew: ask once so priority changes can reach the phone as notifications
@@ -195,15 +198,30 @@ export default function WorkOrders({ store, focus }) {
         </div>
       )}
 
+      {/* crew: report a repair from the field → a pending work order office triages */}
+      {canReport && !draft && (
+        <div className="card" style={{ marginBottom: 'var(--gap)' }}>
+          <button className="btn grad" style={{ width: '100%' }} onClick={() => setDraft({ task: '', detail: '', category: 'general', source: 'field', status: 'pending', priority: 3, report: true })}>
+            + Report a repair
+          </button>
+          <p className="note" style={{ marginTop: 8, marginBottom: 0 }}>Found something that needs fixing? Report it — office gets it, assigns the vendor, and it lands back on your list.</p>
+        </div>
+      )}
+
       {draft && (
         <div className="card" style={{ marginBottom: 'var(--gap)' }}>
-          <span className="field-label">{draft.source === 'voice' ? 'Heard it — check the details' : 'New work order'}</span>
+          <span className="field-label">{draft.report ? 'Report a repair' : draft.source === 'voice' ? 'Heard it — check the details' : 'New work order'}</span>
           {draft.transcript && (
             <p className="note" style={{ marginTop: 2, marginBottom: 12, fontStyle: 'italic', maxHeight: 72, overflowY: 'auto' }}>“{draft.transcript}”</p>
           )}
 
-          <div className="field-label">Task</div>
-          <input style={inputStyle} value={draft.task} onChange={(e) => setDraft({ ...draft, task: e.target.value })} placeholder="what needs doing" />
+          <div className="field-label">{draft.report ? 'What’s wrong' : 'Task'}</div>
+          <input style={inputStyle} value={draft.task} onChange={(e) => setDraft({ ...draft, task: e.target.value })} placeholder={draft.report ? 'e.g. garage door won’t shut' : 'what needs doing'} />
+          <div style={{ height: 12 }} />
+
+          <div className="field-label">Details {draft.report ? '· what you saw / tried' : '(optional)'}</div>
+          <textarea style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }} value={draft.detail || ''} onChange={(e) => setDraft({ ...draft, detail: e.target.value })}
+            placeholder={draft.report ? 'e.g. temp shut by aligning the photo-eye sensors, but it needs a real look' : 'anything the tech should know'} />
           <div style={{ height: 12 }} />
 
           <div className="grid g2">
@@ -218,28 +236,30 @@ export default function WorkOrders({ store, focus }) {
               <div className="field-label">Unit</div>
               <input style={inputStyle} value={draft.unit || ''} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} placeholder="4B" />
             </div>
-            <div>
-              <div className="field-label">Assign to</div>
-              <select style={inputStyle} value={draft.assigneeLabel || ''} onChange={(e) => setDraft({ ...draft, assigneeLabel: e.target.value || null })}>
-                <option value="">— unassigned —</option>
-                {techs.length > 0 && (
-                  <optgroup label="Crew">
-                    {techs.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
-                  </optgroup>
-                )}
-                {(() => {
-                  // approved contractors, trade-matching the chosen category first
-                  const want = draft.category === 'painting' ? 'paint' : draft.category;
-                  const cons = vendors.filter((v) => v.approved && v.kind === 'contractor')
-                    .sort((a, b) => (Number(b.trade === want) - Number(a.trade === want)) || a.name.localeCompare(b.name));
-                  return cons.length > 0 && (
-                    <optgroup label="Approved contractors">
-                      {cons.map((v) => <option key={v.id} value={v.name}>{v.name}{v.trade ? ` · ${v.trade}` : ''}</option>)}
+            {!draft.report && (
+              <div>
+                <div className="field-label">Assign to</div>
+                <select style={inputStyle} value={draft.assigneeLabel || ''} onChange={(e) => setDraft({ ...draft, assigneeLabel: e.target.value || null })}>
+                  <option value="">— unassigned —</option>
+                  {techs.length > 0 && (
+                    <optgroup label="Crew">
+                      {techs.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
                     </optgroup>
-                  );
-                })()}
-              </select>
-            </div>
+                  )}
+                  {(() => {
+                    // approved contractors, trade-matching the chosen category first
+                    const want = draft.category === 'painting' ? 'paint' : draft.category;
+                    const cons = vendors.filter((v) => v.approved && v.kind === 'contractor')
+                      .sort((a, b) => (Number(b.trade === want) - Number(a.trade === want)) || a.name.localeCompare(b.name));
+                    return cons.length > 0 && (
+                      <optgroup label="Approved contractors">
+                        {cons.map((v) => <option key={v.id} value={v.name}>{v.name}{v.trade ? ` · ${v.trade}` : ''}</option>)}
+                      </optgroup>
+                    );
+                  })()}
+                </select>
+              </div>
+            )}
             <div>
               <div className="field-label">Due date</div>
               <input style={inputStyle} type="date" value={draft.due || ''} onChange={(e) => setDraft({ ...draft, due: e.target.value || null })} />
@@ -262,9 +282,20 @@ export default function WorkOrders({ store, focus }) {
             ))}
           </div>
 
+          {/* crew report: surface who office would likely call, from the approved rolodex */}
+          {draft.report && (() => {
+            const want = draft.category === 'painting' ? 'paint' : draft.category;
+            const v = vendors.filter((x) => x.approved && x.kind === 'contractor').find((x) => x.trade === want);
+            return v ? (
+              <p className="note" style={{ marginTop: 12, marginBottom: 0 }}>
+                <IcSparkle width={12} height={12} style={{ verticalAlign: -2 }} /> Likely vendor for {draft.category}: <b>{v.name}</b>{v.phone ? ` · ${v.phone}` : ''} — office confirms & dispatches.
+              </p>
+            ) : null;
+          })()}
+
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button className="btn ghost" style={{ width: 'auto', flex: 1 }} onClick={() => setDraft(null)}>Cancel</button>
-            <button className="btn grad" style={{ flex: 2 }} onClick={save} disabled={!draft.task?.trim()}>Create work order</button>
+            <button className="btn grad" style={{ flex: 2 }} onClick={save} disabled={!draft.task?.trim()}>{draft.report ? 'Send report to office' : 'Create work order'}</button>
           </div>
         </div>
       )}
@@ -282,6 +313,20 @@ export default function WorkOrders({ store, focus }) {
           </div>
         );
       })()}
+
+      {/* ---- pending: crew reports awaiting office triage ---- */}
+      {pending.length > 0 && (
+        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'color-mix(in srgb, var(--accent) 40%, var(--line))' }}>
+          <span className="field-label">
+            {isStaff ? `Reported from the field — needs triage (${pending.length})` : `Your reports — waiting on office (${pending.length})`}
+          </span>
+          {pending.map((w) => (
+            <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} setWoAssignee={setWoAssignee} setWoBilling={setWoBilling}
+              isStaff={isStaff} canRun={canRun} canAttach={isStaff || role === 'tech'} addWoAttachment={addWoAttachment} receipts={receiptsByWo[w.id]}
+              vendors={vendors} techs={techs} />
+          ))}
+        </div>
+      )}
 
       {/* ---- open ---- */}
       <div className="card">
@@ -303,7 +348,7 @@ export default function WorkOrders({ store, focus }) {
 const BILL_LABEL = { no: 'not billed', billed: 'billed', paid: 'paid' };
 const BILL_COLOR = { no: 'var(--text-faint)', billed: 'var(--warn)', paid: 'var(--money)' };
 
-function WoRow({ w, setWoStatus, setWoPriority, setWoBilling, isStaff, canRun, canAttach, addWoAttachment, done, receipts = [] }) {
+function WoRow({ w, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, isStaff, canRun, canAttach, addWoAttachment, done, receipts = [], vendors = [], techs = [] }) {
   const pr = WO_PRIORITIES[w.priority ?? 3];
   const [open, setOpen] = useState(false);
   const [billOpen, setBillOpen] = useState(false);
@@ -352,12 +397,38 @@ function WoRow({ w, setWoStatus, setWoPriority, setWoBilling, isStaff, canRun, c
           ) : !done && (
             <span className="chip" style={{ color: pr.color }}>{pr.label}</span>
           )}
-          <span className="chip" style={{ color: STATUS_COLORS[w.status] }}>{w.status.replace('_', ' ')}</span>
+          <span className="chip" style={{ color: STATUS_COLORS[w.status] }}>{STATUS_LABEL[w.status] || w.status.replace('_', ' ')}</span>
           {canRun && w.status === 'open' && <button className="btn ghost sm" onClick={() => setWoStatus(w.id, 'in_progress')}>Start</button>}
           {canRun && w.status === 'in_progress' && <button className="btn ghost sm" onClick={() => setWoStatus(w.id, 'done')}>Done</button>}
-          {isStaff && !done && <button className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)' }} onClick={() => setWoStatus(w.id, 'cancelled')} aria-label="Cancel"><IcX width={14} height={14} /></button>}
+          {isStaff && !done && w.status !== 'pending' && <button className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)' }} onClick={() => setWoStatus(w.id, 'cancelled')} aria-label="Cancel"><IcX width={14} height={14} /></button>}
         </div>
       </div>
+
+      {/* office triage of a field report: confirm the vendor, then approve → open */}
+      {isStaff && w.status === 'pending' && (
+        <div style={{ marginTop: 8, padding: 10, background: 'var(--surface-2)', borderRadius: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {w.detail && <div className="s" style={{ width: '100%', color: 'var(--text-dim)', marginBottom: 2 }}>“{w.detail}”</div>}
+          {setWoAssignee && (
+            <select value={w.assigneeLabel || ''} onChange={(e) => setWoAssignee(w.id, e.target.value || null)}
+              style={{ background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 12, padding: '6px 8px', borderRadius: 8, flex: 1, minWidth: 150 }}>
+              <option value="">— assign a vendor / crew —</option>
+              {(() => {
+                const want = w.category === 'painting' ? 'paint' : w.category;
+                const cons = vendors.filter((v) => v.approved && v.kind === 'contractor')
+                  .sort((a, b) => (Number(b.trade === want) - Number(a.trade === want)) || (a.name || '').localeCompare(b.name || ''));
+                return (
+                  <>
+                    {cons.length > 0 && <optgroup label="Approved contractors">{cons.map((v) => <option key={v.id} value={v.name}>{v.name}{v.trade ? ` · ${v.trade}` : ''}</option>)}</optgroup>}
+                    {techs.length > 0 && <optgroup label="Crew">{techs.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}</optgroup>}
+                  </>
+                );
+              })()}
+            </select>
+          )}
+          <button className="btn grad sm" onClick={() => setWoStatus(w.id, 'open')}><IcCheck width={13} height={13} /> Approve → open</button>
+          <button className="btn ghost sm" onClick={() => setWoStatus(w.id, 'cancelled')}>Dismiss</button>
+        </div>
+      )}
       {billOpen && isStaff && setWoBilling && <WoBilling w={w} matTotal={matTotal} onSave={(patch) => setWoBilling(w.id, patch)} />}
 
       {open && receipts.length > 0 && (
