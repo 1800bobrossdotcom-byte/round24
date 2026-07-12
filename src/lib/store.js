@@ -107,7 +107,7 @@ export function useStore() {
   // real, logged-in org must never see it mixed into its charts — it sees
   // only its own imported/real data.
   const demoMode = !isConfigured();
-  const techs = useMemo(() => [...(demoMode ? seed.techs : []), ...imported.techs], [imported.techs, demoMode]);
+  const techsRaw = useMemo(() => [...(demoMode ? seed.techs : []), ...imported.techs], [imported.techs, demoMode]);
   // allTimers is the labor spine the dashboards + per-door P&L read. In demo mode
   // we also fold in a little verified portfolio labor so the owner's P&L and the
   // "% verified on-site" stat populate out of the box.
@@ -138,6 +138,26 @@ export function useStore() {
       return next;
     });
   }, []);
+
+  // ---- inactive operators: left the company, keep their history ----
+  // A { techId: true } set that rides labor_state. An inactive operator's past
+  // timers still count everywhere historical; they're just dropped from the
+  // ACTIVE roster (no new work-order assignment, DMs, or availability). Reversible.
+  const [inactiveOps, setInactiveOps] = useState(() => (demoMode ? loadLS('caliper_inactive_ops_v1', {}) : {}));
+  useEffect(() => { if (demoMode) saveLS('caliper_inactive_ops_v1', inactiveOps); }, [inactiveOps, demoMode]);
+  const setOperatorActive = useCallback((techId, active) => {
+    if (!techId) return;
+    setInactiveOps((s) => {
+      const next = { ...s };
+      if (active) delete next[techId]; else next[techId] = true;
+      return next;
+    });
+  }, []);
+  // canonical operator list, tagged with employment status (inactive = departed).
+  // techById stays complete so historical names always resolve; assignment
+  // rosters filter on `.active`.
+  const techs = useMemo(() => techsRaw.map((t) => ({ ...t, active: !inactiveOps[t.id] })), [techsRaw, inactiveOps]);
+  const activeTechs = useMemo(() => techs.filter((t) => t.active), [techs]);
 
   // ---- P&L statement config: fixed per-building inputs (debt, utilities, tax) ----
   // Kept in a single localStorage doc keyed by org, so plConfig is derived (never
@@ -178,6 +198,7 @@ export function useStore() {
       if (s?.range?.from && s?.range?.to) setRange(s.range);
       else setRange({ from: '2026-05-11', to: '2026-07-05' });
       setSalaries(s?.salaries && typeof s.salaries === 'object' ? s.salaries : {});
+      setInactiveOps(s?.inactiveOps && typeof s.inactiveOps === 'object' ? s.inactiveOps : {});
       // per-building P&L config rides the same doc — cloud is authoritative when present
       if (s?.plconfig && typeof s.plconfig === 'object') setPlAll((a) => ({ ...a, [orgId]: s.plconfig }));
       loadedOrgRef.current = orgId;
@@ -190,9 +211,9 @@ export function useStore() {
   // loadedOrg guard is a belt-and-suspenders against writing before the new org resolves.
   useEffect(() => {
     if (laborBackend !== 'db' || !hydratedRef.current || !orgId || !isStaffMember || loadedOrgRef.current !== orgId) return undefined;
-    const t = setTimeout(() => { saveLaborState(orgId, { imported, props: impProps, range, salaries, plconfig: plAll[orgId] || {} }).catch(() => {}); }, 900);
+    const t = setTimeout(() => { saveLaborState(orgId, { imported, props: impProps, range, salaries, plconfig: plAll[orgId] || {}, inactiveOps }).catch(() => {}); }, 900);
     return () => clearTimeout(t);
-  }, [imported, impProps, range, salaries, plAll, laborBackend, orgId, isStaffMember]);
+  }, [imported, impProps, range, salaries, plAll, inactiveOps, laborBackend, orgId, isStaffMember]);
 
   // per-building geofence pins for verified clock-in. A pin can come from three
   // places, in priority order: a location the office just set (override), the
@@ -1017,9 +1038,9 @@ export function useStore() {
   // Demo/local: the crew roster so the feature is usable without logins.
   const roster = useMemo(() => {
     if (isConfigured() && msgBackend === 'db') return chatMembers.filter((m) => m.id !== myId);
-    return techs.map((t) => ({ id: t.id, label: t.name, role: t.role === 'tech' ? 'crew' : 'office' }))
+    return activeTechs.map((t) => ({ id: t.id, label: t.name, role: t.role === 'tech' ? 'crew' : 'office' }))
       .filter((p) => p.label && p.label !== myName);
-  }, [chatMembers, techs, msgBackend, myId, myName]);
+  }, [chatMembers, activeTechs, msgBackend, myId, myName]);
 
   const privateChannels = isConfigured() && msgBackend === 'db' ? dbChannels : localChannels;
 
@@ -1142,6 +1163,8 @@ export function useStore() {
     properties,
     pickProperties,
     techs,
+    activeTechs,
+    inactiveOps, setOperatorActive,
     allTimers,
     timers,
     range, setRange,

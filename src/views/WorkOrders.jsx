@@ -101,7 +101,10 @@ const inputStyle = {
 };
 
 export default function WorkOrders({ store, focus }) {
-  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, addWoAttachment, pickProperties: properties = [], techs, role, woBackend, purchases = [], vendors = [] } = store;
+  // only ACTIVE operators are assignable; departed ones keep their history but
+  // can't take new work (falls back to techs so nothing breaks pre-status-tag).
+  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, addWoAttachment, pickProperties: properties = [], activeTechs, techs: allTechs = [], role, woBackend, purchases = [], vendors = [] } = store;
+  const techs = activeTechs || allTechs;
   const receiptsByWo = useMemo(() => {
     const m = {};
     for (const p of purchases) if (p.workOrderId) (m[p.workOrderId] ||= []).push(p);

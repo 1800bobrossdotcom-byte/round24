@@ -926,17 +926,20 @@ export async function signedFileUrl(bucket, path) {
 // staff-only (carries rates). Stored as a single per-org document.
 export async function getLaborState(orgId) {
   const sel = (cols) => supabase.from('labor_state').select(cols).eq('org_id', orgId).maybeSingle();
-  let { data, error } = await sel('imported, props, range, salaries, plconfig');
-  // tolerate a DB that hasn't added the plconfig / salaries columns yet (no regression)
+  let { data, error } = await sel('imported, props, range, salaries, plconfig, inactive_ops');
+  // tolerate a DB that hasn't added the inactive_ops / plconfig / salaries columns yet (no regression)
+  if (error && /inactive_ops/i.test(error.message || '')) ({ data, error } = await sel('imported, props, range, salaries, plconfig'));
   if (error && /plconfig/i.test(error.message || '')) ({ data, error } = await sel('imported, props, range, salaries'));
   if (error && /salaries/i.test(error.message || '')) ({ data, error } = await sel('imported, props, range'));
   if (error) throw error;
   if (!data) return null;
-  // labor rows carry pay rates → imported/props/salaries/plconfig blobs encrypted at rest
+  // labor rows carry pay rates → imported/props/salaries/plconfig blobs encrypted at rest.
+  // inactive_ops is just a set of operator ids (no pay) → plain jsonb.
   return {
     imported: await decBlob(data.imported), props: await decBlob(data.props), range: data.range,
     salaries: data.salaries ? await decBlob(data.salaries) : null,
     plconfig: data.plconfig ? await decBlob(data.plconfig) : null,
+    inactiveOps: data.inactive_ops && typeof data.inactive_ops === 'object' ? data.inactive_ops : null,
   };
 }
 
@@ -946,11 +949,15 @@ export async function saveLaborState(orgId, s) {
     range: s.range, updated_at: new Date().toISOString(),
   };
   if (s.salaries !== undefined) base.salaries = await encBlob(s.salaries);
-  const withPl = s.plconfig !== undefined ? { ...base, plconfig: await encBlob(s.plconfig) } : base;
-  const noSal = { ...base }; delete noSal.salaries; delete noSal.plconfig;
-  let { error } = await supabase.from('labor_state').upsert(withPl, { onConflict: 'org_id' });
-  // step down through un-migrated columns: plconfig, then salaries
-  if (error && /plconfig/i.test(error.message || '')) ({ error } = await supabase.from('labor_state').upsert(base, { onConflict: 'org_id' }));
+  if (s.plconfig !== undefined) base.plconfig = await encBlob(s.plconfig);
+  const full = s.inactiveOps !== undefined ? { ...base, inactive_ops: s.inactiveOps } : base;
+  const noInactive = { ...full }; delete noInactive.inactive_ops;
+  const noPl = { ...noInactive }; delete noPl.plconfig;
+  const noSal = { ...noPl }; delete noSal.salaries;
+  let { error } = await supabase.from('labor_state').upsert(full, { onConflict: 'org_id' });
+  // step down through un-migrated columns: inactive_ops, then plconfig, then salaries
+  if (error && /inactive_ops/i.test(error.message || '')) ({ error } = await supabase.from('labor_state').upsert(noInactive, { onConflict: 'org_id' }));
+  if (error && /plconfig/i.test(error.message || '')) ({ error } = await supabase.from('labor_state').upsert(noPl, { onConflict: 'org_id' }));
   if (error && /salaries/i.test(error.message || '')) ({ error } = await supabase.from('labor_state').upsert(noSal, { onConflict: 'org_id' }));
   if (error) throw error;
 }
