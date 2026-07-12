@@ -83,7 +83,7 @@ export function parseVoice(text, properties, techs) {
   return out;
 }
 
-const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'painting', 'turn', 'general', 'inspection'];
+const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'doors', 'painting', 'turn', 'general', 'inspection'];
 const STATUS_COLORS = { open: 'var(--info)', in_progress: 'var(--warn)', done: 'var(--money)', cancelled: 'var(--text-faint)' };
 export const WO_PRIORITIES = {
   1: { label: 'urgent', color: 'var(--danger)' },

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { IcBuilding, IcWrench, IcReceipt, IcCheck, IcX, IcTrash, IcChevron, IcSparkle } from '../components/ui.jsx';
 
 // trades / categories a vendor can cover — used for chips + the add form
-const TRADES = ['plumbing', 'electrical', 'hvac', 'roofing', 'general', 'appliance', 'landscaping', 'paint', 'other'];
+const TRADES = ['plumbing', 'electrical', 'hvac', 'doors', 'roofing', 'general', 'appliance', 'landscaping', 'paint', 'other'];
 const tradeLabel = (t) => (t ? t[0].toUpperCase() + t.slice(1) : 'Other');
 const money = (n) => (n == null || n === '' ? '—' : '$' + Number(n).toFixed(2));
 
