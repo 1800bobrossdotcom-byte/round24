@@ -32,10 +32,12 @@ export function speak(text) {
 // Hands-free command loop. Pass enabled + an onCommand(intent, info) handler;
 // the hook keeps the latest handler so it always dispatches against fresh state.
 // Returns { supported, listening, error, lastHeard }.
-export function useVoiceCommands({ enabled, onCommand, onHeard }) {
+export function useVoiceCommands({ enabled, onCommand, onHeard, context }) {
   const supported = isVoiceSupported();
   const cbRef = useRef({});
   cbRef.current = { onCommand, onHeard };
+  const ctxRef = useRef(context);   // live timer state, so parseCommand can disambiguate
+  ctxRef.current = context;
   const recRef = useRef(null);
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
@@ -64,7 +66,7 @@ export function useVoiceCommands({ enabled, onCommand, onHeard }) {
       const res = e.results[e.results.length - 1];
       if (!res || !res.isFinal) return;
       const transcript = res[0]?.transcript || '';
-      const cmd = parseCommand(transcript);
+      const cmd = parseCommand(transcript, ctxRef.current);
       if (cmd === null) return;                 // no wake word → ignore chatter
       setLastHeard(transcript.trim());
       cbRef.current.onHeard?.(transcript.trim(), cmd);

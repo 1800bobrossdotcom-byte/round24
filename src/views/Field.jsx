@@ -175,8 +175,37 @@ export default function Field({ store }) {
   };
 
   // route a recognized voice intent to the timer, with an audible confirmation.
+  // a fuzzy (mis-heard) destructive command waits for a yes/no before firing
+  const [pendingVoice, setPendingVoice] = useState(null); // { intent }
+  const pendingTimerRef = useRef(null);
+  const clearPending = () => { setPendingVoice(null); if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current); };
+  const armPending = (intent) => {
+    setPendingVoice({ intent });
+    if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+    pendingTimerRef.current = setTimeout(() => setPendingVoice(null), 12000);
+  };
+  useEffect(() => () => { if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current); }, []);
+
+  // voice dispatch with a confirmation gate: an exact command runs immediately,
+  // but a fuzzy match on a destructive action (stop/done) asks first, so a noisy
+  // mis-hear ("stock job") can't silently stop a timer.
+  const handleVoice = (intent, cmd) => {
+    if (pendingVoice) {
+      if (intent === 'confirm') { const p = pendingVoice.intent; clearPending(); runIntent(p); return; }
+      if (intent === 'cancel') { clearPending(); speak('Okay, cancelled.'); return; }
+      clearPending(); // any other real command supersedes the pending one
+    }
+    if (intent === 'confirm' || intent === 'cancel') return; // nothing to confirm
+    if (cmd?.confirm) {
+      armPending(intent);
+      speak(`Heard ${intent === 'done' ? 'mark it done' : 'stop the job'}. Say Caliper yes to confirm, or Caliper no.`);
+      return;
+    }
+    runIntent(intent);
+  };
+
   // Recreated every render so it always reads current running/break/elapsed.
-  const handleVoice = (intent) => {
+  const runIntent = (intent) => {
     const propName = () => properties.find((p) => p.id === (running ? running.propId : prop))?.name || 'the job';
     if (intent === 'start') {
       if (running) { speak('Already on the clock.'); return; }
@@ -204,7 +233,7 @@ export default function Field({ store }) {
       speak(`${parts.join(' and ')} on ${propName()}${onBreak ? ', on break' : ''}.`);
     }
   };
-  const voice = useVoiceCommands({ enabled: handsFree, onCommand: handleVoice });
+  const voice = useVoiceCommands({ enabled: handsFree, onCommand: handleVoice, context: { running: !!running, onBreak: !!onBreak } });
 
   // ---- edit a logged entry: fix property / unit / category / hours ----
   const [editing, setEditing] = useState(null); // { id, prop, unit, category, hrs, note }
@@ -298,9 +327,14 @@ export default function Field({ store }) {
             <div className="s" style={{ color: 'var(--text-dim)' }}>Voice needs Chrome, Edge, or Android. Tap-free once supported.</div>
           ) : voice.error ? (
             <div className="s" style={{ color: 'var(--danger)' }}>{voice.error}</div>
+          ) : pendingVoice ? (
+            <div className="s" style={{ color: 'var(--warn)', fontWeight: 600 }}>
+              Did you mean “<b>{pendingVoice.intent === 'done' ? 'mark it done' : 'stop the job'}</b>”? Say “<b>Caliper, yes</b>” to confirm or “<b>Caliper, no</b>”.
+              {voice.lastHeard && <div style={{ color: 'var(--text-faint)', fontFamily: 'var(--mono)', fontSize: 11, marginTop: 2 }}>heard: “{voice.lastHeard}”</div>}
+            </div>
           ) : handsFree ? (
             <div className="s" style={{ color: voice.listening ? 'var(--money)' : 'var(--text-dim)' }}>
-              {voice.listening ? 'Listening — ' : 'Starting… '}say “<b>Caliper, start job</b>”
+              {voice.listening ? 'Listening — ' : 'Starting… '}say “<b>Caliper, {running ? (onBreak ? 'back to work' : 'stop job') : 'start job'}</b>”
               {voice.lastHeard && <div style={{ color: 'var(--text-faint)', fontFamily: 'var(--mono)', fontSize: 11, marginTop: 2 }}>heard: “{voice.lastHeard}”</div>}
             </div>
           ) : (
