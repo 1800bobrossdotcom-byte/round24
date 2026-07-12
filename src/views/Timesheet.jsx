@@ -157,16 +157,90 @@ function TsEditor({ draft, setDraft, propNames, onSave, onCancel, busy }) {
   );
 }
 
+// Split one day's hours across the properties worked — the self-serve version of
+// the pay-log comment ("Water St 2.25h · Fitzhugh 1h · 301 Central 1h · …"). Each
+// line saves as its own timesheet entry, so the per-property rollups build
+// themselves and the office no longer hand-allocates from a comment.
+const blankLine = () => ({ propLabel: 'Unassigned', hrs: '', unit: '', note: '', category: 'general', workOrderId: null });
+function SplitEditor({ date0, propNames, workOrders = [], onSaveAll, onCancel, busy }) {
+  const [date, setDate] = useState(date0);
+  const [lines, setLines] = useState([blankLine(), blankLine()]);
+  const setLine = (i, patch) => setLines((l) => l.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const total = lines.reduce((a, x) => a + (Number(x.hrs) || 0), 0);
+  const openWOs = useMemo(
+    () => workOrders.filter((w) => w.status !== 'done' && w.status !== 'closed'),
+    [workOrders],
+  );
+  const pickWO = (i, id) => {
+    const w = openWOs.find((x) => x.id === id);
+    if (!w) { setLine(i, { workOrderId: null }); return; }
+    setLine(i, { workOrderId: w.id, propLabel: w.propLabel || 'Unassigned', unit: w.unit || lines[i].unit, category: w.category || lines[i].category, note: lines[i].note || w.task || '' });
+  };
+  const valid = lines.some((x) => Number(x.hrs) > 0);
+  return (
+    <div className="ts-editor">
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div><div className="field-label">Day</div>
+          <input style={{ ...cellInput, width: 170 }} type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+        <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+          <div className="field-label" style={{ margin: 0 }}>Day total</div>
+          <span className="mono" style={{ fontSize: 20, fontWeight: 700 }}>{Math.round(total * 100) / 100}</span> <span className="s" style={{ color: 'var(--text-dim)' }}>hrs</span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+        {lines.map((ln, i) => (
+          <div key={i} className="card" style={{ background: 'var(--surface-2)', padding: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 78px 90px auto', gap: 8, alignItems: 'end' }}>
+              <div><div className="field-label">Property</div>
+                <select style={cellInput} value={ln.propLabel} onChange={(e) => setLine(i, { propLabel: e.target.value })}>
+                  <option value="Unassigned">Unassigned</option>
+                  {propNames.map((n) => <option key={n} value={n}>{n}</option>)}
+                  {ln.propLabel && ln.propLabel !== 'Unassigned' && !propNames.includes(ln.propLabel) && <option value={ln.propLabel}>{ln.propLabel}</option>}
+                </select></div>
+              <div><div className="field-label">Hours</div>
+                <input style={cellInput} type="number" step="0.25" min="0" inputMode="decimal" value={ln.hrs} placeholder="0"
+                  onChange={(e) => setLine(i, { hrs: e.target.value })} /></div>
+              <div><div className="field-label">Unit</div>
+                <input style={cellInput} value={ln.unit} onChange={(e) => setLine(i, { unit: e.target.value })} placeholder="—" /></div>
+              <button className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)', marginBottom: 1 }} aria-label="Remove line"
+                onClick={() => setLines((l) => (l.length > 1 ? l.filter((_, j) => j !== i) : l))}><IcX width={14} height={14} /></button>
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <MentionInput value={ln.note} onChange={(v) => setLine(i, { note: v })} options={propNames}
+                placeholder="what you did — rounds, trash haul, floors… (@tag also routes hours)" />
+            </div>
+            {openWOs.length > 0 && (
+              <div style={{ marginTop: 6 }}>
+                <select style={{ ...cellInput, fontSize: 12, color: 'var(--text-dim)' }} value={ln.workOrderId || ''} onChange={(e) => pickWO(i, e.target.value)}>
+                  <option value="">↳ link a work order (auto-fills the property)…</option>
+                  {openWOs.map((w) => <option key={w.id} value={w.id}>{[w.propLabel, w.unit && `#${w.unit}`, w.task].filter(Boolean).join(' · ').slice(0, 60)}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button className="btn ghost sm" onClick={() => setLines((l) => [...l, blankLine()])} disabled={busy}>+ Add property</button>
+        <div style={{ flex: 1 }} />
+        <button className="btn grad sm" onClick={() => onSaveAll({ date, lines })} disabled={busy || !valid}>{busy ? 'Saving…' : (() => { const k = lines.filter((x) => Number(x.hrs) > 0).length; return `Save ${k || ''} ${k === 1 ? 'entry' : 'entries'}`.replace('  ', ' ').trim(); })()}</button>
+        <button className="btn ghost sm" onClick={onCancel} disabled={busy}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 const PERIODS = [['7', '7 days'], ['14', '2 weeks'], ['30', '30 days'], ['all', 'All']];
 
 export default function Timesheet({ store }) {
-  const { timesheet = [], purchases = [], pickProperties: properties = [], techById = {}, role } = store;
+  const { timesheet = [], purchases = [], pickProperties: properties = [], techById = {}, workOrders = [], role } = store;
   const isOffice = role === 'admin' || role === 'manager';
   const [view, setView] = useState('week');          // week | list
   const [period, setPeriod] = useState('14');
   const [weekAnchor, setWeekAnchor] = useState(todayISO());
   const [editId, setEditId] = useState(null);        // row.id | '__new__'
   const [draft, setDraft] = useState(null);
+  const [splitDate, setSplitDate] = useState(null);  // day being split across properties, or null
   const [busy, setBusy] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
   const [opFilter, setOpFilter] = useState('all');   // office only: 'all' (roster) | techId key
@@ -226,6 +300,23 @@ export default function Timesheet({ store }) {
   const masterHasPay = roster.some((o) => o.pay > 0);
   const activeOp = viewingOp ? roster.find((o) => o.key === opFilter) : null;
 
+  // ---- office per-property rollup: hours + labor $ per building over the period ----
+  // The Excel "Monthly / Quarterly totals" box — every operator's allocated hours
+  // summed by door, so the office reads the same number Bill used to tally by hand.
+  const propRoll = useMemo(() => {
+    if (!isOffice) return [];
+    const src = periodCut ? timesheet.filter((r) => r.date >= periodCut) : timesheet;
+    const m = new Map();
+    src.forEach((r) => {
+      const k = r.propLabel && r.propLabel !== 'Unassigned' ? r.propLabel : 'Unassigned';
+      const e = m.get(nameKey(k)) || { name: k, hrs: 0, pay: 0 };
+      e.hrs += r.durationHrs || 0; e.pay += (r.durationHrs || 0) * (r.rate || 0); m.set(nameKey(k), e);
+    });
+    return [...m.values()].sort((a, b) => b.hrs - a.hrs);
+  }, [isOffice, timesheet, periodCut]);
+  const propRollMax = Math.max(...propRoll.map((p) => p.hrs), 1);
+  const propRollHasPay = propRoll.some((p) => p.pay > 0);
+
   // ---- the work week, scheduled out ----
   const weekStart = weekStartOf(weekAnchor);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
@@ -278,7 +369,22 @@ export default function Timesheet({ store }) {
     setEditId('__new__');
     setDraft({ date, durationHrs: 1, propLabel: 'Unassigned', unit: '', category: 'general', note: '' });
   };
-  const cancel = () => { setEditId(null); setDraft(null); };
+  const cancel = () => { setEditId(null); setDraft(null); setSplitDate(null); };
+  // open the split-day allocator (self-serve multi-property allocation)
+  const startSplit = (date = todayISO()) => { setEditId(null); setDraft(null); setSplitDate(date); };
+  const saveSplit = async ({ date, lines }) => {
+    setBusy(true);
+    for (const ln of lines) {
+      const hrs = Math.round((Number(ln.hrs) || 0) * 100) / 100;
+      if (hrs <= 0) continue;
+      const note = (ln.note || '').trim();
+      const tags = tagsOf(note);
+      const propLabel = (ln.propLabel && ln.propLabel !== 'Unassigned') ? ln.propLabel : (tags[0] || 'Unassigned');
+      // eslint-disable-next-line no-await-in-loop
+      await store.addTimesheet({ date, durationHrs: hrs, propLabel, unit: (ln.unit || '').trim(), category: ln.category || 'general', note, workOrderId: ln.workOrderId || null });
+    }
+    setBusy(false); cancel();
+  };
   // office drills into an operator — land on List (their history is usually not this week)
   // and anchor the week to their last logged day so a Week toggle is populated too
   const openOp = (o) => { setOpFilter(o.key); setView('list'); if (o.last) setWeekAnchor(o.last); cancel(); };
@@ -366,6 +472,25 @@ export default function Timesheet({ store }) {
               </table>
             </div>
           </div>
+          {/* per-property rollup — the "Monthly / Quarterly totals" box, every operator summed by door */}
+          {propRoll.length > 0 && (
+            <div className="card" style={{ marginTop: 'var(--gap)' }}>
+              <span className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <IcBuilding width={13} height={13} /> By property · all operators, this period
+              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+                {propRoll.map((p) => (
+                  <div key={p.name} style={{ display: 'grid', gridTemplateColumns: '160px 1fr auto', gap: 10, alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, color: p.name === 'Unassigned' ? 'var(--text-faint)' : 'var(--text-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                    <span className="ts-alloc-bar"><span style={{ width: Math.max(2, (p.hrs / propRollMax) * 100) + '%', background: 'var(--accent)' }} /></span>
+                    <span className="mono" style={{ fontSize: 12, minWidth: 110, textAlign: 'right' }}>
+                      {Math.round(p.hrs * 10) / 10}h{propRollHasPay && p.pay > 0 && <span className="money"> · {money(p.pay)}</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <p className="note"><IcTable width={12} height={12} style={{ verticalAlign: -2 }} /> Open an operator to see their week, correct an entry, or check where their hours landed. Totals here roll every operator together for the selected period.</p>
         </>
       ) : (
@@ -390,6 +515,7 @@ export default function Timesheet({ store }) {
           <div><span className="mono" style={{ fontSize: 20, fontWeight: 700 }}>{Math.round(totHrs * 10) / 10}</span> <span className="s" style={{ color: 'var(--text-dim)' }}>{view === 'week' ? 'wk hrs' : 'hrs'}</span></div>
           {hasPay && <div><span className="mono" style={{ fontSize: 20, fontWeight: 700, color: 'var(--money)' }}>{money(totPay)}</span> <span className="s" style={{ color: 'var(--text-dim)' }}>pay</span></div>}
         </div>
+        {canAdd && <button className="btn ghost sm" onClick={() => startSplit(view === 'week' ? weekDays.find((d) => d === todayISO()) || weekStart : todayISO())} disabled={!!splitDate}><IcBuilding width={12} height={12} style={{ verticalAlign: -1, marginRight: 4 }} />Split day</button>}
         {canAdd && <button className="btn grad sm" onClick={() => startNew()} disabled={editId === '__new__'}>+ Add entry</button>}
       </div>
 
@@ -413,6 +539,16 @@ export default function Timesheet({ store }) {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* split-day allocator (self-serve multi-property allocation) */}
+      {splitDate && (
+        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'var(--accent)' }}>
+          <span className="field-label" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <IcBuilding width={13} height={13} /> Split a day across the properties you worked
+          </span>
+          <SplitEditor date0={splitDate} propNames={propNames} workOrders={workOrders} onSaveAll={saveSplit} onCancel={cancel} busy={busy} />
         </div>
       )}
 
@@ -487,7 +623,7 @@ export default function Timesheet({ store }) {
               );
             })}
           </div>
-          <p className="note"><IcClock width={12} height={12} style={{ verticalAlign: -2 }} /> Tap any entry to fix it, or <b>+ log</b> to add hours to a day. Type <b style={{ color: 'var(--accent)' }}>@</b> in a comment to tag a property — an unassigned entry then routes its hours to that door.</p>
+          <p className="note"><IcClock width={12} height={12} style={{ verticalAlign: -2 }} /> Tap any entry to fix it, <b>+ log</b> for a single job, or <b>Split day</b> to divide one day's hours across every property you worked — each line lands on its own door. Type <b style={{ color: 'var(--accent)' }}>@</b> in a comment to tag a property too.</p>
         </>
       ) : (
         <>
