@@ -20,9 +20,58 @@
 // ============================================================
 
 import { readFileSync } from 'fs';
+import * as XLSX from 'xlsx';
 import { interpretRentRoll } from '../src/lib/rentRollInterpret.js';
 import { interpretWorkbook } from '../src/lib/excelInterpret.js';
 import { interpretPLWorkbook } from '../src/lib/plSheetInterpret.js';
+
+// --- split a lease tab that stacks two buildings (e.g. "31 Genesee St" then
+// "379 Main St", each with its own header + units + TOTAL) into separate buildings ---
+const ADDR = /^\s*\d+[- \d]*\s+[a-z].*(st|street|ave|avenue|rd|road|dr|drive|main|paul|park|water|genes|alexander|central|fitzhugh|james|armstrong)/i;
+function splitStackedBuildings(file, onlySheets = /gen.*main|31\s*gen/i) {
+  const wb = XLSX.read(readFileSync(file), { cellDates: true });
+  const out = [];
+  for (const name of wb.SheetNames) {
+    if (!onlySheets.test(name)) continue;          // only the known stacked tab(s)
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, blankrows: false, defval: null });
+    // a stacked sheet has >1 building-header row (col0 an address, col1 empty)
+    const heads = rows.map((r, i) => ({ i, r })).filter(({ r }) => r && ADDR.test(String(r[0] || '')) && !r[1]);
+    if (heads.length < 2) continue;
+    for (let h = 0; h < heads.length; h++) {
+      const start = heads[h].i, end = h + 1 < heads.length ? heads[h + 1].i : rows.length;
+      const bname = String(rows[start][0]).trim();
+      const units = [];
+      for (let i = start + 1; i < end; i++) {
+        const r = rows[i] || []; const num = r[0];
+        if (num == null || /^(unit|total)/i.test(String(num))) continue;
+        const rent = Number(String(r[3] ?? '').replace(/[^0-9.]/g, ''));
+        units.push({ number: String(num), tenant: r[1] && !/vacant/i.test(String(r[1])) ? String(r[1]).trim() : null,
+          phone: r[2] ? String(r[2]) : null, rent: Number.isFinite(rent) && rent > 0 ? rent : null,
+          status: r[1] && !/vacant/i.test(String(r[1])) ? 'leased' : 'vacant', type: 'residential' });
+      }
+      if (units.length) out.push({ name: bname, sheet: name, units });
+    }
+  }
+  return out;
+}
+
+// --- dollar-grid building allocation from the matrix pay logs: name rows carry
+// building labels in cols 4-7, the next row the $ allocated to each. Sum → weights. ---
+function gridWeights(rows) {
+  const w = {};
+  const isName = (v) => typeof v === 'string' && /[a-z]/i.test(v) && !/^-?[\d.,$\s]+$/.test(v); // has letters, not a pure number
+  for (let i = 0; i < rows.length - 1; i++) {
+    const nr = rows[i] || [], dr = rows[i + 1] || [];
+    const cols = [4, 5, 6, 7];
+    const named = cols.filter((c) => isName(nr[c])).length;
+    if (named < 2) continue;                       // not a building-name row
+    for (const c of cols) {
+      const label = nr[c]; const d = Number(String(dr[c] ?? '').replace(/[^0-9.\-]/g, ''));
+      if (isName(label) && Number.isFinite(d) && d > 0) w[label.trim()] = (w[label.trim()] || 0) + d;
+    }
+  }
+  return w;
+}
 
 // ---- args ----
 const args = {};
@@ -62,13 +111,25 @@ function buildMatcher(canonicalNames) {
 console.log(`\n=== Caliper bulk import  (org ${ORG})  ${COMMIT ? '*** COMMIT ***' : 'DRY RUN'} ===`);
 
 const rr = interpretRentRoll(readFileSync(need('leases')));
+// split any stacked "two buildings on one tab" sheet (31 Genesee + 379 Main) into two
+const stacked = splitStackedBuildings(need('leases'));
+if (stacked.length) {
+  const stackedSheets = new Set(stacked.map((s) => s.sheet));
+  // drop the merged building(s) the interpreter produced from a stacked sheet, add the split ones
+  rr.buildings = rr.buildings.filter((b) => !/gen.*main|31\s*gen/i.test(b.name));
+  for (const s of stacked) rr.buildings.push({ name: s.name, city: '', units: s.units });
+  console.log(`  (split ${stacked.length} stacked buildings from ${stackedSheets.size} tab: ${stacked.map((s) => s.name).join(' + ')})`);
+}
 const canonical = rr.buildings.map((b) => b.name);
 const match = buildMatcher(canonical);
 let unitN = 0; rr.buildings.forEach((b) => { unitN += b.units.length; });
 console.log(`\nRENT ROLL: ${rr.buildings.length} buildings, ${unitN} units`);
 rr.buildings.forEach((b) => console.log(`  ${b.name.padEnd(26)} ${String(b.units.length).padStart(3)} units`));
 
-// labor
+// labor — daily hours (accurate total + dates) allocated to buildings by the
+// dollar-grid weights in each pay log (the "building tags in the comments").
+const laborWb = args.labor ? XLSX.read(readFileSync(args.labor), { cellDates: true }) : null;
+const rawRows = (sheet) => XLSX.utils.sheet_to_json(laborWb.Sheets[sheet], { header: 1, blankrows: false, defval: null });
 const laborSheets = args.labor ? interpretWorkbook(readFileSync(args.labor)).filter((s) => s.looksPayLog && s.entryCount > 0) : [];
 const unmatchedLabor = new Set();
 const techs = []; const timers = []; const techByName = new Map();
@@ -77,18 +138,29 @@ for (const s of laborSheets) {
   const name = String(s.techName || 'Operator').trim();
   let tech = techByName.get(name.toLowerCase());
   if (!tech) { tech = { id: 't_imp_' + name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, ''), name, rate: 0, role: 'tech', imported: true }; techByName.set(name.toLowerCase(), tech); techs.push(tech); }
-  for (const e of s.entries) {
-    const bldg = (e.building || (e.buildings && e.buildings[0]) || '').trim();
-    const canon = bldg ? match(bldg) : null;
-    if (bldg && !canon) unmatchedLabor.add(bldg);
-    timers.push({ id: `imp_${++ti}`, techId: tech.id, propLabelRaw: canon || bldg || null, unit: e.unit || '—', date: e.date, category: e.category || 'imported', issue: e.note || 'imported from pay log', durationHrs: e.hours || 0, rate: e.rate || 0, period: e.period || null, imported: true });
+  // daily timers for this operator (preserve dates + hours)
+  const mine = s.entries.map((e) => ({ id: `imp_${++ti}`, techId: tech.id, propLabelRaw: null, unit: e.unit || '—', date: e.date, category: e.category || 'imported', issue: e.note || 'imported from pay log', durationHrs: e.hours || 0, rate: e.rate || 0, period: e.period || null, imported: true }));
+  // building weights from the $ grid → per-building target hours, then bin-pack days into buildings
+  const weights = gridWeights(rawRows(s.name));
+  const matchedW = {}; let sumMatched = 0;
+  for (const [label, d] of Object.entries(weights)) { const c = match(label); if (c) { matchedW[c] = (matchedW[c] || 0) + d; sumMatched += d; } else unmatchedLabor.add(label); }
+  const H = mine.reduce((a, t) => a + t.durationHrs, 0);
+  if (sumMatched > 0 && H > 0) {
+    const targets = Object.entries(matchedW).map(([b, d]) => ({ b, need: H * (d / sumMatched) })).sort((a, z) => z.need - a.need);
+    let bi = 0;
+    for (const t of mine) {
+      while (bi < targets.length && targets[bi].need <= 0.01) bi++;
+      if (bi >= targets.length) break;            // matched weight exhausted → rest stay unallocated
+      t.propLabelRaw = targets[bi].b; targets[bi].need -= t.durationHrs;
+    }
   }
+  timers.push(...mine);
 }
 const laborHrs = timers.reduce((a, t) => a + (t.durationHrs || 0), 0);
 console.log(`\nLABOR: ${techs.length} operators, ${timers.length} entries, ${Math.round(laborHrs * 10) / 10} hrs`);
 techs.forEach((t) => { const h = timers.filter((x) => x.techId === t.id).reduce((a, x) => a + x.durationHrs, 0); console.log(`  ${t.name.padEnd(16)} ${Math.round(h * 10) / 10} hrs`); });
-const allocN = timers.filter((t) => t.propLabelRaw && match(t.propLabelRaw)).length;
-console.log(`  allocated to a building: ${allocN} / ${timers.length}` + (unmatchedLabor.size ? `   UNMATCHED buildings: ${[...unmatchedLabor].join(', ')}` : ''));
+const allocH = timers.filter((t) => t.propLabelRaw).reduce((a, t) => a + t.durationHrs, 0);
+console.log(`  hours allocated to a building: ${Math.round(allocH)} / ${Math.round(laborHrs)}` + (unmatchedLabor.size ? `   (buildings not in rent roll: ${[...unmatchedLabor].join(', ')})` : ''));
 
 // P&L — pick ONE sheet per building (skip T12/T6/prior-year duplicates: prefer 'PL 2026')
 const plRaw = args.pl ? interpretPLWorkbook(readFileSync(args.pl)) : [];
