@@ -516,31 +516,38 @@ function LoginForm({ brand, onSwitch, onBeta, invite, switchLabel }) {
         </button>
 
         {isSignup && (
-          <p className="note" style={{ textAlign: 'center', marginTop: 12 }}>
-            By creating an account you agree to our{' '}
-            <a href="/legal/terms.html" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--info)' }}>Terms</a> and{' '}
-            <a href="/legal/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--info)' }}>Privacy Policy</a>.
+          <p className="note" style={{ textAlign: 'center', marginTop: 10, fontSize: 11.5 }}>
+            By continuing you agree to our{' '}
+            <a href="/legal/terms.html" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--info)' }}>Terms</a> &amp;{' '}
+            <a href="/legal/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--info)' }}>Privacy</a>.
           </p>
         )}
 
-        <p className="note" style={{ textAlign: 'center', marginTop: 14 }}>
-          <a onClick={() => { setMode(isSignup ? 'signin' : 'signup'); setErr(null); }} style={{ color: 'var(--info)', cursor: 'pointer' }}>
+        {/* primary: switch sign-in ⇄ create, and the no-invite path — grouped together */}
+        <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <a onClick={() => { setMode(isSignup ? 'signin' : 'signup'); setErr(null); }} style={{ color: 'var(--info)', cursor: 'pointer', fontSize: 13.5, fontWeight: 600 }}>
             {isSignup ? 'Already have an account? Sign in' : 'Have an invite? Create your account'}
           </a>
-        </p>
-        {onBeta && <p className="note" style={{ textAlign: 'center', marginTop: 6 }}>
-          No invite? <a onClick={onBeta} style={{ color: 'var(--info)', cursor: 'pointer', fontWeight: 700 }}>Request beta access</a>
-        </p>}
-        <p className="note" style={{ textAlign: 'center', marginTop: 6 }}>
-          Protected by row-level security. Sensitive data is AES-256 encrypted at rest.
-        </p>
-        <p className="note" style={{ textAlign: 'center', marginTop: 6 }}>
-          <a onClick={onSwitch} style={{ color: 'var(--info)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          {onBeta && (
+            <span className="note" style={{ margin: 0 }}>
+              No invite? <a onClick={onBeta} style={{ color: 'var(--info)', cursor: 'pointer', fontWeight: 700 }}>Request beta access</a>
+            </span>
+          )}
+        </div>
+
+        {/* secondary: wrong persona */}
+        <div style={{ borderTop: '1px solid var(--line)', margin: '16px 0 0' }} />
+        <p className="note" style={{ textAlign: 'center', marginTop: 12 }}>
+          <a onClick={onSwitch} style={{ color: 'var(--text-dim)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             {switchLabel || 'Switch portal'}
             <IcChevron width={12} height={12} />
           </a>
         </p>
-        <p className="note" style={{ textAlign: 'center', marginTop: 18, color: 'var(--text-faint)' }}>
+
+        {/* fine print: trust + legal, one muted line */}
+        <p className="note" style={{ textAlign: 'center', marginTop: 14, color: 'var(--text-faint)', fontSize: 11 }}>
+          🔒 AES-256 encrypted · row-level security
+          <br />
           <a href="/legal/terms.html" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Terms</a>
           {'  ·  '}
           <a href="/legal/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Privacy</a>
