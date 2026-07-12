@@ -774,6 +774,13 @@ export async function addUnitWithLease(orgId, u) {
   return { ...row, tenant: u.tenant || '', phone: u.phone || '' }; // return plaintext to the app
 }
 
+// wipe the whole rent roll for an org (units + their leases via cascade). Buildings
+// (properties rows) stay, so a re-import reuses them by name. Staff-only via RLS.
+export async function clearLeasing(orgId) {
+  const { error } = await supabase.from('units').delete().eq('org_id', orgId);
+  if (error) throw error;
+}
+
 export async function deleteUnit(unitId) {
   const { error } = await supabase.from('units').delete().eq('id', unitId);   // leases cascade
   if (error) throw error;

@@ -49,6 +49,8 @@ export default function Leasing({ store, navigate, focus }) {
   const [busy, setBusy] = useState(null);
   const [msg, setMsg] = useState(null);
   const [editRow, setEditRow] = useState(null); // { id, draft }
+  const [pendingImport, setPendingImport] = useState(null); // { parsed, n } awaiting replace/add choice
+  const [confirmClear, setConfirmClear] = useState(false);
   const fileRef = useRef(null);
 
   const dset = (k, v) => setEditRow((e) => ({ ...e, draft: { ...e.draft, [k]: v } }));
@@ -151,10 +153,29 @@ export default function Leasing({ store, navigate, focus }) {
       const { buildings: parsed } = interpretRentRoll(await file.arrayBuffer());
       const n = parsed.reduce((a, b) => a + b.units.length, 0);
       if (!n) { setMsg({ e: true, t: 'No lease worksheets found in that file.' }); setBusy(null); return; }
+      // already have a roll? ask whether to replace it or add — re-importing blindly duplicates units
+      if (rows.length > 0) { setPendingImport({ parsed, n }); setBusy(null); return; }
       setBusy('load');
       const res = await store.importLeases(parsed);
       setMsg({ t: `Imported ${res.units} units across ${res.buildings} buildings.` });
+      setBusy(null);
+    } catch (e) { setMsg({ e: true, t: e.message || 'Could not import that workbook.' }); setBusy(null); }
+  };
+
+  const runPendingImport = async (replace) => {
+    const p = pendingImport; if (!p) return;
+    setPendingImport(null); setBusy('load'); setMsg(null);
+    try {
+      const res = await store.importLeases(p.parsed, { replace });
+      setMsg({ t: `${replace ? 'Replaced rent roll with' : 'Added'} ${res.units} units across ${res.buildings} buildings.` });
     } catch (e) { setMsg({ e: true, t: e.message || 'Could not import that workbook.' }); }
+    finally { setBusy(null); }
+  };
+
+  const doClear = async () => {
+    setConfirmClear(false); setBusy('load'); setMsg(null);
+    try { await store.clearLeasing(); setMsg({ t: 'Rent roll cleared. Import a workbook to load a fresh one.' }); }
+    catch { setMsg({ e: true, t: 'Could not clear the rent roll.' }); }
     finally { setBusy(null); }
   };
 
@@ -170,6 +191,29 @@ export default function Leasing({ store, navigate, focus }) {
         <div><h1>Rent roll</h1><p>Your portfolio, live — the spreadsheet, replaced. {canEdit ? 'Edit inline; everyone sees it instantly.' : 'Read-only.'}</p></div>
         {msg && <span className="chip" style={{ color: msg.e ? 'var(--danger)' : 'var(--money)', maxWidth: 240 }}>{msg.t}</span>}
       </div>
+
+      {/* re-import: replace the current roll or add to it (re-importing blindly duplicates) */}
+      {pendingImport && (
+        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'var(--accent)' }}>
+          <p style={{ margin: '0 0 10px', fontWeight: 600 }}>This workbook has <b>{pendingImport.n}</b> units. You already have <b>{rows.length}</b>.</p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn grad sm" onClick={() => runPendingImport(true)}>Replace rent roll</button>
+            <button className="btn ghost sm" onClick={() => runPendingImport(false)}>Add to current</button>
+            <button className="btn ghost sm" onClick={() => setPendingImport(null)}>Cancel</button>
+          </div>
+          <p className="note" style={{ margin: '8px 0 0' }}>“Replace” wipes the current units + leases first, then loads this workbook — the clean way to reload.</p>
+        </div>
+      )}
+
+      {confirmClear && (
+        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'var(--danger)' }}>
+          <p style={{ margin: '0 0 10px', fontWeight: 600 }}>Delete all <b>{rows.length}</b> units and their leases? Buildings stay; you can re-import.</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn sm" style={{ width: 'auto', background: 'var(--danger)', color: '#fff' }} onClick={doClear}>Clear rent roll</button>
+            <button className="btn ghost sm" onClick={() => setConfirmClear(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       <div className="rr-kpis">
         <button className={'kpi-c clk' + (filter === 'all' ? ' on' : '')} onClick={() => setFilter('all')} title="Show all units"><span className="v mono">{kpi.units}</span><span className="k">units{kpi.parcels ? ` · ${kpi.acres ? `${Math.round(kpi.acres * 10) / 10} ac` : `${kpi.parcels} parcel${kpi.parcels > 1 ? 's' : ''}`}` : ''}</span></button>
@@ -358,8 +402,12 @@ export default function Leasing({ store, navigate, focus }) {
       {rows.length > 0 && canEdit && isConfigured() && (
         <p className="note" style={{ marginTop: 4 }}>
           <a onClick={() => fileRef.current?.click()} style={{ color: 'var(--info)', cursor: 'pointer' }}>
-            <IcImport width={12} height={12} style={{ verticalAlign: -2 }} /> Import another lease workbook
-          </a> — new buildings are added; existing ones stay.
+            <IcImport width={12} height={12} style={{ verticalAlign: -2 }} /> Import a lease workbook
+          </a> — you’ll choose to replace or add.
+          <span style={{ color: 'var(--text-faint)', margin: '0 8px' }}>·</span>
+          <a onClick={() => setConfirmClear(true)} style={{ color: 'var(--danger)', cursor: 'pointer' }}>
+            <IcX width={11} height={11} style={{ verticalAlign: -1 }} /> Clear rent roll
+          </a>
         </p>
       )}
       <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={(e) => { onImport(e.target.files?.[0]); e.target.value = ''; }} />

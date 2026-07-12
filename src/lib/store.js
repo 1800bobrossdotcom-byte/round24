@@ -11,7 +11,7 @@ import {
   listDocuments, uploadDocument,
   listMessages, insertMessage, subscribeMessages, uploadVoiceNote, summarizeThread,
   uploadAttachment, updateWorkOrderPhotos, updateWorkOrderFiles,
-  listLeasing, updateLeaseRow, updateUnitRow, importLeaseBuildings, addUnitWithLease, deleteUnit,
+  listLeasing, updateLeaseRow, updateUnitRow, importLeaseBuildings, addUnitWithLease, deleteUnit, clearLeasing as clearLeasingDb,
   listVendors, addVendor, updateVendor, deleteVendor,
   listVendorProducts, addVendorProduct, updateVendorProduct, deleteVendorProduct, subscribeVendors,
   upsertChatMember, listChatMembers, listChatChannels, insertChatChannel,
@@ -782,11 +782,20 @@ export function useStore() {
     }
   }, [orgId, demoMode, audit]);
 
-  const importLeases = useCallback(async (buildings) => {
+  // wipe the current rent roll (units + leases). Buildings stay so a re-import reuses them.
+  const clearLeasing = useCallback(async () => {
+    if (!isConfigured() || !orgId || demoMode) { setLeasing([]); return; }
+    setLeasing([]);
+    try { await clearLeasingDb(orgId); audit('clear_leasing', 'rent roll cleared'); } catch { loadLeasing(); }
+  }, [orgId, demoMode, loadLeasing, audit]);
+
+  const importLeases = useCallback(async (buildings, { replace = false } = {}) => {
     if (!isConfigured() || !orgId) return { buildings: 0, units: 0 };
+    // replace = wipe the existing roll first, so re-importing doesn't duplicate every unit
+    if (replace) { try { await clearLeasingDb(orgId); } catch { /* proceed — import still runs */ } }
     const res = await importLeaseBuildings(orgId, buildings);
     loadLeasing();
-    audit('import_leases', `${res.buildings} buildings · ${res.units} units`);
+    audit(replace ? 'replace_leases' : 'import_leases', `${res.buildings} buildings · ${res.units} units`);
     return res;
   }, [orgId, loadLeasing, audit]);
 
@@ -1138,7 +1147,7 @@ export function useStore() {
     plConfig, setPlLine,
     // go-live reset
     resetWorkspace,
-    leasing, setLeaseField, importLeases, loadLeasing, canSeeLeasing, addUnit, removeUnit,
+    leasing, setLeaseField, importLeases, clearLeasing, loadLeasing, canSeeLeasing, addUnit, removeUnit,
     setBuildingLocation,
     vendors, vendorProducts, canEditVendors, saveVendor, removeVendor, setVendorField,
     saveProduct, removeProduct, setProductField,
