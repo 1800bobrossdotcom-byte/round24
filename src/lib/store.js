@@ -178,6 +178,8 @@ export function useStore() {
       if (s?.range?.from && s?.range?.to) setRange(s.range);
       else setRange({ from: '2026-05-11', to: '2026-07-05' });
       setSalaries(s?.salaries && typeof s.salaries === 'object' ? s.salaries : {});
+      // per-building P&L config rides the same doc — cloud is authoritative when present
+      if (s?.plconfig && typeof s.plconfig === 'object') setPlAll((a) => ({ ...a, [orgId]: s.plconfig }));
       loadedOrgRef.current = orgId;
       setLaborBackend('db');
       hydratedRef.current = true;
@@ -188,9 +190,9 @@ export function useStore() {
   // loadedOrg guard is a belt-and-suspenders against writing before the new org resolves.
   useEffect(() => {
     if (laborBackend !== 'db' || !hydratedRef.current || !orgId || !isStaffMember || loadedOrgRef.current !== orgId) return undefined;
-    const t = setTimeout(() => { saveLaborState(orgId, { imported, props: impProps, range, salaries }).catch(() => {}); }, 900);
+    const t = setTimeout(() => { saveLaborState(orgId, { imported, props: impProps, range, salaries, plconfig: plAll[orgId] || {} }).catch(() => {}); }, 900);
     return () => clearTimeout(t);
-  }, [imported, impProps, range, salaries, laborBackend, orgId, isStaffMember]);
+  }, [imported, impProps, range, salaries, plAll, laborBackend, orgId, isStaffMember]);
 
   // per-building geofence pins for verified clock-in. A pin can come from three
   // places, in priority order: a location the office just set (override), the
