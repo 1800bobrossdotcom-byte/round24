@@ -31,7 +31,7 @@ function loadTimer() {
 }
 
 export default function Field({ store }) {
-  const { pickProperties: properties = [], allTimers, workOrders, setWoStatus, liveTimers = [], fieldSync } = store;
+  const { pickProperties: properties = [], allTimers, workOrders, setWoStatus, fieldSync } = store;
   // the crew member IS the signed-in user — not a hardcoded demo tech. Rate is
   // matched from the roster by name when known (imported orgs carry rates);
   // otherwise 0 (the office holds the real rate server-side).
@@ -132,100 +132,51 @@ export default function Field({ store }) {
     });
   }, [running, onBreak]);
 
-  // ---- cross-device sync: one cloud row holds this operator's running + parked
-  // state, so phone, desktop, and the office all agree. localStorage stays the
-  // offline cache; the cloud is the shared truth when there's signal. Echo-guarded
-  // by a per-write `rev` so a device never re-adopts its own change.
-  const revRef = useRef(null);        // rev of the state we last published/adopted
-  const skipPushRef = useRef(false);  // a change that came FROM the cloud must not echo back
-  const syncedRef = useRef(false);    // don't publish until the initial cloud load resolves
-  const adoptState = (s) => {
-    if (!s || typeof s !== 'object') return;
-    skipPushRef.current = true;
-    revRef.current = s.rev || revRef.current;
-    setRunning(s.running ?? null);
-    const pj = Array.isArray(s.paused) ? s.paused : [];
-    pausedRef.current = pj; setPaused(pj);
-    setOnBreak(s.onBreak ?? null);
-    setBreakMs(s.breakMs ?? 0);
-    setLastNudge(s.lastNudge ?? 0);
-    setLunchNudged(s.lunchNudged ?? false);
-    setPunch(s.punch ?? null);
-    if (!s.running) setElapsed(0);      // the tick effect recomputes from running.start
-  };
-  const publishNow = () => {
-    if (!fieldSync) return;
-    const rev = Math.random().toString(36).slice(2, 10);
-    revRef.current = rev;
-    fieldSync.push({ running, paused: pausedRef.current, onBreak, breakMs, lastNudge, lunchNudged, punch, rev });
-  };
-  // union two parked-job lists by id — sync must never drop a parked job (each
-  // carries banked labor), even if two devices diverged offline.
-  const mergePaused = (a, b) => {
-    const seen = new Set(), out = [];
-    for (const j of [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])]) {
-      if (j && j.id && !seen.has(j.id)) { seen.add(j.id); out.push(j); }
-    }
-    return out;
-  };
-  // mount: reconcile local cache with the cloud copy, then subscribe for live
-  // changes. Parked jobs are UNIONED (never lost); the running/break scalars come
-  // from whichever side is fresher. The reconciled union is pushed back up so the
-  // other devices and the office pick up anything only this device had.
+  // ---- cross-device mirror: the device you're actively using OWNS the timer and
+  // publishes its running + parked state to one cloud row; the other devices you're
+  // signed into (and the office) SHOW it read-only. This is deliberately NOT
+  // interactive on the mirror side: a second device must never stop/resume the same
+  // session — that would double-log hours or lose banked time. localStorage stays
+  // the offline working copy; the cloud only reflects it. Single writer, no adopt,
+  // so there's no merge conflict, echo loop, or double-log to reason about.
+  const wasWriterRef = useRef(false);
+  const hasLocalTimer = !!running || (Array.isArray(paused) && paused.length > 0);
+  // publish local state (debounced). Only a device that has (or has had, this
+  // session) a local timer writes — an idle device never clobbers the owner's row.
   useEffect(() => {
     if (!fieldSync) return undefined;
-    let alive = true;
-    fieldSync.load().then((cloud) => {
-      if (!alive) return;
-      const local = loadTimer();
-      const cState = (cloud && cloud.state) || {};
-      const cloudTs = cloud?.updatedAt ? Date.parse(cloud.updatedAt) : 0;
-      const localTs = local.updatedAt || 0;
-      const fresh = cloudTs >= localTs ? cState : local;   // fresher side wins for scalars
-      const merged = {
-        running: fresh.running ?? null,
-        paused: mergePaused(local.paused, cState.paused),
-        onBreak: fresh.onBreak ?? null, breakMs: fresh.breakMs ?? 0,
-        lastNudge: fresh.lastNudge ?? 0, lunchNudged: fresh.lunchNudged ?? false, punch: fresh.punch ?? null,
-      };
-      adoptState(merged);
-      const rev = Math.random().toString(36).slice(2, 10); revRef.current = rev;
-      fieldSync.push({ ...merged, rev });   // publish the reconciled union
-      syncedRef.current = true;
-    });
-    const unsub = fieldSync.subscribe((s) => {
-      if (!alive) return;
-      if (s.rev && s.rev === revRef.current) return;   // our own echo
-      adoptState(s);
-    });
-    return () => { alive = false; if (typeof unsub === 'function') unsub(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fieldSync]);
-  // write-through: publish meaningful transitions (debounced), unless we just
-  // adopted this state from the cloud or the initial load hasn't resolved yet.
-  useEffect(() => {
-    if (!fieldSync || !syncedRef.current) return undefined;
-    if (skipPushRef.current) { skipPushRef.current = false; return undefined; }
-    const id = setTimeout(publishNow, 500);
+    if (hasLocalTimer) wasWriterRef.current = true;
+    if (!wasWriterRef.current) return undefined;
+    const id = setTimeout(() => {
+      fieldSync.push({ running, paused: pausedRef.current, onBreak, breakMs, lastNudge, lunchNudged, punch });
+    }, 400);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running, paused, onBreak, breakMs, lastNudge, lunchNudged, punch, fieldSync]);
 
-  // a timer running on ANOTHER device for this same login: the clock lives in that
-  // device's localStorage, but presence is in the cloud (live_timers), so surface
-  // it here (read-only) instead of showing an empty "start a job". It's stopped on
-  // the device that owns it — that device holds the exact break/pause bookkeeping,
-  // so letting a second device stop it would risk an inaccurate or duplicate log.
-  const myLive = useMemo(
-    () => (running || !store.myId ? null : liveTimers.find((t) => t.userId && t.userId === store.myId) || null),
-    [running, liveTimers, store.myId],
-  );
+  // read this operator's cloud row (their active device's state) for the mirror
+  const [myCloud, setMyCloud] = useState(null);
+  useEffect(() => {
+    if (!fieldSync) { setMyCloud(null); return undefined; }
+    let alive = true;
+    fieldSync.load().then((c) => { if (alive) setMyCloud(c?.state || null); });
+    const unsub = fieldSync.subscribe((s) => { if (alive) setMyCloud(s || null); });
+    return () => { alive = false; if (typeof unsub === 'function') unsub(); };
+  }, [fieldSync]);
+
+  // show the mirror only when THIS device is idle (no local running or parked job)
+  // and the cloud has something — i.e. you're clocked in / parked on another device.
+  const mirror = useMemo(() => {
+    if (running || (Array.isArray(paused) && paused.length > 0) || !myCloud) return null;
+    const has = myCloud.running || (Array.isArray(myCloud.paused) && myCloud.paused.length > 0);
+    return has ? myCloud : null;
+  }, [running, paused, myCloud]);
   const [mirrorNow, setMirrorNow] = useState(() => Date.now());
   useEffect(() => {
-    if (!myLive) return undefined;
+    if (!mirror) return undefined;
     const id = setInterval(() => setMirrorNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [myLive]);
+  }, [mirror]);
 
   const myWos = workOrders.filter((w) => w.status === 'open' || w.status === 'in_progress').sort(byPriority);
 
@@ -490,28 +441,44 @@ export default function Field({ store }) {
         </div>
       </div>
 
-      {/* a timer this login has running on another device — mirror it live so the
-          desktop/other tab isn't blank while the phone is on the clock */}
-      {myLive && (() => {
-        const secs = Math.max(0, (mirrorNow - Date.parse(myLive.startedAt)) / 1000);
-        const hh = String(Math.floor(secs / 3600)).padStart(2, '0');
-        const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
-        const ss = String(Math.floor(secs % 60)).padStart(2, '0');
-        const where = [myLive.propLabel, myLive.unit && `Unit ${myLive.unit}`, myLive.task].filter(Boolean).join(' · ');
+      {/* this login's timer running/parked on ANOTHER device — mirror it live so
+          the desktop/other tab isn't blank while the phone owns the clock. Read
+          only: you stop or resume on the device that owns it, so hours can't
+          double-log and banked time can't be lost. */}
+      {mirror && (() => {
+        const r = mirror.running;
+        const runProp = r ? (properties.find((x) => x.id === r.propId)?.name || r.propLabel || 'Unassigned') : null;
+        let clock = null;
+        if (r) {
+          const secs = Math.max(0, (mirrorNow - r.start - (mirror.breakMs || 0) + (r.baseMs || 0)) / 1000);
+          clock = `${String(Math.floor(secs / 3600)).padStart(2, '0')}:${String(Math.floor((secs % 3600) / 60)).padStart(2, '0')}:${String(Math.floor(secs % 60)).padStart(2, '0')}`;
+        }
+        const parked = Array.isArray(mirror.paused) ? mirror.paused : [];
         return (
           <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'var(--warn)', background: 'color-mix(in srgb, var(--warn) 8%, var(--surface))' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--warn)', fontWeight: 800, fontSize: 12, letterSpacing: '.02em' }}>
-                <IcPlay width={13} height={13} /> RUNNING ON ANOTHER DEVICE
-              </span>
-              {myLive.onBreak && <span className="chip" style={{ color: 'var(--warn)' }}>on break</span>}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 6 }}>
-              <span className="mono" style={{ fontSize: 26, fontWeight: 700 }}>{hh}:{mm}:{ss}</span>
-              {where && <span style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 700 }}>{where}</span>}
-            </div>
-            <p className="note" style={{ margin: '6px 0 0' }}>
-              You’re on the clock on another device{myLive.onBreak ? ' (paused for break)' : ''}. Stop it there to log your exact time — this view updates live.
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--warn)', fontWeight: 800, fontSize: 12, letterSpacing: '.02em' }}>
+              <IcPlay width={13} height={13} /> ON ANOTHER DEVICE
+              {mirror.onBreak && r ? <span className="chip" style={{ marginLeft: 8, color: 'var(--warn)' }}>on break</span> : null}
+            </span>
+            {r && (
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 6 }}>
+                <span className="mono" style={{ fontSize: 26, fontWeight: 700 }}>{clock}</span>
+                <span style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 700 }}>{[runProp, r.unit && r.unit !== '—' ? `Unit ${r.unit}` : null, r.woTask].filter(Boolean).join(' · ')}</span>
+              </div>
+            )}
+            {parked.length > 0 && (
+              <div style={{ marginTop: r ? 10 : 6 }}>
+                <div className="field-label" style={{ margin: '0 0 4px' }}>Parked jobs ({parked.length})</div>
+                {parked.map((pj, i) => (
+                  <div key={pj.id || i} className="s" style={{ color: 'var(--text-dim)', padding: '2px 0' }}>
+                    {pj.propName || 'Unassigned'}{pj.unit && pj.unit !== '—' ? ` · ${pj.unit}` : ''} · <b>{Math.round(((pj.baseMs || 0) / 3600000) * 10) / 10}h banked</b>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="note" style={{ margin: '8px 0 0' }}>
+              {r ? 'You’re on the clock on another device. ' : 'You have parked jobs on another device. '}
+              Stop or resume them on that device — this view mirrors it live so nothing double-logs.
             </p>
           </div>
         );
