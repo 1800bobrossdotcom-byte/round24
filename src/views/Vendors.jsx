@@ -124,7 +124,7 @@ export default function Vendors({ store }) {
             <button className="btn ghost sm" onClick={() => setEditV(null)}><IcX width={13} height={13} /></button>
           </div>
           <div className="grid g2" style={{ gap: 10, marginTop: 10 }}>
-            <div><div className="field-label">Name</div><input style={inputStyle} value={editV.name} onChange={(e) => setEditV({ ...editV, name: e.target.value })} placeholder="Rapids Plumbing Co." /></div>
+            <div><div className="field-label">Name</div><input style={inputStyle} value={editV.name} onChange={(e) => setEditV({ ...editV, name: e.target.value })} placeholder="Rapids Plumbing Co." autoComplete="organization" autoCapitalize="words" enterKeyHint="next" /></div>
             <div><div className="field-label">Type</div>
               <select style={inputStyle} value={editV.kind} onChange={(e) => setEditV({ ...editV, kind: e.target.value })}>
                 <option value="contractor">Contractor</option><option value="supplier">Supplier</option>
@@ -133,12 +133,12 @@ export default function Vendors({ store }) {
               <select style={inputStyle} value={editV.trade} onChange={(e) => setEditV({ ...editV, trade: e.target.value })}>
                 {TRADES.map((t) => <option key={t} value={t}>{tradeLabel(t)}</option>)}
               </select></div>
-            <div><div className="field-label">Rating (1–5)</div><input style={inputStyle} type="number" min="1" max="5" value={editV.rating} onChange={(e) => setEditV({ ...editV, rating: e.target.value })} placeholder="—" /></div>
-            <div><div className="field-label">Contact</div><input style={inputStyle} value={editV.contactName} onChange={(e) => setEditV({ ...editV, contactName: e.target.value })} placeholder="Dave Marino" /></div>
-            <div><div className="field-label">Phone</div><input style={inputStyle} value={editV.phone} onChange={(e) => setEditV({ ...editV, phone: formatPhone(e.target.value) })} placeholder="(585) 555-0311" inputMode="tel" /></div>
-            <div><div className="field-label">Email</div><input style={inputStyle} value={editV.email} onChange={(e) => setEditV({ ...editV, email: e.target.value })} inputMode="email" /></div>
-            <div><div className="field-label">Website</div><input style={inputStyle} value={editV.website} onChange={(e) => setEditV({ ...editV, website: e.target.value })} placeholder="ferguson.com" /></div>
-            <div><div className="field-label">License / insurance</div><input style={inputStyle} value={editV.license} onChange={(e) => setEditV({ ...editV, license: e.target.value })} placeholder="NY PL-44219 · insured" /></div>
+            <div><div className="field-label">Rating (1–5)</div><input style={inputStyle} type="number" min="1" max="5" inputMode="numeric" value={editV.rating} onChange={(e) => setEditV({ ...editV, rating: e.target.value })} placeholder="—" /></div>
+            <div><div className="field-label">Contact</div><input style={inputStyle} value={editV.contactName} onChange={(e) => setEditV({ ...editV, contactName: e.target.value })} placeholder="Dave Marino" autoComplete="name" autoCapitalize="words" enterKeyHint="next" /></div>
+            <div><div className="field-label">Phone</div><input style={inputStyle} type="tel" inputMode="tel" autoComplete="tel" enterKeyHint="next" value={editV.phone} onChange={(e) => setEditV({ ...editV, phone: formatPhone(e.target.value) })} placeholder="(585) 555-0311" /></div>
+            <div><div className="field-label">Email</div><input style={inputStyle} type="email" inputMode="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="next" value={editV.email} onChange={(e) => setEditV({ ...editV, email: e.target.value.replace(/\s+/g, '').toLowerCase() })} placeholder="orders@ferguson.com" /></div>
+            <div><div className="field-label">Website</div><input style={inputStyle} inputMode="url" autoComplete="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={editV.website} onChange={(e) => setEditV({ ...editV, website: e.target.value })} placeholder="ferguson.com" /></div>
+            <div><div className="field-label">License / insurance</div><input style={inputStyle} value={editV.license} onChange={(e) => setEditV({ ...editV, license: e.target.value })} placeholder="NY PL-44219 · insured" autoCapitalize="characters" /></div>
           </div>
           <div className="field-label" style={{ marginTop: 10 }}>Notes</div>
           <textarea style={{ ...inputStyle, minHeight: 54 }} value={editV.notes} onChange={(e) => setEditV({ ...editV, notes: e.target.value })} placeholder="Preferred for emergencies; trade pricing on file…" />
@@ -213,6 +213,22 @@ export default function Vendors({ store }) {
                     </div>
                     <FavBtn on={v.favorite} label="Favorite vendor" onClick={() => setVendorField(v.id, { favorite: !v.favorite })} />
                   </div>
+                  {(v.phone || v.email) && (
+                    <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                      {v.phone && (
+                        <a className="btn ghost sm" href={`tel:${String(v.phone).replace(/[^\d+]/g, '')}`} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                          Call
+                        </a>
+                      )}
+                      {v.email && (
+                        <a className="btn ghost sm" href={`mailto:${v.email}`} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
+                          Email
+                        </a>
+                      )}
+                    </div>
+                  )}
                   {canEditVendors && (
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginTop: 8 }}>
                       {!v.approved && (
