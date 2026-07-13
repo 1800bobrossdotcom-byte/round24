@@ -16,13 +16,15 @@ function elapsedStr(startedAt, now) {
 const UNASSIGNED = '__unassigned__';
 
 export default function DayOverview({ store, navigate }) {
-  const { workOrders, timers, techById, techs, setWoAssignee, liveTimers = [], availability = [] } = store;
+  const { workOrders, timers, techById, techs, activeTechs, setWoAssignee, liveTimers = [], availability = [] } = store;
   const go = navigate || (() => {});
   const away = availability.filter((a) => a.status === 'off' || a.status === 'pto');
   // tick once a second so live stopwatches count up
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => { const id = setInterval(() => setNowMs(Date.now()), 1000); return () => clearInterval(id); }, []);
-  const crew = techs.filter((t) => t.role !== 'viewer');
+  // only ACTIVE operators are assignable — a departed operator (marked inactive)
+  // must not be pickable for new dispatch, though their history still resolves below.
+  const crew = (activeTechs || techs).filter((t) => t.role !== 'viewer');
   const techIdByName = useMemo(() => Object.fromEntries(techs.map((t) => [t.name, t.id])), [techs]);
   const now = new Date();
   const todayISO = now.toISOString().slice(0, 10);
