@@ -1063,6 +1063,9 @@ export function useStore() {
   // ---- vendors: approved contractor/supplier rolodex + favorite products ----
   // any member can read; staff (admin/manager, incl. owner-admins) maintain it.
   const canEditVendors = role === 'admin' || role === 'manager';
+  // crew can ADD a vendor from the field (a vendor shows up on-site), but it lands
+  // as pending for the office to approve — edit/approve/delete stays with staff.
+  const canAddVendors = canEditVendors || role === 'tech';
   const [vendors, setVendors] = useState(() => (demoMode ? DEMO_VENDORS : []));
   const [vendorProducts, setVendorProducts] = useState(() => (demoMode ? DEMO_VENDOR_PRODUCTS : []));
   const vendorsRef = useRef(vendors);
@@ -1093,11 +1096,15 @@ export function useStore() {
       if (isConfigured() && orgId && !demoMode) { try { await updateVendor(v.id, v); audit('update_vendor', v.name); } catch { /* keep local */ } }
       return v.id;
     }
-    const draft = { id: 'nv_' + Math.random().toString(36).slice(2, 9), approved: true, favorite: false, kind: 'contractor', trade: '', ...v };
+    // a crew-created vendor is always PENDING (approved:false) for the office to
+    // approve; staff-created vendors default to approved. Forced after the spread
+    // so the form can't override it either way.
+    const approved = isStaffMember ? (v.approved ?? true) : false;
+    const draft = { id: 'nv_' + Math.random().toString(36).slice(2, 9), favorite: false, kind: 'contractor', trade: '', ...v, approved };
     if (!isConfigured() || !orgId || demoMode) { setVendors((l) => [...l, draft]); return draft.id; }
     try { const saved = await addVendor(orgId, draft); setVendors((l) => [...l, saved]); audit('add_vendor', saved.name); return saved.id; }
     catch { setVendors((l) => [...l, draft]); return draft.id; }
-  }, [orgId, demoMode, audit]);
+  }, [orgId, demoMode, audit, isStaffMember]);
   const removeVendor = useCallback(async (id) => {
     setVendors((l) => l.filter((x) => x.id !== id));
     if (isConfigured() && orgId && !demoMode && !String(id).startsWith('nv_')) { try { await deleteVendor(id); audit('delete_vendor', id); } catch { /* gone */ } }
@@ -1414,7 +1421,7 @@ export function useStore() {
     resetWorkspace,
     leasing, setLeaseField, importLeases, clearLeasing, loadLeasing, canSeeLeasing, addUnit, removeUnit,
     setBuildingLocation,
-    vendors, vendorProducts, canEditVendors, saveVendor, removeVendor, setVendorField,
+    vendors, vendorProducts, canEditVendors, canAddVendors, saveVendor, removeVendor, setVendorField,
     saveProduct, removeProduct, setProductField,
     // live presence + availability + audit
     liveTimers, syncLivePresence,

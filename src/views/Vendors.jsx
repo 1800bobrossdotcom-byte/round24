@@ -6,6 +6,20 @@ const TRADES = ['plumbing', 'electrical', 'hvac', 'doors', 'roofing', 'general',
 const tradeLabel = (t) => (t ? t[0].toUpperCase() + t.slice(1) : 'Other');
 const money = (n) => (n == null || n === '' ? '—' : '$' + Number(n).toFixed(2));
 
+// tidy a phone number as it's typed: strip the stray characters a numeric keypad
+// leaves behind and format US 10-digit numbers as (585) 424-4710. A leading +
+// (international) is left alone so those aren't mangled.
+function formatPhone(raw) {
+  const s = String(raw || '');
+  if (s.trimStart().startsWith('+')) return s.replace(/\s+/g, ' ');
+  let d = s.replace(/\D/g, '');
+  if (d.length === 11 && d[0] === '1') d = d.slice(1);   // drop US country code
+  d = d.slice(0, 10);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+}
+
 const inputStyle = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
   color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 9,
@@ -27,7 +41,7 @@ function FavBtn({ on, onClick, label }) {
 }
 
 export default function Vendors({ store }) {
-  const { vendors = [], vendorProducts = [], canEditVendors,
+  const { vendors = [], vendorProducts = [], canEditVendors, canAddVendors = false,
     saveVendor, removeVendor, setVendorField, saveProduct, removeProduct, setProductField } = store;
   const [tab, setTab] = useState('vendors');     // vendors | products
   const [kind, setKind] = useState('all');       // all | contractor | supplier | favorite
@@ -62,7 +76,7 @@ export default function Vendors({ store }) {
 
   const favCount = vendors.filter((v) => v.favorite).length + vendorProducts.filter((p) => p.favorite).length;
 
-  const startVendor = () => setEditV({ name: '', kind: 'contractor', trade: 'plumbing', contactName: '', phone: '', email: '', website: '', license: '', rating: '', approved: true, favorite: false, notes: '' });
+  const startVendor = () => setEditV({ name: '', kind: 'contractor', trade: 'plumbing', contactName: '', phone: '', email: '', website: '', license: '', rating: '', approved: canEditVendors, favorite: false, notes: '' });
   const startProduct = () => setEditP({ name: '', vendorId: '', category: 'plumbing', sku: '', price: '', url: '', favorite: true, notes: '' });
   const commitVendor = async () => { if (!editV.name.trim()) return; const r = editV.rating ? Math.max(1, Math.min(5, Math.round(Number(editV.rating)))) : null; await saveVendor({ ...editV, name: editV.name.trim(), rating: Number.isFinite(r) ? r : null }); setEditV(null); };
   const commitProduct = async () => { if (!editP.name.trim()) return; await saveProduct({ ...editP, name: editP.name.trim(), price: editP.price === '' ? null : Number(editP.price), vendorId: editP.vendorId || null }); setEditP(null); };
@@ -89,7 +103,7 @@ export default function Vendors({ store }) {
             ))}
           </div>
         )}
-        {canEditVendors && (
+        {(canEditVendors || (canAddVendors && tab === 'vendors')) && (
           <button className="btn grad sm" style={{ marginLeft: 'auto' }} onClick={() => (tab === 'vendors' ? startVendor() : startProduct())}>+ {tab === 'vendors' ? 'Add vendor' : 'Add product'}</button>
         )}
       </div>
@@ -121,7 +135,7 @@ export default function Vendors({ store }) {
               </select></div>
             <div><div className="field-label">Rating (1–5)</div><input style={inputStyle} type="number" min="1" max="5" value={editV.rating} onChange={(e) => setEditV({ ...editV, rating: e.target.value })} placeholder="—" /></div>
             <div><div className="field-label">Contact</div><input style={inputStyle} value={editV.contactName} onChange={(e) => setEditV({ ...editV, contactName: e.target.value })} placeholder="Dave Marino" /></div>
-            <div><div className="field-label">Phone</div><input style={inputStyle} value={editV.phone} onChange={(e) => setEditV({ ...editV, phone: e.target.value })} placeholder="(585) 555-0311" inputMode="tel" /></div>
+            <div><div className="field-label">Phone</div><input style={inputStyle} value={editV.phone} onChange={(e) => setEditV({ ...editV, phone: formatPhone(e.target.value) })} placeholder="(585) 555-0311" inputMode="tel" /></div>
             <div><div className="field-label">Email</div><input style={inputStyle} value={editV.email} onChange={(e) => setEditV({ ...editV, email: e.target.value })} inputMode="email" /></div>
             <div><div className="field-label">Website</div><input style={inputStyle} value={editV.website} onChange={(e) => setEditV({ ...editV, website: e.target.value })} placeholder="ferguson.com" /></div>
             <div><div className="field-label">License / insurance</div><input style={inputStyle} value={editV.license} onChange={(e) => setEditV({ ...editV, license: e.target.value })} placeholder="NY PL-44219 · insured" /></div>
@@ -129,9 +143,15 @@ export default function Vendors({ store }) {
           <div className="field-label" style={{ marginTop: 10 }}>Notes</div>
           <textarea style={{ ...inputStyle, minHeight: 54 }} value={editV.notes} onChange={(e) => setEditV({ ...editV, notes: e.target.value })} placeholder="Preferred for emergencies; trade pricing on file…" />
           <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
-            <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13 }}><input type="checkbox" checked={editV.approved} onChange={(e) => setEditV({ ...editV, approved: e.target.checked })} /> Approved</label>
-            <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13 }}><input type="checkbox" checked={editV.favorite} onChange={(e) => setEditV({ ...editV, favorite: e.target.checked })} /> Favorite</label>
-            <button className="btn grad sm" style={{ marginLeft: 'auto' }} onClick={commitVendor} disabled={!editV.name.trim()}>Save vendor</button>
+            {canEditVendors ? (
+              <>
+                <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13 }}><input type="checkbox" checked={editV.approved} onChange={(e) => setEditV({ ...editV, approved: e.target.checked })} /> Approved</label>
+                <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13 }}><input type="checkbox" checked={editV.favorite} onChange={(e) => setEditV({ ...editV, favorite: e.target.checked })} /> Favorite</label>
+              </>
+            ) : (
+              <span className="note" style={{ margin: 0, color: 'var(--text-faint)' }}>Submitted for office approval — it joins the directory once approved.</span>
+            )}
+            <button className="btn grad sm" style={{ marginLeft: 'auto' }} onClick={commitVendor} disabled={!editV.name.trim()}>{canEditVendors ? 'Save vendor' : 'Submit vendor'}</button>
           </div>
         </div>
       )}
@@ -180,7 +200,7 @@ export default function Vendors({ store }) {
                         <span style={{ fontWeight: 800, fontSize: 15 }}>{v.name}</span>
                         {v.approved
                           ? <span className="chip" style={{ color: 'var(--money)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IcCheck width={11} height={11} /> Approved</span>
-                          : <span className="chip" style={{ color: 'var(--text-faint)' }}>Unapproved</span>}
+                          : <span className="chip" style={{ color: 'var(--warn)' }}>Pending</span>}
                         <span className="chip">{tradeLabel(v.trade)}</span>
                       </div>
                       <div style={{ marginTop: 3 }}><Stars n={v.rating} /></div>
@@ -195,6 +215,9 @@ export default function Vendors({ store }) {
                   </div>
                   {canEditVendors && (
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginTop: 8 }}>
+                      {!v.approved && (
+                        <button className="btn grad sm" onClick={() => setVendorField(v.id, { approved: true })} style={{ marginRight: 'auto' }}><IcCheck width={13} height={13} /> Approve</button>
+                      )}
                       <button className="btn ghost sm" onClick={() => setEditV({ ...v, rating: v.rating ?? '' })}>Edit</button>
                       <button className="btn ghost sm" style={{ color: 'var(--danger)' }} onClick={() => removeVendor(v.id)} aria-label="Delete vendor"><IcTrash width={13} height={13} /></button>
                     </div>
