@@ -992,6 +992,17 @@ export async function listProperties(orgId) {
   }));
 }
 
+// the org's operators (people with a seat) — assignable for work even before
+// they have any pay-log history. Name is the plaintext display_name.
+export async function listOperators(orgId) {
+  const { data, error } = await supabase.from('operators')
+    .select('id, user_id, display_name, role, status').eq('org_id', orgId);
+  if (error) throw error;
+  return (data || [])
+    .filter((o) => (o.status || 'active') === 'active')
+    .map((o) => ({ id: o.id, userId: o.user_id || null, name: o.display_name || 'Operator', role: o.role || 'tech', status: o.status || 'active' }));
+}
+
 export async function insertProperties(orgId, props) {
   // Skip names that already exist for the org (case-insensitive). A re-import
   // whose matcher missed an existing building must not stack a duplicate row —

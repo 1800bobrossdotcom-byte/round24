@@ -20,7 +20,7 @@ import {
   getLaborState, saveLaborState,
   listAvailability, setAvailability, subscribeAvailability, logAudit,
   fetchMyOperatorId, insertTimer, updateTimer, insertProperties, getUserSettings,
-  setPropertyLocation, listTimers, deleteTimer, wipeOrgData, listProperties,
+  setPropertyLocation, listTimers, deleteTimer, wipeOrgData, listProperties, listOperators,
 } from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
@@ -153,10 +153,28 @@ export function useStore() {
       return next;
     });
   }, []);
+  // the org's operators (people with a seat) — assignable for work even before
+  // they log any pay-log hours. Cleared spine ≠ empty roster.
+  const [operators, setOperators] = useState([]);
+  useEffect(() => {
+    if (!isConfigured() || !orgId) { setOperators([]); return undefined; }
+    let alive = true;
+    listOperators(orgId).then((r) => { if (alive) setOperators(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, [orgId]);
+
   // canonical operator list, tagged with employment status (inactive = departed).
   // techById stays complete so historical names always resolve; assignment
-  // rosters filter on `.active`.
-  const techs = useMemo(() => techsRaw.map((t) => ({ ...t, active: !inactiveOps[t.id] })), [techsRaw, inactiveOps]);
+  // rosters filter on `.active`. Pay-log-discovered techs are merged with the
+  // org's operator seats (deduped by name) so real people are always assignable.
+  const techs = useMemo(() => {
+    const base = techsRaw.map((t) => ({ ...t, active: !inactiveOps[t.id] }));
+    const haveName = new Set(base.map((t) => (t.name || '').trim().toLowerCase()));
+    const seats = operators
+      .filter((o) => o.name && !haveName.has(o.name.trim().toLowerCase()))
+      .map((o) => ({ id: o.id, name: o.name, rate: 0, role: o.role || 'tech', active: !inactiveOps[o.id], operator: true }));
+    return [...base, ...seats];
+  }, [techsRaw, inactiveOps, operators]);
   const activeTechs = useMemo(() => techs.filter((t) => t.active), [techs]);
 
   // ---- P&L statement config: fixed per-building inputs (debt, utilities, tax) ----
