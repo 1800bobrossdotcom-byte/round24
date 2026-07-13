@@ -275,7 +275,8 @@ export default function Field({ store }) {
   const [confirmDel, setConfirmDel] = useState(null); // log entry id awaiting delete confirm
   const delEntry = async (l) => {
     setConfirmDel(null);
-    await store.deleteTimerEntry(l);            // remove the synced row (no-op if local-only)
+    const res = await store.deleteTimerEntry(l);   // drops the cloud row and/or the queued payload
+    if (res && res.ok === false) return;           // cloud delete failed — keep the row so it isn't silently lost
     setLog((prev) => prev.filter((x) => x.id !== l.id));
     store.audit && store.audit('delete_timer', `${l.prop} ${l.unit} · ${l.hrs}h`);
   };

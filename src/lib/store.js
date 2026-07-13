@@ -287,15 +287,26 @@ export function useStore() {
       try { await setPropertyLocation(orgId, p.name, loc); audit('set_location', p.name); } catch { /* keep local */ }
     }
   }, [properties, orgId, demoMode]);
-  const techById = useMemo(() => Object.fromEntries(techs.map((t) => [t.id, t])), [techs]);
+  // resolve any tech OR operator by id. Operators are added by their own id even
+  // when name-deduped out of the assignment `techs` list, so cloud timer rows
+  // (techId = operator id) still find the operator's rate for pay.
+  const techById = useMemo(() => {
+    const m = Object.fromEntries(techs.map((t) => [t.id, t]));
+    for (const o of operators) {
+      if (!m[o.id]) m[o.id] = { id: o.id, name: o.name, rate: o.rate || 0, role: o.role || 'tech', active: !inactiveOps[o.id], operator: true };
+    }
+    return m;
+  }, [techs, operators, inactiveOps]);
 
   // resolve building labels → ids, creating a native property for any label
   // not already known. Returns { label: id } synchronously so an import can
   // allocate immediately. Best-effort DB insert when connected.
   const ensureProperties = useCallback((labels) => {
     // dedup against the cloud property table too (not just the local spine) so a
-    // re-import reuses existing building rows instead of stacking duplicates
-    const current = [...(demoMode ? seed.properties : []), ...impPropsRef.current, ...cloudProps];
+    // re-import reuses existing building rows instead of stacking duplicates.
+    // cloudProps first so seed/impProps ids win on a name collision (those are the
+    // ids the office views resolve against via pickProperties/propById).
+    const current = [...cloudProps, ...(demoMode ? seed.properties : []), ...impPropsRef.current];
     const byName = new Map(current.map((p) => [normName(p.name), p.id]));
     const created = [];
     const map = {};
@@ -641,12 +652,25 @@ export function useStore() {
     });
   }, [orgId, operatorId, addTimerEntry]);
 
-  // delete a logged timer. Removes the cloud row when it synced (has a dbId);
-  // a local/queued entry has nothing to delete server-side. Returns { ok }.
+  // delete a logged timer. If it synced (has a dbId) remove the cloud row. If it
+  // never synced it may still be sitting in the offline queue awaiting upload —
+  // drop the matching queued payload so a reconnect can't resurrect it. Returns { ok }.
   const deleteTimerEntry = useCallback(async (entry) => {
-    if (!entry?.dbId || !isConfigured()) return { ok: true };
-    try { await deleteTimer(entry.dbId); return { ok: true }; }
-    catch { return { ok: false }; }
+    if (entry?.dbId && isConfigured()) {
+      try { await deleteTimer(entry.dbId); return { ok: true }; }
+      catch { return { ok: false }; }   // cloud delete failed — caller keeps the row
+    }
+    if (!entry?.dbId) {
+      try {
+        const q = loadLS(TQ_KEY, []);
+        const label = entry.prop ?? entry.propLabel;
+        const hrs = entry.hrs ?? entry.durationHrs ?? 0;
+        const idx = q.findIndex((t) => (t.propLabel ?? null) === (label ?? null)
+          && Math.abs((t.durationHrs || 0) - hrs) < 0.001 && (t.category || 'general') === (entry.category || 'general'));
+        if (idx >= 0) { q.splice(idx, 1); localStorage.setItem(TQ_KEY, JSON.stringify(q)); }
+      } catch { /* queue unavailable — nothing to resurrect anyway */ }
+    }
+    return { ok: true };
   }, []);
 
   // ---- timesheet: editable history of logged time (crew self / office review) ----
@@ -701,8 +725,11 @@ export function useStore() {
 
   const addTimesheet = useCallback(async (row) => {
     const local = {
+      // attribute to the logging operator (cloud rows key techId off operator_id;
+      // matching it here means split-day / log-work hours attribute + rate-resolve
+      // immediately, not just after a re-fetch)
       id: 'ts_' + Math.random().toString(36).slice(2, 10), dbId: null,
-      operatorId: operatorId || null, techId: null,
+      operatorId: operatorId || null, techId: operatorId || null,
       date: row.date, createdAt: new Date().toISOString(),
       propLabel: row.propLabel || 'Unassigned', unit: row.unit || '',
       category: row.category || 'general', note: row.note || '',

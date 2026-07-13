@@ -168,7 +168,7 @@ function SplitEditor({ date0, propNames, workOrders = [], onSaveAll, onCancel, b
   const setLine = (i, patch) => setLines((l) => l.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const total = lines.reduce((a, x) => a + (Number(x.hrs) || 0), 0);
   const openWOs = useMemo(
-    () => workOrders.filter((w) => w.status !== 'done' && w.status !== 'closed'),
+    () => workOrders.filter((w) => w.status !== 'done' && w.status !== 'cancelled'),
     [workOrders],
   );
   const pickWO = (i, id) => {
@@ -676,7 +676,7 @@ export default function Timesheet({ store }) {
                     return (
                       <tr key={r.id}>
                         <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.date)}</td>
-                        <td className="ts-dim mono" style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{r.source === 'import' ? 'imported' : timeWindow(r)}</td>
+                        <td className="ts-dim mono" style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{(r.source === 'import' || r.category === 'imported' || r.imported) ? 'imported' : timeWindow(r)}</td>
                         <td className="num mono" style={{ fontWeight: 700 }}>{r.durationHrs}</td>
                         <td>
                           <span style={{ textTransform: 'capitalize' }}>{r.category}</span>
