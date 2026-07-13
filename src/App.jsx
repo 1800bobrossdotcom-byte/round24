@@ -14,6 +14,8 @@ import Team from './views/Team.jsx';
 import Import from './views/Import.jsx';
 import WorkOrders from './views/WorkOrders.jsx';
 import Maintenance from './views/Maintenance.jsx';
+import Requests from './views/Requests.jsx';
+import ResidentRequest from './views/ResidentRequest.jsx';
 import Calendar from './views/Calendar.jsx';
 import Purchases from './views/Purchases.jsx';
 import Documents from './views/Documents.jsx';
@@ -55,6 +57,7 @@ const TABS = [
   { id: 'timesheet', label: 'Timesheet', Icon: IcTable, View: Timesheet, roles: ['admin', 'manager', 'tech'], cat: 'work', primary: true },
   { id: 'wo', label: 'Orders', Icon: IcWrench, View: WorkOrders, roles: ['admin', 'manager', 'tech', 'viewer'], cat: 'work', primary: true },
   { id: 'maint', label: 'Maintenance', Icon: IcClip, View: Maintenance, roles: ['admin', 'manager'], cat: 'work' },
+  { id: 'requests', label: 'Requests', Icon: IcChat, View: Requests, roles: ['admin', 'manager'], cat: 'work' },
   { id: 'chat', label: 'Chat', Icon: IcChat, View: Chat, roles: ['admin', 'manager', 'tech', 'viewer'], cat: 'work', primary: true },
   { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, roles: ['admin', 'manager', 'viewer'], cat: 'work' },
   { id: 'pur', label: 'Purchases', Icon: IcReceipt, View: Purchases, roles: ['admin', 'manager', 'tech'], cat: 'money', primary: true },
@@ -294,6 +297,11 @@ function SplashIntro({ onDone }) {
 
 export default function App() {
   const [intro, setIntro] = useState(true);
+  // public resident request form: caliper.solutions/?request=<orgId>[&b=<building>]
+  // renders unauthenticated, before the login gate — residents have no account.
+  const params = new URLSearchParams(window.location.search);
+  const reqOrg = params.get('request');
+  if (reqOrg) return <ResidentRequest orgId={reqOrg} building={params.get('b') || ''} />;
   return (
     <>
       {intro && <SplashIntro onDone={() => setIntro(false)} />}

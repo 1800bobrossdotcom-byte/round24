@@ -24,6 +24,7 @@ import {
   listOrgMembers, enableFieldWork, disableFieldWork,
   listMaintenanceSchedules, insertMaintenanceSchedule, updateMaintenanceSchedule, deleteMaintenanceSchedule,
   getFieldState, upsertFieldState, subscribeFieldState, listFieldStates,
+  listMaintenanceRequests, updateMaintenanceRequest, subscribeMaintenanceRequests,
 } from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
@@ -651,6 +652,36 @@ export function useStore() {
     audit('generate_wo_from_schedule', `${sched.task} · ${sched.propLabel || ''}`);
     return wo;
   }, [orgId, demoMode, addWorkOrder]);
+
+  // ---- resident maintenance requests: office triage → work order ----
+  const [maintRequests, setMaintRequests] = useState([]);
+  useEffect(() => {
+    if (!isConfigured() || !orgId || !isStaffMember) { setMaintRequests([]); return undefined; }
+    let alive = true;
+    const refresh = () => listMaintenanceRequests(orgId).then((r) => { if (alive) setMaintRequests(r); }).catch(() => {});
+    refresh();
+    const unsub = subscribeMaintenanceRequests(orgId, refresh);
+    return () => { alive = false; if (typeof unsub === 'function') unsub(); };
+  }, [orgId, isStaffMember]);
+
+  const setRequestStatus = useCallback(async (id, status, workOrderId) => {
+    setMaintRequests((l) => l.map((x) => (x.id === id ? { ...x, status, ...(workOrderId ? { workOrderId } : {}) } : x)));
+    if (isConfigured() && orgId && !demoMode) { try { await updateMaintenanceRequest(id, { status, ...(workOrderId ? { workOrderId } : {}) }); } catch { /* keep local */ } }
+  }, [orgId, demoMode]);
+
+  // turn a resident request into a work order (routes into the crew pipeline) and
+  // mark the request converted, linking the two.
+  const convertRequestToWorkOrder = useCallback(async (req) => {
+    const wo = await addWorkOrder({
+      task: (req.description || 'Resident request').slice(0, 90),
+      detail: `Resident request${req.tenantName ? ` from ${req.tenantName}` : ''}${req.tenantContact ? ` (${req.tenantContact})` : ''}\n${req.description || ''}`,
+      propLabel: req.propLabel || null, unit: req.unit || null, category: 'general',
+      priority: 3, source: 'resident', status: 'open',
+    });
+    await setRequestStatus(req.id, 'converted', wo?.id || null);
+    audit('convert_request', `${req.propLabel || ''} · ${(req.description || '').slice(0, 40)}`);
+    return wo;
+  }, [addWorkOrder, setRequestStatus]);
 
   // WO mutations are optimistic. If the cloud write fails the DB row is unchanged
   // and no realtime UPDATE fires to correct us, so a swallowed error would let a
@@ -1535,6 +1566,7 @@ export function useStore() {
 
   return {
     meta: { ...seed.meta, org: (isConfigured() && orgName) ? orgName : seed.meta.org },
+    orgId,
     properties,
     pickProperties,
     cloudProps,
@@ -1555,6 +1587,7 @@ export function useStore() {
     // work orders
     workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, addWoAttachment, woBackend,
     maintSchedules, setSchedule, removeSchedule, generateFromSchedule,
+    maintRequests, setRequestStatus, convertRequestToWorkOrder,
     woNotice, clearWoNotice: () => setWoNotice(null),
     // cloud timers
     addTimerEntry, updateTimerEntry, deleteTimerEntry, operatorId,

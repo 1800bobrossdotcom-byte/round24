@@ -486,6 +486,42 @@ export async function deleteMaintenanceSchedule(id) {
   if (error) throw error;
 }
 
+// ---- resident maintenance requests (public intake → office triage → work order) ----
+const reqFromDb = (r) => ({
+  id: r.id, propLabel: r.property_label, unit: r.unit, tenantName: r.tenant_name,
+  tenantContact: r.tenant_contact, description: r.description, photo: r.photo || null,
+  status: r.status, workOrderId: r.work_order_id, createdAt: r.created_at,
+});
+// submit a request. Callable by an UNAUTHENTICATED resident (anon key) — the
+// mr_public_insert RLS policy allows the insert; they can't read anything back.
+export async function submitMaintenanceRequest(orgId, r) {
+  const { error } = await supabase.from('maintenance_requests').insert({
+    org_id: orgId, property_label: r.propLabel || null, unit: r.unit || null,
+    tenant_name: r.tenantName || null, tenant_contact: r.tenantContact || null,
+    description: r.description, photo: r.photo || null,
+  });
+  if (error) throw error;
+}
+export async function listMaintenanceRequests(orgId) {
+  const { data, error } = await supabase.from('maintenance_requests').select('*')
+    .eq('org_id', orgId).order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(reqFromDb);
+}
+export async function updateMaintenanceRequest(id, patch) {
+  const db = {};
+  if ('status' in patch) db.status = patch.status;
+  if ('workOrderId' in patch) db.work_order_id = patch.workOrderId;
+  const { error } = await supabase.from('maintenance_requests').update(db).eq('id', id);
+  if (error) throw error;
+}
+export function subscribeMaintenanceRequests(orgId, cb) {
+  const ch = supabase.channel(`mreq-${orgId}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'maintenance_requests', filter: `org_id=eq.${orgId}` }, () => cb())
+    .subscribe();
+  return () => supabase.removeChannel(ch);
+}
+
 // ---- cross-device field-timer state (running + parked jobs, one row per user) ----
 export async function getFieldState(orgId) {
   const { data: { user } } = await supabase.auth.getUser();
