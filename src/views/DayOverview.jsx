@@ -16,7 +16,10 @@ function elapsedStr(startedAt, now) {
 const UNASSIGNED = '__unassigned__';
 
 export default function DayOverview({ store, navigate }) {
-  const { workOrders, timers, techById, techs, activeTechs, setWoAssignee, liveTimers = [], availability = [] } = store;
+  const { workOrders, timers, techById, techs, activeTechs, setWoAssignee, liveTimers = [], availability = [], fieldStates = [], operators: opSeats = [] } = store;
+  // parked (paused) jobs across the crew — from the synced field-timer state.
+  const opNameByUser = Object.fromEntries(opSeats.map((o) => [o.userId, o.name]));
+  const parked = fieldStates.flatMap((fs) => (fs.state?.paused || []).map((pj) => ({ ...pj, who: opNameByUser[fs.userId] || fs.state?.operatorLabel || 'Operator' })));
   const go = navigate || (() => {});
   const away = availability.filter((a) => a.status === 'off' || a.status === 'pto');
   // tick once a second so live stopwatches count up
@@ -98,6 +101,25 @@ export default function DayOverview({ store, navigate }) {
           </div>
         ))}
       </div>
+
+      {/* parked jobs — banked, waiting to be resumed (synced from the field) */}
+      {parked.length > 0 && (
+        <div className="card" style={{ marginBottom: 'var(--gap)' }}>
+          <span className="field-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+            Parked jobs ({parked.length})
+          </span>
+          {parked.map((pj, i) => (
+            <div className="row" key={pj.id || i}>
+              <div className="lead">
+                <div className="t">{pj.who} — {pj.propName || 'Unassigned'}{pj.unit && pj.unit !== '—' ? ` · ${pj.unit}` : ''}</div>
+                <div className="s">{[pj.woTask, pj.category].filter(Boolean).join(' · ')}</div>
+              </div>
+              <div className="val"><div className="mono" style={{ fontWeight: 700 }}>{Math.round(((pj.baseMs || 0) / 3600000) * 10) / 10}h</div><div className="small">banked</div></div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* off / PTO today */}
       {away.length > 0 && (

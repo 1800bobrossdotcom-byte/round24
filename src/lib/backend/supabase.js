@@ -486,6 +486,39 @@ export async function deleteMaintenanceSchedule(id) {
   if (error) throw error;
 }
 
+// ---- cross-device field-timer state (running + parked jobs, one row per user) ----
+export async function getFieldState(orgId) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data, error } = await supabase.from('field_timer_state')
+    .select('state, updated_at').eq('org_id', orgId).eq('user_id', user.id).maybeSingle();
+  if (error) throw error;
+  return data ? { state: data.state || {}, updatedAt: data.updated_at } : null;
+}
+export async function upsertFieldState(orgId, state) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const { error } = await supabase.from('field_timer_state')
+    .upsert({ org_id: orgId, user_id: user.id, state, updated_at: new Date().toISOString() }, { onConflict: 'org_id,user_id' });
+  if (error) throw error;
+}
+// subscribe to field-timer rows in an org. userId set → only that user's row (cb
+// gets the row); userId null → every row (for the office board). Echo-guarded by
+// the caller via state.rev.
+export function subscribeFieldState(orgId, userId, cb) {
+  const ch = supabase.channel(`fts-${orgId}-${userId || 'all'}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'field_timer_state', filter: `org_id=eq.${orgId}` },
+      (payload) => { const r = payload.new; if (r && (!userId || r.user_id === userId)) cb(r); })
+    .subscribe();
+  return () => supabase.removeChannel(ch);
+}
+// office: every operator's running + parked state
+export async function listFieldStates(orgId) {
+  const { data, error } = await supabase.from('field_timer_state').select('user_id, state, updated_at').eq('org_id', orgId);
+  if (error) throw error;
+  return (data || []).map((r) => ({ userId: r.user_id, state: r.state || {}, updatedAt: r.updated_at }));
+}
+
 export async function updateWorkOrderPriority(id, priority) {
   const { error } = await supabase.from('work_orders').update({ priority }).eq('id', id);
   if (error) throw error;

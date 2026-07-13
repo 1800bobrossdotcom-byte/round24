@@ -31,7 +31,7 @@ function loadTimer() {
 }
 
 export default function Field({ store }) {
-  const { pickProperties: properties = [], allTimers, workOrders, setWoStatus, liveTimers = [] } = store;
+  const { pickProperties: properties = [], allTimers, workOrders, setWoStatus, liveTimers = [], fieldSync } = store;
   // the crew member IS the signed-in user — not a hardcoded demo tech. Rate is
   // matched from the roster by name when known (imported orgs carry rates);
   // otherwise 0 (the office holds the real rate server-side).
@@ -101,9 +101,10 @@ export default function Field({ store }) {
   const [lastNudge, setLastNudge] = useState(() => loadTimer().lastNudge ?? 0); // work-seconds when last nudged
   const [lunchNudged, setLunchNudged] = useState(() => loadTimer().lunchNudged ?? false);
 
-  // persist everything the clock needs to reconstruct itself
+  // persist everything the clock needs to reconstruct itself. updatedAt stamps the
+  // local cache so cross-device sync can tell whose copy is newer on reload.
   useEffect(() => {
-    localStorage.setItem(TIMER_KEY, JSON.stringify({ running, log, onBreak, breakMs, lastNudge, lunchNudged, punch, paused }));
+    localStorage.setItem(TIMER_KEY, JSON.stringify({ running, log, onBreak, breakMs, lastNudge, lunchNudged, punch, paused, updatedAt: Date.now() }));
   }, [running, log, onBreak, breakMs, lastNudge, lunchNudged, punch, paused]);
 
   // write the timer snapshot to localStorage SYNCHRONOUSLY. The reactive effect
@@ -115,7 +116,7 @@ export default function Field({ store }) {
     try {
       localStorage.setItem(TIMER_KEY, JSON.stringify({
         running, log, onBreak, breakMs, lastNudge, lunchNudged, punch,
-        paused: pausedRef.current, ...over,   // freshest parked list unless overridden
+        paused: pausedRef.current, updatedAt: Date.now(), ...over,   // freshest parked list unless overridden
       }));
     } catch { /* quota/serialization — the reactive effect will retry */ }
   };
@@ -130,6 +131,85 @@ export default function Field({ store }) {
       task: running.woTask || null, propLabel: p?.name || null, unit: running.unit, onBreak: !!onBreak,
     });
   }, [running, onBreak]);
+
+  // ---- cross-device sync: one cloud row holds this operator's running + parked
+  // state, so phone, desktop, and the office all agree. localStorage stays the
+  // offline cache; the cloud is the shared truth when there's signal. Echo-guarded
+  // by a per-write `rev` so a device never re-adopts its own change.
+  const revRef = useRef(null);        // rev of the state we last published/adopted
+  const skipPushRef = useRef(false);  // a change that came FROM the cloud must not echo back
+  const syncedRef = useRef(false);    // don't publish until the initial cloud load resolves
+  const adoptState = (s) => {
+    if (!s || typeof s !== 'object') return;
+    skipPushRef.current = true;
+    revRef.current = s.rev || revRef.current;
+    setRunning(s.running ?? null);
+    const pj = Array.isArray(s.paused) ? s.paused : [];
+    pausedRef.current = pj; setPaused(pj);
+    setOnBreak(s.onBreak ?? null);
+    setBreakMs(s.breakMs ?? 0);
+    setLastNudge(s.lastNudge ?? 0);
+    setLunchNudged(s.lunchNudged ?? false);
+    setPunch(s.punch ?? null);
+    if (!s.running) setElapsed(0);      // the tick effect recomputes from running.start
+  };
+  const publishNow = () => {
+    if (!fieldSync) return;
+    const rev = Math.random().toString(36).slice(2, 10);
+    revRef.current = rev;
+    fieldSync.push({ running, paused: pausedRef.current, onBreak, breakMs, lastNudge, lunchNudged, punch, rev });
+  };
+  // union two parked-job lists by id — sync must never drop a parked job (each
+  // carries banked labor), even if two devices diverged offline.
+  const mergePaused = (a, b) => {
+    const seen = new Set(), out = [];
+    for (const j of [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])]) {
+      if (j && j.id && !seen.has(j.id)) { seen.add(j.id); out.push(j); }
+    }
+    return out;
+  };
+  // mount: reconcile local cache with the cloud copy, then subscribe for live
+  // changes. Parked jobs are UNIONED (never lost); the running/break scalars come
+  // from whichever side is fresher. The reconciled union is pushed back up so the
+  // other devices and the office pick up anything only this device had.
+  useEffect(() => {
+    if (!fieldSync) return undefined;
+    let alive = true;
+    fieldSync.load().then((cloud) => {
+      if (!alive) return;
+      const local = loadTimer();
+      const cState = (cloud && cloud.state) || {};
+      const cloudTs = cloud?.updatedAt ? Date.parse(cloud.updatedAt) : 0;
+      const localTs = local.updatedAt || 0;
+      const fresh = cloudTs >= localTs ? cState : local;   // fresher side wins for scalars
+      const merged = {
+        running: fresh.running ?? null,
+        paused: mergePaused(local.paused, cState.paused),
+        onBreak: fresh.onBreak ?? null, breakMs: fresh.breakMs ?? 0,
+        lastNudge: fresh.lastNudge ?? 0, lunchNudged: fresh.lunchNudged ?? false, punch: fresh.punch ?? null,
+      };
+      adoptState(merged);
+      const rev = Math.random().toString(36).slice(2, 10); revRef.current = rev;
+      fieldSync.push({ ...merged, rev });   // publish the reconciled union
+      syncedRef.current = true;
+    });
+    const unsub = fieldSync.subscribe((s) => {
+      if (!alive) return;
+      if (s.rev && s.rev === revRef.current) return;   // our own echo
+      adoptState(s);
+    });
+    return () => { alive = false; if (typeof unsub === 'function') unsub(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fieldSync]);
+  // write-through: publish meaningful transitions (debounced), unless we just
+  // adopted this state from the cloud or the initial load hasn't resolved yet.
+  useEffect(() => {
+    if (!fieldSync || !syncedRef.current) return undefined;
+    if (skipPushRef.current) { skipPushRef.current = false; return undefined; }
+    const id = setTimeout(publishNow, 500);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running, paused, onBreak, breakMs, lastNudge, lunchNudged, punch, fieldSync]);
 
   // a timer running on ANOTHER device for this same login: the clock lives in that
   // device's localStorage, but presence is in the cloud (live_timers), so surface

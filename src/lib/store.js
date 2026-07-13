@@ -23,6 +23,7 @@ import {
   setPropertyLocation, listTimers, deleteTimer, wipeOrgData, listProperties, listOperators, setOperatorRate as setOperatorRateDb,
   listOrgMembers, enableFieldWork, disableFieldWork,
   listMaintenanceSchedules, insertMaintenanceSchedule, updateMaintenanceSchedule, deleteMaintenanceSchedule,
+  getFieldState, upsertFieldState, subscribeFieldState, listFieldStates,
 } from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
@@ -1070,6 +1071,29 @@ export function useStore() {
     else deleteLiveTimer(orgId).catch(() => {});
   }, [orgId, myName]);
 
+  // cross-device field-timer sync: the Field view pushes its full running+parked
+  // state here (debounced) and adopts remote changes, so a crew member's devices
+  // and the office all agree. No-op unless a connected crew member (has a seat).
+  const fieldSync = useMemo(() => {
+    if (demoMode || !isConfigured() || !orgId || !operatorId) return null;
+    return {
+      load: () => getFieldState(orgId).catch(() => null),
+      push: (state) => upsertFieldState(orgId, state).catch(() => {}),
+      subscribe: (cb) => (myId ? subscribeFieldState(orgId, myId, (row) => cb(row.state || {})) : () => {}),
+    };
+  }, [demoMode, orgId, operatorId, myId]);
+
+  // office: every operator's running + parked state (staff-only), for the day board
+  const [fieldStates, setFieldStates] = useState([]);
+  useEffect(() => {
+    if (!isConfigured() || !orgId || !isStaffMember) { setFieldStates([]); return undefined; }
+    let alive = true;
+    const refresh = () => listFieldStates(orgId).then((r) => { if (alive) setFieldStates(r); }).catch(() => {});
+    refresh();
+    const unsub = subscribeFieldState(orgId, null, () => refresh()); // any row change → re-list
+    return () => { alive = false; if (typeof unsub === 'function') unsub(); };
+  }, [orgId, isStaffMember]);
+
   // ---- availability: on shift / off / PTO (feeds the Day board) ----
   const [availability, setAvail] = useState([]);
   useEffect(() => {
@@ -1528,7 +1552,7 @@ export function useStore() {
     vendors, vendorProducts, canEditVendors, canAddVendors, saveVendor, removeVendor, setVendorField,
     saveProduct, removeProduct, setProductField,
     // live presence + availability + audit
-    liveTimers, syncLivePresence,
+    liveTimers, syncLivePresence, fieldSync, fieldStates,
     availability, setMyAvailability, audit,
     // purchases
     purchases, addPurchase, setPurchaseStatus, purBackend,
