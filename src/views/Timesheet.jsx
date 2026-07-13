@@ -562,6 +562,19 @@ export default function Timesheet({ store }) {
         <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'var(--accent)' }}>
           <span className="field-label" style={{ marginBottom: 8, display: 'block' }}>{editId === '__new__' ? 'Log hours' : 'Edit entry'} · {fmtDate(draft.date)}</span>
           {editorEl}
+          {editId !== '__new__' && (
+            <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
+              {confirmDel === editId ? (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <span className="s" style={{ color: 'var(--text-dim)' }}>Delete this entry?</span>
+                  <button className="btn ghost sm" style={{ color: 'var(--danger)' }} onClick={() => del(editId)}>Delete</button>
+                  <button className="btn ghost sm" onClick={() => setConfirmDel(null)}>Keep</button>
+                </div>
+              ) : (
+                <button className="btn ghost sm" style={{ color: 'var(--danger)' }} onClick={() => setConfirmDel(editId)}><IcTrash width={13} height={13} style={{ verticalAlign: -2, marginRight: 4 }} />Delete entry</button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
