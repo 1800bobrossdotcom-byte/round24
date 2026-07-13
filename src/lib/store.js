@@ -457,6 +457,17 @@ export function useStore() {
   // tech names to ids (reusing seed techs on a name match) and sets the range
   // to the imported span.
   const addImported = useCallback((rows, { replace = true } = {}) => {
+    // resolve an imported operator name onto an existing OPERATOR SEAT so the
+    // history blends with that person's live hours instead of splitting the
+    // roster (pay logs say "Gianni"; the seat is "Gianni Arone"). Match on the
+    // full name or a unique first-name match — never merge when it's ambiguous.
+    const norm = (s) => (s || '').toLowerCase().trim();
+    const firstOf = (s) => norm(s).split(/\s+/)[0];
+    const resolveOp = (nm) => {
+      const n = norm(nm); if (!n) return null;
+      const hits = operators.filter((o) => o.name && (norm(o.name) === n || firstOf(o.name) === firstOf(nm)));
+      return hits.length === 1 ? hits[0] : null;
+    };
     setImported((prev) => {
       const base0 = replace ? { timers: [], techs: [] } : prev;
       const byName = new Map(base0.techs.map((t) => [t.name.toLowerCase(), t]));
@@ -470,9 +481,12 @@ export function useStore() {
         let tech = (demoMode ? seed.techs.find((t) => t.name.toLowerCase() === nm.toLowerCase()) : null)
           || byName.get(nm.toLowerCase());
         if (!tech) {
-          tech = { id: slugTech(nm), name: nm, rate: r.rate || 0, role: 'tech', imported: true };
+          const op = resolveOp(nm);   // blend into a live operator seat when we can
+          tech = op
+            ? { id: op.id, name: op.name, rate: r.rate || op.rate || 0, role: op.role || 'tech', operator: true }
+            : { id: slugTech(nm), name: nm, rate: r.rate || 0, role: 'tech', imported: true };
           byName.set(nm.toLowerCase(), tech);
-          newTechs.push(tech);
+          if (!op) newTechs.push(tech);   // an operator seat is already on the roster — don't duplicate it
         }
         return {
           id: `imp_${base + i + 1}`, techId: tech.id, propId: r.propId ?? null,
@@ -494,7 +508,7 @@ export function useStore() {
       setRange((r) => replace ? { from: min, to }
         : { from: min < r.from ? min : r.from, to: to > r.to ? to : r.to });
     }
-  }, [demoMode]);
+  }, [demoMode, operators]);
 
   // assign unallocated imported entries to a building (+ optional category/unit/
   // note) so they move into the true-cost pipeline. Resolves the building label
