@@ -290,7 +290,7 @@ export default function Field({ store }) {
     }
     if (intent === 'confirm' || intent === 'cancel') return; // nothing to confirm
     if (cmd?.confirm) {
-      const LABEL = { start: 'start the job', stop: 'stop the job', done: 'mark it done', break: 'take a break', resume: 'get back to work' };
+      const LABEL = { start: 'start the job', stop: 'stop the job', done: 'mark it done', pauseJob: 'pause and switch jobs', break: 'take a break', resume: 'get back to work' };
       armPending(intent);
       speak(`Heard ${LABEL[intent] || intent}. Say Caliper yes to confirm, or Caliper no.`);
       return;
@@ -311,6 +311,10 @@ export default function Field({ store }) {
       if (!running) { speak('No timer running.'); return; }
       if (running.woId) setWoStatus(running.woId, 'done');
       speak('Marked done and logged.'); stop();
+    } else if (intent === 'pauseJob') {
+      if (!running) { speak('No job to pause.'); return; }
+      const nm = propName();               // capture before pauseJob clears `running`
+      pauseJob(); speak(`Parked ${nm}. Pick it back up any time.`);
     } else if (intent === 'break') {
       if (!running) { speak('Start a job first.'); return; }
       if (onBreak) { speak('Already on break.'); return; }

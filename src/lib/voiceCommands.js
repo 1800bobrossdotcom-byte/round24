@@ -40,6 +40,12 @@ export const VOICE_COMMANDS = [
     anchors: ['done', 'complete', 'completed', 'finish', 'finished', 'finishing'],
   },
   {
+    group: 'Timer', intent: 'pauseJob', title: 'Park this job to switch to another',
+    say: 'Caliper, pause job',
+    phrases: ['pause job', 'pause the job', 'pause this job', 'park job', 'park the job', 'park it', 'switch job', 'switch jobs', 'switch to another job', 'set it aside', 'set aside'],
+    anchors: ['park', 'parked', 'parking', 'switch', 'switching', 'aside'],
+  },
+  {
     group: 'Breaks', intent: 'break', title: 'Take a break — the clock pauses',
     say: 'Caliper, take a break',
     phrases: ['take a break', 'take break', 'start break', 'break time', 'pause', 'pause the clock', 'stepping away', 'going to lunch', 'lunch break', 'break'],
@@ -104,7 +110,7 @@ const WAKE_MIN = 0.72;   // "caliber"/"calibre" still count as the wake word
 function validForContext(ctx) {
   if (!ctx || ctx.running === undefined) return null;
   const s = new Set(['status', 'confirm', 'cancel']);
-  if (ctx.running) { s.add('stop'); s.add('done'); s.add(ctx.onBreak ? 'resume' : 'break'); }
+  if (ctx.running) { s.add('stop'); s.add('done'); s.add('pauseJob'); s.add(ctx.onBreak ? 'resume' : 'break'); }
   else s.add('start');
   return s;
 }
