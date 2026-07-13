@@ -40,7 +40,7 @@ function FavBtn({ on, onClick, label }) {
   );
 }
 
-export default function Vendors({ store }) {
+export default function Vendors({ store, navigate }) {
   const { vendors = [], vendorProducts = [], canEditVendors, canAddVendors = false,
     saveVendor, removeVendor, setVendorField, saveProduct, removeProduct, setProductField } = store;
   const [tab, setTab] = useState('vendors');     // vendors | products
@@ -49,6 +49,22 @@ export default function Vendors({ store }) {
   const [q, setQ] = useState('');
   const [editV, setEditV] = useState(null);      // vendor draft being added/edited
   const [editP, setEditP] = useState(null);      // product draft
+  const [callNote, setCallNote] = useState(null); // { id, text } — logging a call against a vendor
+
+  // open the work-order composer prefilled with this vendor's contact
+  const woForVendor = (v) => navigate?.('wo', { newFor: {
+    task: '', detail: `Vendor: ${v.name}${v.phone ? ` · ${v.phone}` : ''}${v.email ? ` · ${v.email}` : ''}`,
+    category: v.trade && v.trade !== 'other' ? v.trade : 'general',
+  } });
+  // prepend a timestamped call note to the vendor's notes (office keeps the log)
+  const saveCallNote = () => {
+    const t = (callNote?.text || '').trim();
+    const v = vendors.find((x) => x.id === callNote?.id);
+    if (!t || !v) { setCallNote(null); return; }
+    const stamp = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    setVendorField(v.id, { notes: `☎ ${stamp} — ${t}${v.notes ? `\n${v.notes}` : ''}` });
+    setCallNote(null);
+  };
 
   const vName = (id) => vendors.find((v) => v.id === id)?.name || '';
 
@@ -227,6 +243,17 @@ export default function Vendors({ store }) {
                           Email
                         </a>
                       )}
+                      {navigate && <button className="btn ghost sm" onClick={() => woForVendor(v)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><IcWrench width={12} height={12} /> New WO</button>}
+                      {canEditVendors && <button className="btn ghost sm" onClick={() => setCallNote({ id: v.id, text: '' })} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>Log call</button>}
+                    </div>
+                  )}
+                  {callNote?.id === v.id && (
+                    <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                      <input autoFocus style={{ ...inputStyle, flex: 1 }} value={callNote.text} placeholder="Call notes — quote, ETA, follow-up…"
+                        onChange={(e) => setCallNote({ id: v.id, text: e.target.value })}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveCallNote(); if (e.key === 'Escape') setCallNote(null); }} />
+                      <button className="btn grad sm" onClick={saveCallNote} disabled={!callNote.text.trim()}>Save</button>
+                      <button className="btn ghost sm" onClick={() => setCallNote(null)}><IcX width={13} height={13} /></button>
                     </div>
                   )}
                   {canEditVendors && (
