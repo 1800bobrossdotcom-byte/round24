@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { signedFileUrl } from '../lib/backend/supabase.js';
 import { IcTable, IcReceipt, IcCheck, IcX, IcTrash, IcMapPin, IcBuilding, IcChevron, IcCal, IcClock, IcUsers } from '../components/ui.jsx';
+import { exportTimesheetXlsx, exportTimesheetPdf } from '../lib/exportDocs.js';
 
 // live view of the crew's running Field timer (same localStorage the timer
 // persists to). Ticks once a second so hours + pay compile in real time on the
@@ -302,6 +303,22 @@ export default function Timesheet({ store }) {
   const masterHasPay = roster.some((o) => o.pay > 0);
   const activeOp = viewingOp ? roster.find((o) => o.key === opFilter) : null;
 
+  // export the currently-visible timesheet (respects the operator + period filter)
+  // to a formula-driven Excel workbook or a Caliper-branded PDF.
+  const exportRows = () => [...rows]
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+    .map((r) => ({
+      date: r.date, operator: opNameOf(r), building: r.propLabel || 'Unassigned',
+      unit: r.unit || '', category: r.category || 'general', task: r.note || '',
+      hours: Number(r.durationHrs) || 0, rate: Number(r.rate) || 0,
+    }));
+  const exportMeta = () => ({
+    orgName: store.meta?.org || 'Caliper',
+    rangeLabel: `${viewingOp && activeOp ? `${activeOp.name} · ` : ''}${(PERIODS.find(([v]) => v === period) || [])[1] || 'All'}`,
+  });
+  const onExportXlsx = () => exportTimesheetXlsx(exportRows(), exportMeta());
+  const onExportPdf = () => { if (!exportTimesheetPdf(exportRows(), exportMeta())) alert('Allow pop-ups for this site to export the PDF.'); };
+
   // ---- office per-property rollup: hours + labor $ per building over the period ----
   // The Excel "Monthly / Quarterly totals" box — every operator's allocated hours
   // summed by door, so the office reads the same number Bill used to tally by hand.
@@ -436,6 +453,10 @@ export default function Timesheet({ store }) {
             <button key={o.key} className={'chip' + (opFilter === o.key ? ' on' : '')} style={{ cursor: 'pointer', border: opFilter === o.key ? '1px solid var(--accent)' : '1px solid var(--line)' }}
               onClick={() => openOp(o)}>{o.name} · <span className="mono">{Math.round(o.hrs * 10) / 10}h</span></button>
           ))}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+            <button className="btn ghost sm" onClick={onExportXlsx} title="Export to a formula-driven Excel workbook" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><IcTable width={12} height={12} /> Excel</button>
+            <button className="btn ghost sm" onClick={onExportPdf} title="Export a Caliper-branded PDF" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><IcReceipt width={12} height={12} /> PDF</button>
+          </div>
         </div>
       )}
 
