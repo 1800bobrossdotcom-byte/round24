@@ -6,7 +6,7 @@ import { WO_PRIORITIES, byPriority } from './WorkOrders.jsx';
 import { getPosition, geofenceCheck, fmtDistance } from '../lib/geo.js';
 import { useVoiceCommands, speak } from '../lib/voice.js';
 import VoiceCommandGuide from '../components/VoiceCommandGuide.jsx';
-import { IcCoffee, IcUtensils, IcActivity, IcCheck, IcPlay, IcMapPin, IcMic } from '../components/ui.jsx';
+import { IcCoffee, IcUtensils, IcActivity, IcCheck, IcPlay, IcMapPin, IcMic, IcTrash } from '../components/ui.jsx';
 
 const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'painting', 'turn', 'general', 'inspection'];
 
@@ -243,6 +243,13 @@ export default function Field({ store }) {
   // ---- edit a logged entry: fix property / unit / category / hours ----
   const [editing, setEditing] = useState(null); // { id, prop, unit, category, hrs, note }
   const [editBusy, setEditBusy] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(null); // log entry id awaiting delete confirm
+  const delEntry = async (l) => {
+    setConfirmDel(null);
+    await store.deleteTimerEntry(l);            // remove the synced row (no-op if local-only)
+    setLog((prev) => prev.filter((x) => x.id !== l.id));
+    store.audit && store.audit('delete_timer', `${l.prop} ${l.unit} · ${l.hrs}h`);
+  };
   const beginEdit = (l) => {
     const pid = properties.find((p) => p.name === l.prop)?.id || properties[0]?.id || '';
     setEditing({ id: l.id, prop: pid, unit: l.unit === '—' ? '' : (l.unit || ''), category: l.category, hrs: String(l.hrs), note: l.note || '' });
@@ -499,7 +506,17 @@ export default function Field({ store }) {
                     {l.sync === 'synced' ? <><IcCheck width={11} height={11} /> synced</> : l.sync === 'queued' ? 'syncs when online' : l.sync === 'saving' ? 'saving…' : 'this device'}
                   </div>}
                 </div>
-                {l.sync !== 'saving' && <button className="btn ghost sm ti-edit-btn" onClick={() => beginEdit(l)}>Edit</button>}
+                {l.sync !== 'saving' && (confirmDel === l.id ? (
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    <button className="btn ghost sm" style={{ color: 'var(--danger)' }} onClick={() => delEntry(l)}>Delete</button>
+                    <button className="btn ghost sm" onClick={() => setConfirmDel(null)}>Cancel</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    <button className="btn ghost sm ti-edit-btn" onClick={() => beginEdit(l)}>Edit</button>
+                    <button className="btn ghost sm" style={{ color: 'var(--text-faint)', padding: '4px 8px' }} onClick={() => setConfirmDel(l.id)} aria-label="Delete entry"><IcTrash width={13} height={13} /></button>
+                  </div>
+                ))}
               </div>
             );
           })}

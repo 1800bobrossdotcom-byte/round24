@@ -635,6 +635,14 @@ export function useStore() {
     });
   }, [orgId, operatorId, addTimerEntry]);
 
+  // delete a logged timer. Removes the cloud row when it synced (has a dbId);
+  // a local/queued entry has nothing to delete server-side. Returns { ok }.
+  const deleteTimerEntry = useCallback(async (entry) => {
+    if (!entry?.dbId || !isConfigured()) return { ok: true };
+    try { await deleteTimer(entry.dbId); return { ok: true }; }
+    catch { return { ok: false }; }
+  }, []);
+
   // ---- timesheet: editable history of logged time (crew self / office review) ----
   // The timers spine, but as rows people can correct — a timer ran long, wrong
   // unit, forgot the note. RLS scopes reads/writes: office all, tech their own.
@@ -1203,7 +1211,7 @@ export function useStore() {
     workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, addWoAttachment, woBackend,
     woNotice, clearWoNotice: () => setWoNotice(null),
     // cloud timers
-    addTimerEntry, updateTimerEntry, operatorId,
+    addTimerEntry, updateTimerEntry, deleteTimerEntry, operatorId,
     // timesheet (editable log history)
     timesheet, addTimesheet, updateTimesheet, deleteTimesheet, refreshTimesheet,
     // salaried operators
