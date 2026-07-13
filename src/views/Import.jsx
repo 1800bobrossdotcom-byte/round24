@@ -90,7 +90,17 @@ export default function Import({ store }) {
     return [...map.values()].sort((a, b) => b.hours - a.hours);
   }, [sheets, selected]);
 
-  const matcher = useMemo(() => buildMatcher(store.properties), [store.properties]);
+  // match against every known building — the rent-roll spine AND the cloud
+  // property table — so a re-import resolves "145 Fitzhugh" to the existing
+  // "145 S Fitzhugh" instead of creating a duplicate/variant row.
+  const matcher = useMemo(() => {
+    const seen = new Set(); const all = [];
+    for (const p of [...(store.properties || []), ...(store.cloudProps || [])]) {
+      const k = (p.name || '').trim().toLowerCase();
+      if (!k || seen.has(k)) continue; seen.add(k); all.push(p);
+    }
+    return buildMatcher(all);
+  }, [store.properties, store.cloudProps]);
   const [mode, setMode] = useState('replace'); // 'replace' | 'add'
 
   // every building named across the selected sheets, split into ones we

@@ -269,7 +269,9 @@ export function useStore() {
   // not already known. Returns { label: id } synchronously so an import can
   // allocate immediately. Best-effort DB insert when connected.
   const ensureProperties = useCallback((labels) => {
-    const current = [...(demoMode ? seed.properties : []), ...impPropsRef.current];
+    // dedup against the cloud property table too (not just the local spine) so a
+    // re-import reuses existing building rows instead of stacking duplicates
+    const current = [...(demoMode ? seed.properties : []), ...impPropsRef.current, ...cloudProps];
     const byName = new Map(current.map((p) => [normName(p.name), p.id]));
     const created = [];
     const map = {};
@@ -290,7 +292,7 @@ export function useStore() {
       if (isConfigured() && orgId) insertProperties(orgId, created).catch(() => {});
     }
     return map;
-  }, [orgId]);
+  }, [orgId, cloudProps]);
 
   const timers = useMemo(
     () => allTimers.filter((t) => t.date >= range.from && t.date <= range.to),
@@ -1165,6 +1167,7 @@ export function useStore() {
     meta: { ...seed.meta, org: (isConfigured() && orgName) ? orgName : seed.meta.org },
     properties,
     pickProperties,
+    cloudProps,
     techs,
     activeTechs,
     inactiveOps, setOperatorActive,

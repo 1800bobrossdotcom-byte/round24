@@ -993,9 +993,15 @@ export async function listProperties(orgId) {
 }
 
 export async function insertProperties(orgId, props) {
-  const rows = props.map((p) => ({
-    org_id: orgId, name: p.name, city: p.city || null, units: p.units || 0, external_src: 'native',
-  }));
+  // Skip names that already exist for the org (case-insensitive). A re-import
+  // whose matcher missed an existing building must not stack a duplicate row —
+  // this is the DB-level backstop against the property list ballooning.
+  const { data: existing } = await supabase.from('properties').select('name').eq('org_id', orgId);
+  const have = new Set((existing || []).map((r) => (r.name || '').trim().toLowerCase()));
+  const rows = props
+    .filter((p) => p.name && !have.has(p.name.trim().toLowerCase()))
+    .map((p) => ({ org_id: orgId, name: p.name, city: p.city || null, units: p.units || 0, external_src: 'native' }));
+  if (!rows.length) return;
   const { error } = await supabase.from('properties').insert(rows);
   if (error) throw error;
 }
