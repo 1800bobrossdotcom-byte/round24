@@ -71,6 +71,18 @@ function queueMatchIdx(q, entry) {
     && (t.date ?? null) === date
     && (t.note ?? t.issue ?? null) === note);
 }
+
+// A content signature for a labor entry — used to drop an import-spine row that
+// is really the SAME hours as a timers-table row, so the office doesn't count
+// them twice. Keyed on the operator's FIRST name (so a pay-log "Gianni" matches
+// the seat "Gianni Arone"), the building, the date, and the hours. Two distinct
+// operators sharing a first name + exact building/date/hours is vanishingly rare
+// and far preferable to the double-count.
+function laborSig(t, techById, propById) {
+  const nm = ((techById?.[t.techId]?.name || t.techId || '') + '').toLowerCase().trim().split(/\s+/)[0];
+  const bld = ((t.propLabel || propById?.[t.propId]?.name || '') + '').toLowerCase().trim();
+  return `${nm}|${bld}|${t.date}|${Math.round((Number(t.durationHrs) || 0) * 100)}`;
+}
 // Cache write that can't crash an effect. Demo/local mode stashes inline data URLs
 // (photos, voice notes) that can blow past the ~5MB quota — a QuotaExceededError here
 // must degrade to "not cached", never throw out of the render/effect.
@@ -410,8 +422,12 @@ export function useStore() {
       ? spineTimers
       : (() => {
           const live = tsTable.map(tsRowToTimer);
-          const seen = new Set(live.map((t) => t.dbId || t.id));
-          return [...live, ...spineTimers.filter((t) => !seen.has(t.dbId || t.id))];
+          const seenId = new Set(live.map((t) => t.dbId || t.id));
+          // the SAME hours can exist in both stores (imported to the spine AND
+          // ingested to the timers table) with different ids — drop the spine copy
+          // by content signature too, or the office double-counts the labor.
+          const seenSig = new Set(live.map((t) => laborSig(t, techById, propById)));
+          return [...live, ...spineTimers.filter((t) => !seenId.has(t.dbId || t.id) && !seenSig.has(laborSig(t, techById, propById)))];
         })();
     // Cost-accounting gate: pivot-work hours logged against a work order that's
     // still PENDING office approval (or was DISMISSED/cancelled) don't roll into
@@ -422,7 +438,7 @@ export function useStore() {
       const st = t.workOrderId ? woStatusById[t.workOrderId] : undefined;
       return !(st === 'pending' || st === 'cancelled');
     });
-  }, [demoMode, tsTable, spineTimers, tsRowToTimer, woStatusById]);
+  }, [demoMode, tsTable, spineTimers, tsRowToTimer, woStatusById, techById, propById]);
 
   // resolve building labels → ids, creating a native property for any label
   // not already known. Returns { label: id } synchronously so an import can
@@ -968,9 +984,12 @@ export function useStore() {
     // populates (pay = hours × the operator's hourly rate).
     const withRate = tsTable.map((r) => (r.rate ? r : { ...r, rate: techById[r.techId]?.rate || 0 }));
     const seen = new Set(withRate.map((r) => r.dbId || r.id));
-    const extra = spine.filter((r) => !seen.has(r.dbId || r.id));
+    // also drop a spine (import) row that is the same hours as a table row — else
+    // the same labor is paid twice (once from each store). Signature dedup.
+    const seenSig = new Set(withRate.map((r) => laborSig(r, techById, propById)));
+    const extra = spine.filter((r) => !seen.has(r.dbId || r.id) && !seenSig.has(laborSig(r, techById, propById)));
     return [...withRate, ...extra];
-  }, [demoMode, tsTable, spineTimers, tsRowFromSpine, techById]);
+  }, [demoMode, tsTable, spineTimers, tsRowFromSpine, techById, propById]);
 
   const addTimesheet = useCallback(async (row) => {
     const local = {
