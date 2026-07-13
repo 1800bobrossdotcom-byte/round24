@@ -95,7 +95,15 @@ function Shell() {
   const { role, orgKind } = useAuth();
   const [isPlat, setIsPlat] = useState(false);
   useEffect(() => { isPlatformAdmin().then(setIsPlat).catch(() => {}); }, []);
-  const roleTabs = orgKind === 'owner' ? OWNER_TABS : TABS.filter((t) => t.roles.includes(role));
+  let roleTabs = orgKind === 'owner' ? OWNER_TABS : TABS.filter((t) => t.roles.includes(role));
+  // dual-hat access: an OFFICE user (admin/manager) who ALSO holds an operator seat
+  // does field work too — surface the Field timer for them even though it's a crew
+  // tool by default. Gated on the seat (store.operatorId), not just the role, so a
+  // normal admin without a seat never sees it. A tech already has Field via roles.
+  if (store.operatorId && !roleTabs.some((t) => t.id === 'field')) {
+    const fieldTab = TABS.find((t) => t.id === 'field');
+    if (fieldTab) roleTabs = [fieldTab, ...roleTabs];
+  }
   // an unrecognized/empty role (stale membership, a role added server-side we
   // don't map yet) must never leave the shell tab-less — Settings is the floor.
   const baseTabs = roleTabs.length ? roleTabs : TABS.filter((t) => t.id === 'settings');
