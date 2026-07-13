@@ -36,6 +36,14 @@ function loadLS(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
   catch { return fallback; }
 }
+// local YYYY-MM-DD `days` out from today. The office labor window's default upper
+// bound rides this so freshly logged work (dated today or a hair into tomorrow by
+// timezone) always lands inside the range the dashboards filter to.
+function isoAhead(days = 0) {
+  const d = new Date(); d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+const DEFAULT_RANGE = () => ({ from: '2026-05-11', to: isoAhead(14) });
 // Cache write that can't crash an effect. Demo/local mode stashes inline data URLs
 // (photos, voice notes) that can blow past the ~5MB quota — a QuotaExceededError here
 // must degrade to "not cached", never throw out of the render/effect.
@@ -108,15 +116,22 @@ export function useStore() {
   // only its own imported/real data.
   const demoMode = !isConfigured();
   const techsRaw = useMemo(() => [...(demoMode ? seed.techs : []), ...imported.techs], [imported.techs, demoMode]);
-  // allTimers is the labor spine the dashboards + per-door P&L read. In demo mode
-  // we also fold in a little verified portfolio labor so the owner's P&L and the
-  // "% verified on-site" stat populate out of the box.
-  const allTimers = useMemo(
+  // spineTimers = the imported/historical labor spine. In demo mode we also fold in
+  // a little verified portfolio labor so the owner's P&L and the "% verified on-site"
+  // stat populate out of the box. This is history only — live-logged work lands in
+  // the timers table (tsTable) and is merged into `allTimers` below.
+  const spineTimers = useMemo(
     () => [...(demoMode ? [...seed.timers, ...DEMO_PORTFOLIO_LABOR] : []), ...imported.timers],
     [imported.timers, demoMode],
   );
+  // tsTable = the editable, cloud-backed timers-table rows (CRUD target, loaded by
+  // the effect further down). Declared up here so the staff-facing `allTimers`
+  // merge below can fold live-logged work into the office dashboards.
+  const [tsTable, setTsTable] = useState([]);
+  const tsTableRef = useRef(tsTable);
+  useEffect(() => { tsTableRef.current = tsTable; }, [tsTable]);
 
-  const [range, setRange] = useState({ from: '2026-05-11', to: '2026-07-05' });
+  const [range, setRange] = useState(DEFAULT_RANGE);
 
   // ---- buildings discovered from imports (non-integrated shops start empty) ----
   const [impProps, setImpProps] = useState(() => (isConfigured() ? [] : loadLS(PROP_KEY, [])));
@@ -219,8 +234,10 @@ export function useStore() {
       else setImported({ timers: [], techs: [] });
       if (s && Array.isArray(s.props)) { impPropsRef.current = s.props; setImpProps(s.props); }
       else { impPropsRef.current = []; setImpProps([]); }
-      if (s?.range?.from && s?.range?.to) setRange(s.range);
-      else setRange({ from: '2026-05-11', to: '2026-07-05' });
+      // honor a saved window, but never let a stale saved upper bound hide work
+      // logged since — always extend `to` to at least today's default.
+      if (s?.range?.from && s?.range?.to) { const d = DEFAULT_RANGE(); setRange({ from: s.range.from, to: s.range.to > d.to ? s.range.to : d.to }); }
+      else setRange(DEFAULT_RANGE());
       setSalaries(s?.salaries && typeof s.salaries === 'object' ? s.salaries : {});
       setInactiveOps(s?.inactiveOps && typeof s.inactiveOps === 'object' ? s.inactiveOps : {});
       // per-building P&L config rides the same doc — cloud is authoritative when present
@@ -298,6 +315,39 @@ export function useStore() {
     return m;
   }, [techs, operators, inactiveOps]);
 
+  // normalized building name → id, so a timer-table row (which carries a propLabel,
+  // not a propId) resolves to the office building/P&L views' property.
+  const propByName = useMemo(() => {
+    const m = {};
+    for (const p of pickProperties) { const k = (p.name || '').toLowerCase().trim(); if (k && !(k in m)) m[k] = p.id; }
+    return m;
+  }, [pickProperties]);
+  // map a timer-table row into the spine timer shape the dashboards/P&L reduce
+  // over: resolve its building id from the label and its operator rate so labor $
+  // and the per-tech/per-door rollups count live-logged work.
+  const tsRowToTimer = useCallback((r) => ({
+    id: r.id, dbId: r.dbId || null,
+    techId: r.techId || r.operatorId || null,
+    propId: propByName[(r.propLabel || '').toLowerCase().trim()] || null,
+    propLabel: r.propLabel || 'Unassigned', unit: r.unit || '',
+    date: r.date, createdAt: r.createdAt || `${r.date}T09:00:00.000Z`,
+    category: r.category || 'general', issue: r.note || '', note: r.note || '',
+    durationHrs: Number(r.durationHrs) || 0,
+    rate: r.rate || techById[r.techId || r.operatorId]?.rate || 0,
+    workOrderId: r.workOrderId || null, verified: r.verified ?? null,
+    distanceM: r.distanceM ?? null, source: r.source || 'timer',
+  }), [propByName, techById]);
+  // allTimers = the labor the office dashboards + per-door P&L read. History (the
+  // import spine) PLUS live-logged timer-table work, deduped by dbId||id (table
+  // rows win). Demo has no cloud table, so it's spine-only. Without this merge the
+  // office views would show $0 while the crew's Timesheet showed the same hours.
+  const allTimers = useMemo(() => {
+    if (demoMode) return spineTimers;
+    const live = tsTable.map(tsRowToTimer);
+    const seen = new Set(live.map((t) => t.dbId || t.id));
+    return [...live, ...spineTimers.filter((t) => !seen.has(t.dbId || t.id))];
+  }, [demoMode, tsTable, spineTimers, tsRowToTimer]);
+
   // resolve building labels → ids, creating a native property for any label
   // not already known. Returns { label: id } synchronously so an import can
   // allocate immediately. Best-effort DB insert when connected.
@@ -369,8 +419,12 @@ export function useStore() {
     if (dates.length) {
       const min = dates.reduce((a, d) => (d < a ? d : a));
       const max = dates.reduce((a, d) => (d > a ? d : a));
-      setRange((r) => replace ? { from: min, to: max }
-        : { from: min < r.from ? min : r.from, to: max > r.to ? max : r.to });
+      // never let an import's last historical date clamp the window shut on
+      // work logged since — keep `to` at least at today's default.
+      const top = DEFAULT_RANGE().to;
+      const to = max > top ? max : top;
+      setRange((r) => replace ? { from: min, to }
+        : { from: min < r.from ? min : r.from, to: to > r.to ? to : r.to });
     }
   }, [demoMode]);
 
@@ -402,7 +456,7 @@ export function useStore() {
   const clearImported = useCallback(() => {
     setImported({ timers: [], techs: [] });   // persistence effects write the empty state up
     setImpProps([]); impPropsRef.current = [];
-    setRange({ from: '2026-05-11', to: '2026-07-05' });
+    setRange(DEFAULT_RANGE());
   }, []);
 
   // ---- work orders: DB-backed when connected, localStorage otherwise ----
@@ -676,12 +730,10 @@ export function useStore() {
   // ---- timesheet: editable history of logged time (crew self / office review) ----
   // The timers spine, but as rows people can correct — a timer ran long, wrong
   // unit, forgot the note. RLS scopes reads/writes: office all, tech their own.
-  // tsTable = the editable, cloud-backed timers-table rows (CRUD target). The
-  // imported pay-log spine (labor_state.imported) is folded in separately below
-  // so historicals show without being mistaken for editable table rows.
-  const [tsTable, setTsTable] = useState([]);
-  const tsTableRef = useRef(tsTable);
-  useEffect(() => { tsTableRef.current = tsTable; }, [tsTable]);
+  // tsTable (declared up top so the office `allTimers` merge can see it) is the
+  // editable, cloud-backed timers-table rows. The imported pay-log spine
+  // (labor_state.imported) is folded in separately so historicals show without
+  // being mistaken for editable table rows.
   const tsRowFromSpine = useCallback((t) => ({
     id: t.id, dbId: t.dbId || null, operatorId: null, techId: t.techId || null,
     date: t.date, createdAt: t.createdAt || `${t.date}T09:00:00.000Z`,
@@ -713,7 +765,7 @@ export function useStore() {
   // moment labor_state hydrates — no race with the one-shot listTimers load.
   // Table rows win on any id collision; spine rows are read-only history.
   const timesheet = useMemo(() => {
-    const spine = allTimers.map(tsRowFromSpine);
+    const spine = spineTimers.map(tsRowFromSpine);
     if (demoMode) return spine;               // demo has no cloud table
     // timer-table rows carry no rate; resolve each operator's rate so labor $
     // populates (pay = hours × the operator's hourly rate).
@@ -721,7 +773,7 @@ export function useStore() {
     const seen = new Set(withRate.map((r) => r.dbId || r.id));
     const extra = spine.filter((r) => !seen.has(r.dbId || r.id));
     return [...withRate, ...extra];
-  }, [demoMode, tsTable, allTimers, tsRowFromSpine, techById]);
+  }, [demoMode, tsTable, spineTimers, tsRowFromSpine, techById]);
 
   const addTimesheet = useCallback(async (row) => {
     const local = {
