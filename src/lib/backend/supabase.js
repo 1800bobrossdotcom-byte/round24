@@ -665,6 +665,9 @@ const purFromDb = (r) => ({
   vendor: r.vendor, amount: Number(r.amount), note: r.note,
   receiptPath: r.receipt_path, status: r.status, lineItems: r.line_items || null,
   submittedBy: r.submitted_by_label, createdAt: r.created_at,
+  // the receipt's actual purchase date (what the P&L should bucket by); falls
+  // back to the entry timestamp for legacy rows or an unscanned date.
+  date: r.purchase_date || (r.created_at ? String(r.created_at).slice(0, 10) : null),
 });
 
 export async function listPurchases(orgId) {
@@ -676,12 +679,19 @@ export async function listPurchases(orgId) {
 }
 
 export async function insertPurchase(orgId, p) {
-  const { data, error } = await supabase.from('purchases').insert({
+  const base = {
     org_id: orgId, work_order_id: p.workOrderId || null,
     property_label: p.propLabel || null, vendor: p.vendor || null,
     amount: p.amount, note: p.note || null, receipt_path: p.receiptPath || null,
     line_items: p.lineItems || null, submitted_by_label: p.submittedBy || null,
-  }).select().single();
+  };
+  // carry the scanned purchase date; tolerate a DB that hasn't run 0038 yet so
+  // receipts still save (they just fall back to created_at for month bucketing).
+  const withDate = { ...base, purchase_date: p.date || null };
+  let { data, error } = await supabase.from('purchases').insert(withDate).select().single();
+  if (error && /purchase_date|column/i.test(error.message || '')) {
+    ({ data, error } = await supabase.from('purchases').insert(base).select().single());
+  }
   if (error) throw error;
   return purFromDb(data);
 }

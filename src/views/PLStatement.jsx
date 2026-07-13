@@ -28,7 +28,7 @@ export default function PLStatement({ store }) {
   const dataMonths = useMemo(() => {
     const s = new Set();
     allTimers.forEach((t) => t.date && s.add(t.date.slice(0, 7)));
-    purchases.forEach((p) => p.createdAt && s.add(String(p.createdAt).slice(0, 7)));
+    purchases.forEach((p) => { const d = p.date || p.createdAt; if (d) s.add(String(d).slice(0, 7)); });
     return [...s].sort();
   }, [allTimers, purchases]);
   const [month, setMonth] = useState('');
@@ -38,7 +38,7 @@ export default function PLStatement({ store }) {
   const inMonth = (d) => (d || '').slice(0, 7) === month;
   const rent = useMemo(() => leasing.filter((u) => nk(u.building) === nk(building) && u.status === 'leased' && !(u.type === 'land' || u.status === 'held')).reduce((a, u) => a + (u.rent || 0), 0), [leasing, building]);
   const laborCost = useMemo(() => allTimers.filter((t) => inMonth(t.date) && nk(propById[t.propId]?.name || t.propLabel) === nk(building)).reduce((a, t) => a + (t.durationHrs || 0) * (t.rate || 0), 0), [allTimers, building, month, propById]);
-  const repairsCost = useMemo(() => purchases.filter((p) => (!p.status || p.status === 'approved') && inMonth(p.createdAt) && nk(p.propLabel) === nk(building)).reduce((a, p) => a + (p.amount || 0), 0), [purchases, building, month]);
+  const repairsCost = useMemo(() => purchases.filter((p) => (!p.status || p.status === 'approved') && inMonth(p.date || p.createdAt) && nk(p.propLabel) === nk(building)).reduce((a, p) => a + (p.amount || 0), 0), [purchases, building, month]);
 
   const cfg = plConfig[building] || {};
   const stmt = useMemo(() => buildStatement({ rent, laborCost, repairsCost, config: cfg }), [rent, laborCost, repairsCost, cfg]);

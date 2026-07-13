@@ -336,7 +336,7 @@ function PurRow({ p, isStaff, setPurchaseStatus, decided }) {
         <div className="lead">
           <div className="t">{p.vendor || 'Purchase'} — <span className="mono money">{fmtMoneyC(p.amount || 0)}</span></div>
           <div className="s">
-            {[p.propLabel, p.note, p.submittedBy && `by ${p.submittedBy}`, new Date(p.createdAt).toLocaleDateString()].filter(Boolean).join(' · ')}
+            {[p.propLabel, p.note, p.submittedBy && `by ${p.submittedBy}`, new Date(p.date ? `${p.date}T00:00:00` : p.createdAt).toLocaleDateString()].filter(Boolean).join(' · ')}
             {p.receiptPath && <> · <a onClick={viewReceipt} style={{ color: 'var(--info)', cursor: 'pointer' }}>receipt</a></>}
             {items.length > 0 && <> · <a onClick={() => setOpen((o) => !o)} style={{ color: 'var(--accent)', cursor: 'pointer' }}>{open ? 'hide items' : `${items.length} items`}</a></>}
             {receiptUrl === 'err' && ' (unavailable)'}

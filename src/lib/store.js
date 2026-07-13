@@ -660,15 +660,24 @@ export function useStore() {
     return local;
   }, [orgId, purBackend]);
 
-  const setPurchaseStatus = useCallback((id, status) => {
+  const setPurchaseStatus = useCallback(async (id, status) => {
+    const prev = purchasesRef.current.find((x) => x.id === id)?.status;
     setPurchases((l) => l.map((x) => (x.id === id ? { ...x, status } : x)));
     if (isConfigured() && purBackend === 'db' && !String(id).startsWith('pur_')) {
-      dbSetPurchaseStatus(id, status).catch(() => {});
+      try { await dbSetPurchaseStatus(id, status); }
+      catch {
+        // the cloud row didn't change — revert the optimistic flip so the P&L
+        // doesn't count (or drop) materials the DB still has at the old status,
+        // and a refresh won't silently undo what looked approved.
+        setPurchases((l) => l.map((x) => (x.id === id ? { ...x, status: prev } : x)));
+        return { ok: false };
+      }
     }
     if (isConfigured() && orgId && (status === 'approved' || status === 'rejected')) {
       const p = purchasesRef.current.find((x) => x.id === id);
       logAudit(orgId, status === 'approved' ? 'approve_purchase' : 'reject_purchase', p ? `${p.vendor || 'Purchase'} $${p.amount}` : String(id), myName);
     }
+    return { ok: true };
   }, [purBackend, orgId, myName]);
 
   // ---- cloud timers: sync stopped sessions; queue offline, flush later ----
