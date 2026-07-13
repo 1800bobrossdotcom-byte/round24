@@ -148,6 +148,13 @@ export function useStore() {
   const [tsTable, setTsTable] = useState([]);
   const tsTableRef = useRef(tsTable);
   useEffect(() => { tsTableRef.current = tsTable; }, [tsTable]);
+  // work orders (declared up top so the office labor merge can gate hours by their
+  // WO's approval status). A configured deployment is cloud-authoritative — don't
+  // seed from the shared localStorage cache (it could hold another org's rows).
+  const [workOrders, setWorkOrders] = useState(() => (isConfigured() ? [] : loadLS(WO_KEY, [])));
+  // WO id → status, so labor logged against a still-pending (or dismissed) work
+  // order can be held out of the cost accounting until the office approves it.
+  const woStatusById = useMemo(() => Object.fromEntries(workOrders.map((w) => [w.id, w.status])), [workOrders]);
 
   const [range, setRange] = useState(DEFAULT_RANGE);
 
@@ -360,11 +367,23 @@ export function useStore() {
   // rows win). Demo has no cloud table, so it's spine-only. Without this merge the
   // office views would show $0 while the crew's Timesheet showed the same hours.
   const allTimers = useMemo(() => {
-    if (demoMode) return spineTimers;
-    const live = tsTable.map(tsRowToTimer);
-    const seen = new Set(live.map((t) => t.dbId || t.id));
-    return [...live, ...spineTimers.filter((t) => !seen.has(t.dbId || t.id))];
-  }, [demoMode, tsTable, spineTimers, tsRowToTimer]);
+    const base = demoMode
+      ? spineTimers
+      : (() => {
+          const live = tsTable.map(tsRowToTimer);
+          const seen = new Set(live.map((t) => t.dbId || t.id));
+          return [...live, ...spineTimers.filter((t) => !seen.has(t.dbId || t.id))];
+        })();
+    // Cost-accounting gate: pivot-work hours logged against a work order that's
+    // still PENDING office approval (or was DISMISSED/cancelled) don't roll into
+    // the P&L or cost dashboards. They stay in the crew/office Timesheet (pay) via
+    // the `timesheet` memo — the worker is always paid; only the building-cost
+    // attribution waits for approval. Approving the WO makes the hours count.
+    return base.filter((t) => {
+      const st = t.workOrderId ? woStatusById[t.workOrderId] : undefined;
+      return !(st === 'pending' || st === 'cancelled');
+    });
+  }, [demoMode, tsTable, spineTimers, tsRowToTimer, woStatusById]);
 
   // resolve building labels → ids, creating a native property for any label
   // not already known. Returns { label: id } synchronously so an import can
@@ -478,9 +497,6 @@ export function useStore() {
   }, []);
 
   // ---- work orders: DB-backed when connected, localStorage otherwise ----
-  // a configured deployment is cloud-authoritative — don't seed from the shared
-  // localStorage cache (it could hold another org's or the demo's rows)
-  const [workOrders, setWorkOrders] = useState(() => (isConfigured() ? [] : loadLS(WO_KEY, [])));
   const [woBackend, setWoBackend] = useState('local'); // 'db' | 'local'
   useEffect(() => { if (woBackend !== 'db') saveLS(WO_KEY, workOrders); }, [workOrders, woBackend]);
 
