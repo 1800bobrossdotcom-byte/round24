@@ -13,7 +13,9 @@ function useLiveTimer(propById) {
   const run = s.running;
   if (!run) return null;
   const end = s.onBreak ? s.onBreak.start : Date.now();
-  const hrs = Math.round((Math.max(0, (end - run.start - (s.breakMs || 0)) / 1000) / 3600) * 100) / 100;
+  // mirror Field's elapsed exactly: add time banked before a pause (running.baseMs),
+  // else a resumed job reads short on the sheet until it's stopped.
+  const hrs = Math.round((Math.max(0, (end - run.start - (s.breakMs || 0) + (run.baseMs || 0)) / 1000) / 3600) * 100) / 100;
   if (!Number.isFinite(hrs)) return null; // corrupted timer (missing start) — don't poison sheet totals with NaN
   return {
     propLabel: propById[run.propId]?.name || run.propLabel || 'Unassigned',
