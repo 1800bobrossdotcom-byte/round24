@@ -995,12 +995,19 @@ export async function listProperties(orgId) {
 // the org's operators (people with a seat) — assignable for work even before
 // they have any pay-log history. Name is the plaintext display_name.
 export async function listOperators(orgId) {
-  const { data, error } = await supabase.from('operators')
-    .select('id, user_id, display_name, role, status').eq('org_id', orgId);
+  const sel = (cols) => supabase.from('operators').select(cols).eq('org_id', orgId);
+  let { data, error } = await sel('id, user_id, display_name, role, status, hourly_rate');
+  if (error && /hourly_rate|column/i.test(error.message || '')) ({ data, error } = await sel('id, user_id, display_name, role, status'));
   if (error) throw error;
   return (data || [])
     .filter((o) => (o.status || 'active') === 'active')
-    .map((o) => ({ id: o.id, userId: o.user_id || null, name: o.display_name || 'Operator', role: o.role || 'tech', status: o.status || 'active' }));
+    .map((o) => ({ id: o.id, userId: o.user_id || null, name: o.display_name || 'Operator', role: o.role || 'tech', status: o.status || 'active', rate: Number(o.hourly_rate) || 0 }));
+}
+
+// set an operator's hourly rate (staff-only via op_staff RLS). Plaintext numeric.
+export async function setOperatorRate(operatorId, rate) {
+  const { error } = await supabase.from('operators').update({ hourly_rate: rate == null ? null : Number(rate) }).eq('id', operatorId);
+  if (error) throw error;
 }
 
 export async function insertProperties(orgId, props) {

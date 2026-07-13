@@ -7,7 +7,8 @@ const GRAINS = ['day', 'week', 'month', 'year'];
 const money0 = (n) => (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString();
 
 export default function Team({ store, focus, navigate }) {
-  const { timers = [], techById = {}, techs = [], propById = {}, salaries = {}, setSalary, setOperatorActive, role } = store;
+  const { timers = [], techById = {}, techs = [], propById = {}, salaries = {}, setSalary, setOperatorActive, setOperatorRate, role } = store;
+  const [rateEdit, setRateEdit] = useState(null); // techId whose hourly rate is being set
   const isOffice = role === 'admin' || role === 'manager';
   const [salEdit, setSalEdit] = useState(null); // techId being edited
   const go = navigate || (() => {});
@@ -71,7 +72,10 @@ export default function Team({ store, focus, navigate }) {
           <div style={{ marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             {salEdit === r.key
               ? <SalaryEditor initial={sal} onCancel={() => setSalEdit(null)} onSave={(v) => { setSalary(r.key, v); setSalEdit(null); }} />
+              : rateEdit === r.key
+              ? <RateEditor initial={tech.rate} onCancel={() => setRateEdit(null)} onSave={(v) => { setOperatorRate?.(r.key, v); setRateEdit(null); }} />
               : <>
+                  {!sal && <button className="btn ghost sm" onClick={() => setRateEdit(r.key)}>{tech.rate > 0 ? `Rate · $${tech.rate}/hr` : 'Set hourly rate'}</button>}
                   <button className="btn ghost sm" onClick={() => setSalEdit(r.key)}>{sal ? 'Edit salary' : 'Set salaried'}</button>
                   {inactive
                     ? <button className="btn ghost sm" onClick={() => setOperatorActive?.(r.key, true)}>Reactivate</button>
@@ -147,6 +151,22 @@ export default function Team({ store, focus, navigate }) {
 }
 
 const salInput = { background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 9 };
+function RateEditor({ initial, onSave, onCancel }) {
+  const [rate, setRate] = useState(initial ? String(initial) : '');
+  const ok = parseFloat(rate) >= 0 && rate !== '';
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--surface-2)', padding: 10, borderRadius: 10 }}>
+      <span className="field-label" style={{ margin: 0 }}>Hourly rate</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span style={{ color: 'var(--text-dim)' }}>$</span>
+        <input style={{ ...salInput, width: 90 }} type="number" min="0" step="0.25" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="23" autoFocus />
+        <span style={{ color: 'var(--text-dim)' }}>/hr</span>
+      </div>
+      <button className="btn grad sm" disabled={!ok} onClick={() => onSave(parseFloat(rate))}>Save</button>
+      <button className="btn ghost sm" onClick={onCancel}>Cancel</button>
+    </div>
+  );
+}
 function SalaryEditor({ initial, onSave, onCancel }) {
   const [amount, setAmount] = useState(initial?.amount || '');
   const [period, setPeriod] = useState(initial?.period || 'year');

@@ -20,7 +20,7 @@ import {
   getLaborState, saveLaborState,
   listAvailability, setAvailability, subscribeAvailability, logAudit,
   fetchMyOperatorId, insertTimer, updateTimer, insertProperties, getUserSettings,
-  setPropertyLocation, listTimers, deleteTimer, wipeOrgData, listProperties, listOperators,
+  setPropertyLocation, listTimers, deleteTimer, wipeOrgData, listProperties, listOperators, setOperatorRate as setOperatorRateDb,
 } from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
@@ -162,6 +162,12 @@ export function useStore() {
     listOperators(orgId).then((r) => { if (alive) setOperators(r); }).catch(() => {});
     return () => { alive = false; };
   }, [orgId]);
+  // set an operator's hourly rate (office). Optimistic; persists to the operator row.
+  const setOperatorRate = useCallback(async (operatorId, rate) => {
+    const r = Number(rate) || 0;
+    setOperators((l) => l.map((o) => (o.id === operatorId ? { ...o, rate: r } : o)));
+    if (isConfigured()) { try { await setOperatorRateDb(operatorId, r); } catch { /* keep optimistic */ } }
+  }, []);
 
   // canonical operator list, tagged with employment status (inactive = departed).
   // techById stays complete so historical names always resolve; assignment
@@ -172,7 +178,7 @@ export function useStore() {
     const haveName = new Set(base.map((t) => (t.name || '').trim().toLowerCase()));
     const seats = operators
       .filter((o) => o.name && !haveName.has(o.name.trim().toLowerCase()))
-      .map((o) => ({ id: o.id, name: o.name, rate: 0, role: o.role || 'tech', active: !inactiveOps[o.id], operator: true }));
+      .map((o) => ({ id: o.id, name: o.name, rate: o.rate || 0, role: o.role || 'tech', active: !inactiveOps[o.id], operator: true }));
     return [...base, ...seats];
   }, [techsRaw, inactiveOps, operators]);
   const activeTechs = useMemo(() => techs.filter((t) => t.active), [techs]);
@@ -685,10 +691,13 @@ export function useStore() {
   const timesheet = useMemo(() => {
     const spine = allTimers.map(tsRowFromSpine);
     if (demoMode) return spine;               // demo has no cloud table
-    const seen = new Set(tsTable.map((r) => r.dbId || r.id));
+    // timer-table rows carry no rate; resolve each operator's rate so labor $
+    // populates (pay = hours × the operator's hourly rate).
+    const withRate = tsTable.map((r) => (r.rate ? r : { ...r, rate: techById[r.techId]?.rate || 0 }));
+    const seen = new Set(withRate.map((r) => r.dbId || r.id));
     const extra = spine.filter((r) => !seen.has(r.dbId || r.id));
-    return [...tsTable, ...extra];
-  }, [demoMode, tsTable, allTimers, tsRowFromSpine]);
+    return [...withRate, ...extra];
+  }, [demoMode, tsTable, allTimers, tsRowFromSpine, techById]);
 
   const addTimesheet = useCallback(async (row) => {
     const local = {
@@ -1196,6 +1205,7 @@ export function useStore() {
     cloudProps,
     techs,
     activeTechs,
+    operators, setOperatorRate,
     inactiveOps, setOperatorActive,
     allTimers,
     timers,
