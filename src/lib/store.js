@@ -21,6 +21,7 @@ import {
   listAvailability, setAvailability, subscribeAvailability, logAudit,
   fetchMyOperatorId, insertTimer, updateTimer, insertProperties, getUserSettings,
   setPropertyLocation, listTimers, deleteTimer, wipeOrgData, listProperties, listOperators, setOperatorRate as setOperatorRateDb,
+  listOrgMembers, enableFieldWork, disableFieldWork,
 } from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
@@ -196,12 +197,42 @@ export function useStore() {
   // the org's operators (people with a seat) — assignable for work even before
   // they log any pay-log hours. Cleared spine ≠ empty roster.
   const [operators, setOperators] = useState([]);
+  const refreshOperators = useCallback(() => {
+    if (!isConfigured() || !orgId) return;
+    listOperators(orgId).then(setOperators).catch(() => {});
+  }, [orgId]);
   useEffect(() => {
     if (!isConfigured() || !orgId) { setOperators([]); return undefined; }
     let alive = true;
     listOperators(orgId).then((r) => { if (alive) setOperators(r); }).catch(() => {});
     return () => { alive = false; };
   }, [orgId]);
+  // org members (login + role), staff-only — so the office can see who could also
+  // be given field access. Empty for crew (the RPC is gated to admin/manager).
+  const staffViewer = role === 'admin' || role === 'manager';
+  const [orgMembers, setOrgMembers] = useState([]);
+  const refreshMembers = useCallback(() => {
+    if (!isConfigured() || !orgId || !staffViewer) return;
+    listOrgMembers().then(setOrgMembers).catch(() => {});
+  }, [orgId, staffViewer]);
+  useEffect(() => {
+    if (!isConfigured() || !orgId || !staffViewer) { setOrgMembers([]); return undefined; }
+    let alive = true;
+    listOrgMembers().then((r) => { if (alive) setOrgMembers(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, [orgId, staffViewer]);
+  // enable/disable field work for a member: create/reactivate (or deactivate) their
+  // operator seat so one login can do both office and crew. Refreshes the roster.
+  const setMemberFieldWork = useCallback(async (userId, enabled, opts = {}) => {
+    if (!isConfigured() || !orgId || !userId) return { ok: false };
+    try {
+      if (enabled) await enableFieldWork(orgId, { userId, name: opts.name || null, rate: opts.rate ?? null });
+      else await disableFieldWork(orgId, userId);
+      refreshOperators();
+      try { logAudit(orgId, enabled ? 'enable_field_work' : 'disable_field_work', opts.name || userId, myName); } catch { /* audit best-effort */ }
+      return { ok: true };
+    } catch { return { ok: false }; }
+  }, [orgId, refreshOperators, myName]);
   // set an operator's hourly rate (office). Optimistic; persists to the operator row.
   const setOperatorRate = useCallback(async (operatorId, rate) => {
     const r = Number(rate) || 0;
@@ -1394,7 +1425,7 @@ export function useStore() {
     cloudProps,
     techs,
     activeTechs,
-    operators, setOperatorRate,
+    operators, setOperatorRate, orgMembers, setMemberFieldWork, refreshMembers,
     inactiveOps, setOperatorActive,
     allTimers,
     timers,

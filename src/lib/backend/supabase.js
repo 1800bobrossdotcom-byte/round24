@@ -592,11 +592,42 @@ export async function fetchMyOperatorId() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   // filter server-side so a large operator roster can never bury the caller's
-  // own row past a client-side limit (which would leave them unable to sync)
+  // own row past a client-side limit (which would leave them unable to sync).
+  // Ignore an inactive seat: a member whose field work was turned off keeps their
+  // history but can't log new time (and won't see the Field tab).
   const { data, error } = await supabase
-    .from('operators').select('id').eq('user_id', user.id).limit(1).maybeSingle();
+    .from('operators').select('id').eq('user_id', user.id).neq('status', 'inactive').limit(1).maybeSingle();
   if (error) throw error;
   return data?.id || null;
+}
+
+// give an office member (or reactivate) an operator seat so they can do field
+// work too — their labor then attributes to this seat in crew + office views.
+// Staff-only via the op_staff RLS policy (is_org_staff).
+export async function enableFieldWork(orgId, { userId, name, rate }) {
+  const { data: existing } = await supabase
+    .from('operators').select('id').eq('org_id', orgId).eq('user_id', userId).limit(1).maybeSingle();
+  if (existing?.id) {
+    const patch = { status: 'active' };
+    if (name) patch.display_name = name;
+    if (rate != null) patch.hourly_rate = Number(rate);
+    const { error } = await supabase.from('operators').update(patch).eq('id', existing.id);
+    if (error) throw error;
+    return existing.id;
+  }
+  const { data, error } = await supabase.from('operators').insert({
+    org_id: orgId, user_id: userId, display_name: name || null,
+    role: 'tech', status: 'active', hourly_rate: rate == null ? null : Number(rate),
+  }).select('id').single();
+  if (error) throw error;
+  return data.id;
+}
+
+// turn off field work for a member: deactivate their seat (keeps labor history).
+export async function disableFieldWork(orgId, userId) {
+  const { error } = await supabase.from('operators')
+    .update({ status: 'inactive' }).eq('org_id', orgId).eq('user_id', userId);
+  if (error) throw error;
 }
 
 export async function insertTimer(orgId, operatorId, t) {

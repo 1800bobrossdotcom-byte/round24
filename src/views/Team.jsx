@@ -7,7 +7,8 @@ const GRAINS = ['day', 'week', 'month', 'year'];
 const money0 = (n) => (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString();
 
 export default function Team({ store, focus, navigate }) {
-  const { timers = [], techById = {}, techs = [], propById = {}, salaries = {}, setSalary, setOperatorActive, setOperatorRate, role } = store;
+  const { timers = [], techById = {}, techs = [], propById = {}, salaries = {}, setSalary, setOperatorActive, setOperatorRate, role,
+    orgMembers = [], operators = [], setMemberFieldWork } = store;
   const [rateEdit, setRateEdit] = useState(null); // techId whose hourly rate is being set
   const isOffice = role === 'admin' || role === 'manager';
   const [salEdit, setSalEdit] = useState(null); // techId being edited
@@ -23,6 +24,9 @@ export default function Team({ store, focus, navigate }) {
   const allRows = byTech(timers).sort((a, b) => b.cost - a.cost);
   const rows = allRows.filter((r) => !isInactive(r.key));
   const goneRows = allRows.filter((r) => isInactive(r.key));
+  // office logins (admin/manager) — candidates to also get field access. Crew
+  // (tech) already have the Field timer, so they're not listed here.
+  const officeMembers = orgMembers.filter((m) => m.role === 'admin' || m.role === 'manager');
 
   // opening from a Dashboard drill-down: scroll to the operator and flash it
   useEffect(() => {
@@ -145,7 +149,51 @@ export default function Team({ store, focus, navigate }) {
           {goneRows.map((r, i) => renderOperator(r, i, true))}
         </>
       )}
+      {isOffice && officeMembers.length > 0 && (
+        <div className="card" style={{ marginTop: 24 }}>
+          <span className="field-label" style={{ display: 'block', marginBottom: 4 }}>Field access · office people who also work the field</span>
+          <p className="note" style={{ margin: '0 0 12px' }}>
+            Turn this on and an office login also gets the crew Field timer — one account for someone who dispatches <em>and</em> turns a wrench. Their logged time attributes to them in both views.
+          </p>
+          {officeMembers.map((m) => (
+            <FieldAccessRow
+              key={m.userId}
+              member={m}
+              seat={operators.find((o) => o.userId === m.userId) || null}
+              onEnable={(name, rate) => setMemberFieldWork?.(m.userId, true, { name, rate })}
+              onDisable={() => setMemberFieldWork?.(m.userId, false)}
+            />
+          ))}
+        </div>
+      )}
+
       <p className="note">Every operator's tab in one place — daily through yearly, no per-person spreadsheet, no "PAID BY BRENT" reconciliation notes. Salaried or hourly, the cost lands on the right doors. Export to payroll is one tap (coming in the build).</p>
+    </div>
+  );
+}
+
+// one office member's field-access toggle: enable creates/reactivates their
+// operator seat (with a rate); turning off deactivates it (history preserved).
+function FieldAccessRow({ member, seat, onEnable, onDisable }) {
+  const [rate, setRate] = useState('');
+  const [busy, setBusy] = useState(false);
+  const name = member.name || (member.email ? member.email.split('@')[0] : 'Member');
+  const on = seat && seat.status !== 'inactive';
+  return (
+    <div className="row" style={{ alignItems: 'center' }}>
+      <div className="lead">
+        <div className="t">{name} <span className="chip" style={{ marginLeft: 6, textTransform: 'capitalize' }}>{member.role}</span></div>
+        <div className="s">{member.email}{on ? ` · field work on${seat.rate ? ` · $${seat.rate}/hr` : ''}` : ''}</div>
+      </div>
+      {on ? (
+        <button className="btn ghost sm" disabled={busy} onClick={async () => { setBusy(true); await onDisable(); setBusy(false); }}>Turn off</button>
+      ) : (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span style={{ color: 'var(--text-dim)' }}>$</span>
+          <input style={{ ...salInput, width: 66 }} type="number" min="0" step="0.25" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="rate" />
+          <button className="btn grad sm" disabled={busy} onClick={async () => { setBusy(true); await onEnable(name, rate === '' ? null : parseFloat(rate)); setBusy(false); }}>Enable field work</button>
+        </div>
+      )}
     </div>
   );
 }
