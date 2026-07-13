@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { fmtMoneyC } from '../lib/rollups.js';
+import { categoryForText } from '../lib/taskTags.js';
 import { IcMic, IcX, IcPlay, IcReceipt, IcCamera, IcDoc, IcClip, IcSparkle, IcCheck } from '../components/ui.jsx';
 import StoredImage from '../components/StoredImage.jsx';
 import Lightbox from '../components/Lightbox.jsx';
@@ -103,8 +104,10 @@ const inputStyle = {
 export default function WorkOrders({ store, focus }) {
   // only ACTIVE operators are assignable; departed ones keep their history but
   // can't take new work (falls back to techs so nothing breaks pre-status-tag).
-  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, addWoAttachment, pickProperties: properties = [], activeTechs, techs: allTechs = [], role, woBackend, purchases = [], vendors = [] } = store;
+  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, addWoAttachment, addTimesheet, pickProperties: properties = [], activeTechs, techs: allTechs = [], role, woBackend, purchases = [], vendors = [] } = store;
   const techs = activeTechs || allTechs;
+  // typing a #tag in the task auto-sets the category bucket (#mopping → turn)
+  const setTask = (v) => setDraft((d) => { const c = categoryForText(v); return { ...d, task: v, ...(c ? { category: c } : {}) }; });
   const receiptsByWo = useMemo(() => {
     const m = {};
     for (const p of purchases) if (p.workOrderId) (m[p.workOrderId] ||= []).push(p);
@@ -196,6 +199,18 @@ export default function WorkOrders({ store, focus }) {
       const wo = await addWorkOrder(draft);
       // a field report requires a photo — attach it to the new work order
       if (draft.photoFile && wo?.id) { try { await addWoAttachment(wo.id, draft.photoFile); } catch { /* WO still created */ } }
+      // logged pivot work: land the hours as a timesheet entry tied to this WO,
+      // so the office approves the work and its labor together
+      if (draft.logWork && Number(draft.hours) > 0 && addTimesheet) {
+        try {
+          await addTimesheet({
+            date: new Date().toISOString().slice(0, 10),
+            propLabel: draft.propLabel || 'Unassigned', unit: draft.unit || '',
+            category: draft.category || 'general', note: draft.task || '',
+            durationHrs: Number(draft.hours), workOrderId: wo?.id || null,
+          });
+        } catch { /* WO still created; hours can be added from the timesheet */ }
+      }
       if (draft.photoPreview) URL.revokeObjectURL(draft.photoPreview);
       setDraft(null); setLiveText('');
     } finally { setSaving(false); }
@@ -232,30 +247,36 @@ export default function WorkOrders({ store, focus }) {
         </div>
       )}
 
-      {/* crew: report a repair from the field → a pending work order office triages */}
+      {/* crew: report a repair, or log unplanned work they pivoted to — both land
+          as a pending work order the office approves (log work carries its hours). */}
       {canReport && !draft && (
         <div className="card" style={{ marginBottom: 'var(--gap)' }}>
-          <button className="btn grad" style={{ width: '100%' }} onClick={() => setDraft({ task: '', detail: '', category: 'general', source: 'field', status: 'pending', priority: 3, report: true })}>
-            + Report a repair
-          </button>
-          <p className="note" style={{ marginTop: 8, marginBottom: 0 }}>Found something that needs fixing? Report it — office gets it, assigns the vendor, and it lands back on your list.</p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button className="btn grad" style={{ flex: 1, minWidth: 150 }} onClick={() => setDraft({ task: '', detail: '', category: 'general', source: 'field', status: 'pending', priority: 3, report: true })}>
+              + Report a repair
+            </button>
+            <button className="btn ghost" style={{ flex: 1, minWidth: 150 }} onClick={() => setDraft({ task: '', detail: '', category: 'general', source: 'field_log', status: 'pending', priority: 3, logWork: true, hours: '' })}>
+              + Log work I did
+            </button>
+          </div>
+          <p className="note" style={{ marginTop: 8, marginBottom: 0 }}>Found something to fix? <b>Report a repair</b> — office assigns the vendor. Pivoted to a job with no order? <b>Log work I did</b> — it routes to the office for approval, with your hours.</p>
         </div>
       )}
 
       {draft && (
         <div className="card" style={{ marginBottom: 'var(--gap)' }}>
-          <span className="field-label">{draft.report ? 'Report a repair' : draft.source === 'voice' ? 'Heard it — check the details' : 'New work order'}</span>
+          <span className="field-label">{draft.report ? 'Report a repair' : draft.logWork ? 'Log work I did' : draft.source === 'voice' ? 'Heard it — check the details' : 'New work order'}</span>
           {draft.transcript && (
             <p className="note" style={{ marginTop: 2, marginBottom: 12, fontStyle: 'italic', maxHeight: 72, overflowY: 'auto' }}>“{draft.transcript}”</p>
           )}
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span className="field-label" style={{ margin: 0 }}>{draft.report ? 'What’s wrong' : 'Task'}</span>
+            <span className="field-label" style={{ margin: 0 }}>{draft.report ? 'What’s wrong' : draft.logWork ? 'What you did' : 'Task'}</span>
             <button className={'btn sm ' + (dictating === 'task' ? 'stop' : 'ghost')} style={{ width: 'auto' }} onClick={() => startDictation('task')}>
               <IcMic width={13} height={13} /> {dictating === 'task' ? 'Listening…' : 'Speak'}
             </button>
           </div>
-          <input style={inputStyle} value={draft.task} onChange={(e) => setDraft({ ...draft, task: e.target.value })} placeholder={draft.report ? 'e.g. garage door won’t shut' : 'what needs doing'} />
+          <input style={inputStyle} value={draft.task} onChange={(e) => setTask(e.target.value)} placeholder={draft.report ? 'e.g. garage door won’t shut' : draft.logWork ? 'e.g. #mopping + #trash haul, 2nd floor' : 'what needs doing — # to tag'} />
           <div style={{ height: 12 }} />
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -317,6 +338,15 @@ export default function WorkOrders({ store, focus }) {
               <button key={c} className={draft.category === c ? 'on' : ''} onClick={() => setDraft({ ...draft, category: c })}>{c}</button>
             ))}
           </div>
+
+          {draft.logWork && (
+            <>
+              <div className="field-label" style={{ marginTop: 12 }}>Hours worked</div>
+              <input style={{ ...inputStyle, maxWidth: 160 }} type="number" step="0.25" min="0" inputMode="decimal"
+                value={draft.hours || ''} onChange={(e) => setDraft({ ...draft, hours: e.target.value })} placeholder="e.g. 1.5" />
+              <p className="note" style={{ margin: '6px 0 0' }}>These hours route to the office with the work order — approved together.</p>
+            </>
+          )}
 
           <div className="field-label" style={{ marginTop: 12 }}>Priority</div>
           <div className="pick">

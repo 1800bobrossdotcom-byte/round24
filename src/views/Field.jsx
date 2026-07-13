@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { fmtHrs } from '../lib/rollups.js';
 import { categoryMedian } from '../lib/rollups.js';
+import { categoryForText, tagSegments } from '../lib/taskTags.js';
 import { WO_PRIORITIES, byPriority } from './WorkOrders.jsx';
 import { getPosition, geofenceCheck, fmtDistance } from '../lib/geo.js';
 import { useVoiceCommands, speak } from '../lib/voice.js';
@@ -49,6 +50,9 @@ export default function Field({ store }) {
   const [prop, setProp] = useState(properties[0]?.id || '');
   const [unit, setUnit] = useState('');
   const [cat, setCat] = useState('plumbing');
+  const [task, setTask] = useState('');   // free-text note; #tags auto-set the category
+  // typing a recognized #tag ("#mopping") jumps the category to its bucket
+  const onTaskChange = (v) => { setTask(v); const c = categoryForText(v); if (c) setCat(c); };
   // "logged this session" persists across reloads, but prune to the last week
   // (and cap the size) so it doesn't show stale jobs or grow unbounded on-device.
   const [log, setLog] = useState(() => {
@@ -147,8 +151,8 @@ export default function Field({ store }) {
   const resetBreaks = () => { setOnBreak(null); setBreakMs(0); setBreakNow(0); setLastNudge(0); setLunchNudged(false); };
   const start = () => {
     const selected = properties.find((x) => x.id === prop);
-    setRunning({ propId: prop, unit: unit || '—', category: cat, start: Date.now(), rate: me.rate });
-    setElapsed(0); resetBreaks();
+    setRunning({ propId: prop, unit: unit || '—', category: cat, start: Date.now(), rate: me.rate, woTask: task.trim() || null });
+    setElapsed(0); resetBreaks(); setTask('');
     capturePunch(selected);
   };
   const stop = async () => {
@@ -416,6 +420,19 @@ export default function Field({ store }) {
           <div className="field-label">Unit</div>
           <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="e.g. 4B"
             style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--mono)', fontSize: 14, padding: 12, borderRadius: 10, marginBottom: 16 }} />
+
+          <div className="field-label">What are you on? <span style={{ color: 'var(--text-faint)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— type <b style={{ color: 'var(--accent)' }}>#</b> to tag (#rounds, #mopping, #spotcheck…)</span></div>
+          <input value={task} onChange={(e) => onTaskChange(e.target.value)} placeholder="e.g. #rounds + trash haul on the 2nd floor"
+            style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 12, borderRadius: 10, marginBottom: task ? 8 : 16 }} />
+          {task && tagSegments(task).some((s) => s.tag) && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+              {tagSegments(task).filter((s) => s.tag).map((s, i) => (
+                <span key={i} className="chip" style={{ borderColor: s.category ? 'var(--accent)' : 'var(--line)', color: s.category ? 'var(--accent)' : 'var(--text-dim)' }}>
+                  #{s.tag}{s.category && <span style={{ color: 'var(--text-faint)', marginLeft: 5 }}>→ {s.category}</span>}
+                </span>
+              ))}
+            </div>
+          )}
 
           <div className="field-label">Category</div>
           <div className="pick" style={{ marginBottom: 8 }}>
