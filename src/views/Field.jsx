@@ -51,6 +51,10 @@ export default function Field({ store }) {
   // jobs parked mid-work (a priority call came in, or it spans days) — kept with
   // their banked time so they can be resumed later, even after a reload.
   const [paused, setPaused] = useState(() => loadTimer().paused ?? []);
+  // always-fresh mirror of the parked-jobs list, so a mutation reads the latest
+  // array synchronously even if it fires from a stale render closure.
+  const pausedRef = useRef(paused);
+  useEffect(() => { pausedRef.current = paused; }, [paused]);
   const [prop, setProp] = useState(properties[0]?.id || '');
   const [unit, setUnit] = useState('');
   const [cat, setCat] = useState('plumbing');
@@ -102,6 +106,20 @@ export default function Field({ store }) {
     localStorage.setItem(TIMER_KEY, JSON.stringify({ running, log, onBreak, breakMs, lastNudge, lunchNudged, punch, paused }));
   }, [running, log, onBreak, breakMs, lastNudge, lunchNudged, punch, paused]);
 
+  // write the timer snapshot to localStorage SYNCHRONOUSLY. The reactive effect
+  // above also persists, but it flushes after paint — on mobile the tab can be
+  // suspended or reloaded in that gap, dropping a just-parked job. Parked jobs
+  // carry banked labor, so persist the instant they change. `over` supplies the
+  // new values (the closure's state is still the pre-update value).
+  const writeTimerNow = (over) => {
+    try {
+      localStorage.setItem(TIMER_KEY, JSON.stringify({
+        running, log, onBreak, breakMs, lastNudge, lunchNudged, punch,
+        paused: pausedRef.current, ...over,   // freshest parked list unless overridden
+      }));
+    } catch { /* quota/serialization — the reactive effect will retry */ }
+  };
+
   // broadcast live presence so the office board sees this timer tick in real time
   useEffect(() => {
     if (!running) { store.syncLivePresence(null); return; }
@@ -135,11 +153,13 @@ export default function Field({ store }) {
   const startFromWo = (w) => {
     const p = properties.find((x) => x.name === w.propLabel);
     setWoStatus(w.id, 'in_progress');
-    setRunning({
+    const newRunning = {
       propId: p?.id || properties[0]?.id || '', unit: w.unit || '—',
-      category: w.category || 'general', start: Date.now(), woId: w.id, woTask: w.task, rate: me.rate,
-    });
+      category: w.category || 'general', start: Date.now(), woId: w.id, woTask: w.task, rate: me.rate, baseMs: 0,
+    };
+    setRunning(newRunning);
     setElapsed(0); resetBreaks();
+    writeTimerNow({ running: newRunning, onBreak: null, breakMs: 0, lastNudge: 0, lunchNudged: false, punch: null });
     capturePunch(p || properties[0]);
   };
 
@@ -171,8 +191,10 @@ export default function Field({ store }) {
   const resetBreaks = () => { setOnBreak(null); setBreakMs(0); setBreakNow(0); setLastNudge(0); setLunchNudged(false); };
   const start = () => {
     const selected = properties.find((x) => x.id === prop);
-    setRunning({ propId: prop, unit: unit || '—', category: cat, start: Date.now(), rate: me.rate, woTask: task.trim() || null, baseMs: 0 });
+    const newRunning = { propId: prop, unit: unit || '—', category: cat, start: Date.now(), rate: me.rate, woTask: task.trim() || null, baseMs: 0 };
+    setRunning(newRunning);
     setElapsed(0); resetBreaks(); setTask('');
+    writeTimerNow({ running: newRunning, onBreak: null, breakMs: 0, lastNudge: 0, lunchNudged: false, punch: null });
     capturePunch(selected);
   };
   // park the running job with its banked time so a priority call (or a multi-day
@@ -183,23 +205,41 @@ export default function Field({ store }) {
     const end = onBreak ? onBreak.start : Date.now();
     const banked = Math.max(0, end - running.start - breakMs + (running.baseMs || 0));
     const p = properties.find((x) => x.id === running.propId);
-    setPaused((l) => [{
-      id: 'pj_' + Date.now(), propId: running.propId, unit: running.unit, category: running.category,
+    const job = {
+      id: 'pj_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      propId: running.propId, unit: running.unit, category: running.category,
       woId: running.woId || null, woTask: running.woTask || null, rate: running.rate || 0,
       baseMs: banked, propName: p?.name || 'Unassigned', at: Date.now(),
-    }, ...l]);
+    };
+    // prepend to the FRESH list (ref, not the render closure) so parking a second
+    // job never drops the first, and persist it synchronously so a reload can't.
+    const next = [job, ...pausedRef.current];
+    pausedRef.current = next;
+    setPaused(next);
     setRunning(null); setElapsed(0); resetBreaks(); setPunch(null);
+    writeTimerNow({ paused: next, running: null, onBreak: null, breakMs: 0, lastNudge: 0, lunchNudged: false, punch: null });
   };
   // pick a parked job back up — its banked time carries over, the clock continues.
   const resumeJob = (pj) => {
     if (running) return;                 // finish or pause the current job first
     const selected = properties.find((x) => x.id === pj.propId);
-    setRunning({ propId: pj.propId, unit: pj.unit, category: pj.category, start: Date.now(), rate: pj.rate || me.rate, woId: pj.woId || null, woTask: pj.woTask || null, baseMs: pj.baseMs || 0 });
+    const newRunning = { propId: pj.propId, unit: pj.unit, category: pj.category, start: Date.now(), rate: pj.rate || me.rate, woId: pj.woId || null, woTask: pj.woTask || null, baseMs: pj.baseMs || 0 };
+    const next = pausedRef.current.filter((x) => x.id !== pj.id);
+    pausedRef.current = next;
+    setRunning(newRunning);
     setElapsed((pj.baseMs || 0) / 1000); resetBreaks();
-    setPaused((l) => l.filter((x) => x.id !== pj.id));
+    setPaused(next);
+    // persist synchronously: the job is now live, no longer parked — a crash here
+    // must not leave it BOTH running and parked (a double-count on next reload).
+    writeTimerNow({ running: newRunning, paused: next, onBreak: null, breakMs: 0, lastNudge: 0, lunchNudged: false });
     capturePunch(selected);
   };
-  const discardPaused = (id) => setPaused((l) => l.filter((x) => x.id !== id));
+  const discardPaused = (id) => {
+    const next = pausedRef.current.filter((x) => x.id !== id);
+    pausedRef.current = next;
+    setPaused(next);
+    writeTimerNow({ paused: next });
+  };
   const stop = async () => {
     if (!running) return;             // guard a double-tap from logging the job twice
     punchTokenRef.current++;          // invalidate any GPS capture still in flight
@@ -208,8 +248,12 @@ export default function Field({ store }) {
     const pName = p?.name || 'Unassigned';
     const punchAtStop = punch;
     const entryId = Date.now();
-    setLog([{ id: entryId, at: entryId, prop: pName, unit: running.unit, category: running.category, hrs, cost: hrs * me.rate, verified: punchAtStop?.verified ?? null, distance: punchAtStop?.distance ?? null, sync: 'saving' }, ...log]);
+    const newLog = [{ id: entryId, at: entryId, prop: pName, unit: running.unit, category: running.category, hrs, cost: hrs * me.rate, verified: punchAtStop?.verified ?? null, distance: punchAtStop?.distance ?? null, sync: 'saving' }, ...log];
+    setLog(newLog);
     setRunning(null); setElapsed(0); resetBreaks(); setPunch(null);
+    // persist the cleared running + the logged entry synchronously, so a reload
+    // right after stopping can't resurrect the running job and log it twice.
+    writeTimerNow({ running: null, onBreak: null, breakMs: 0, lastNudge: 0, lunchNudged: false, punch: null, log: newLog });
     // land the hours in the cloud so management sees them — queued if offline.
     // The verified punch rides along so the office/owner P&L sees on-site labor.
     const res = await store.addTimerEntry({
