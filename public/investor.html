@@ -182,6 +182,25 @@
   @media (prefers-reduced-motion:no-preference){ .reveal{ transition:opacity .6s ease, transform .6s cubic-bezier(.2,.7,.2,1); } }
   .reveal.in { opacity:1; transform:none; }
   @media (prefers-reduced-motion:reduce){ .reveal{ opacity:1; transform:none; } }
+
+  /* comparison table (the landscape) */
+  .compare-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:4px; }
+  .compare { width:100%; border-collapse:collapse; font-size:0.92rem; min-width:660px; }
+  .compare th, .compare td { text-align:left; padding:14px 16px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .compare thead th { font-family:var(--mono); font-size:0.66rem; letter-spacing:0.13em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+  .compare td { color:var(--muted); }
+  .compare tbody tr:last-child td { border-bottom:0; }
+  .compare .who { font-weight:750; color:var(--ink); }
+  .compare .who .sub { display:block; font-family:var(--mono); font-size:0.72rem; color:var(--faint); font-weight:400; margin-top:4px; letter-spacing:0.02em; }
+  .compare tr.us { background:var(--accent-soft); }
+  .compare tr.us .who { color:var(--accent-ink); }
+  .compare tr.us td { color:var(--ink); }
+
+  /* team + backing */
+  .team-grid { display:grid; grid-template-columns:1fr; gap:16px; max-width:560px; }
+  .backing { margin-top:28px; border-left:2px solid var(--accent); padding-left:20px; }
+  .backing h3 { margin-bottom:8px; }
+  .backing p { color:var(--muted); max-width:64ch; }
 </style>
 </head>
 <body>
@@ -377,14 +396,100 @@
 
 <div class="wrap"><div class="rule" aria-hidden="true"></div></div>
 
-<section class="wrap close">
-  <p class="eyebrow reveal">06 — The opportunity</p>
-  <h2 class="reveal" style="margin-top:14px">Property management is enormous, fragmented, and still run on spreadsheets. Caliper measures it true.</h2>
-  <p class="lede reveal" style="margin-top:18px">The wedge is labor — the largest controllable cost in maintenance, and the one nobody can currently see per door. From there, Caliper owns the operational ledger every downstream decision depends on: pricing, staffing, renewals, and the sale of the building itself.</p>
-  <div class="cta-row reveal">
-    <a class="btn pri" href="https://caliper.solutions">caliper.solutions →</a>
-    <a class="btn" href="mailto:1800bobrossdotcom@gmail.com">Talk to the founder</a>
+<section class="wrap">
+  <p class="eyebrow reveal">06 — The market</p>
+  <h2 class="reveal" style="margin-top:14px">Fragmented, spreadsheet-bound, and priced per door.</h2>
+  <p class="lede reveal" style="margin-top:18px">The wedge is labor — the largest controllable cost in maintenance, and the one nobody can currently see per door. Caliper prices to the door, so the model <em>is</em> the market: every door under management is a unit of revenue.</p>
+  <div class="moat" style="margin-top:30px">
+    <div class="m reveal"><div class="h"><span>◱</span>Who it's for</div><p>Small-to-mid property-management companies that run their own in-house maintenance crews — past the spreadsheet, below the enterprise platforms built for institutional multifamily.</p></div>
+    <div class="m reveal"><div class="h"><span>$</span>Priced per door</div><p>Published, not quoted. Nobody in this category posts pricing; Caliper does — set below the labor leakage the allocation engine surfaces in the first month.</p></div>
+    <div class="m reveal"><div class="h"><span>⟋</span>Entry point</div><p>The pain begins where the spreadsheet breaks — the moment an operator can no longer hold the allocation in their head. That threshold is the qualifying question and the first filter.</p></div>
   </div>
+  <div class="split" style="margin-top:34px">
+    <div class="plate pos reveal">
+      <h3>Where it expands</h3>
+      <ul>
+        <li><span class="m">→</span><span><strong>Per-seat, upward.</strong> Crew seats land the account; office and owner seats carry the margin.</span></li>
+        <li><span class="m">→</span><span><strong>White-label.</strong> A management company resells Caliper to the owners it serves — a channel, not a customer.</span></li>
+        <li><span class="m">→</span><span><strong>Portfolio.</strong> Those owners are the same buyer, one layer up, with the same unanswered question.</span></li>
+        <li><span class="m">→</span><span><strong>The benchmark.</strong> Once enough shops run the ledger, Caliper knows what a job <em>should</em> cost — the one asset in this category that compounds.</span></li>
+      </ul>
+    </div>
+    <div class="plate reveal">
+      <h3>Why now</h3>
+      <ul>
+        <li><span class="m">·</span><span>Crews carry smartphones — the field is finally instrumentable.</span></li>
+        <li><span class="m">·</span><span>Labor is the cost line under the most pressure and the least measured.</span></li>
+        <li><span class="m">·</span><span>Systems of record own the books but treat the field as an afterthought, leaving the operational ledger open.</span></li>
+      </ul>
+    </div>
+  </div>
+  <p class="reveal" style="margin-top:26px; color:var(--faint); font-size:0.82rem">Market framing is our own bottom-up view of the category — illustrative, not a forecast.</p>
+</section>
+
+<div class="wrap"><div class="rule" aria-hidden="true"></div></div>
+
+<section class="wrap">
+  <p class="eyebrow reveal">07 — The landscape</p>
+  <h2 class="reveal" style="margin-top:14px">Everyone else coordinates the work. Nobody costs it.</h2>
+  <p class="lede reveal" style="margin-top:18px">The category is crowded at both ends and empty in the middle. Vendor-dispatch tools serve companies that outsource repairs; enterprise platforms serve institutional multifamily. Neither closes the loop between the hour worked and the door it was worked on.</p>
+  <div class="compare-wrap reveal" style="margin-top:28px">
+    <table class="compare">
+      <thead><tr><th>Category</th><th>Who they serve</th><th>What they own</th><th>The gap</th></tr></thead>
+      <tbody>
+        <tr><td class="who">Coordination tools<span class="sub">Property Meld · Latchel</span></td><td>Managers who outsource repairs</td><td>Vendor dispatch, resident comms</td><td>No in-house crew tools. Spend read from invoices, not the field.</td></tr>
+        <tr><td class="who">Enterprise multifamily<span class="sub">AppWork · Accolade</span></td><td>Institutional, centralized portfolios</td><td>Technician productivity, turns</td><td>Labor without materials. Enterprise-only. Quote-based pricing.</td></tr>
+        <tr><td class="who">Systems of record<span class="sub">Rent Manager · AppFolio · Yardi</span></td><td>Their installed base</td><td>Accounting, leases, trust</td><td>The field is an afterthought. We integrate — we don't compete.</td></tr>
+        <tr class="us"><td class="who">Caliper</td><td>Small-to-mid operators with in-house crews</td><td>The allocation engine — labor + materials, per door</td><td>Published pricing. White-label. Built by the crew, for the crew.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="reveal" style="margin-top:22px; max-width:64ch; color:var(--muted)">We don't replace the accounting system — that fight is a decade long and a liability. We own the operational ledger it depends on, and we sync.</p>
+</section>
+
+<div class="wrap"><div class="rule" aria-hidden="true"></div></div>
+
+<section class="wrap">
+  <p class="eyebrow reveal">08 — The team</p>
+  <h2 class="reveal" style="margin-top:14px">Built by the crew that had the problem.</h2>
+  <p class="lede reveal" style="margin-top:18px">Most maintenance software is built by people who have never turned a unit. Caliper started on a maintenance crew — with the spreadsheet that wouldn't reconcile, and a founder who decided to fix it.</p>
+  <div class="team-grid" style="margin-top:26px">
+    <div class="persona reveal">
+      <span class="tag">Founder</span>
+      <h3>Gianni Arone</h3>
+      <p>Came up on a property-maintenance crew — the timers, the receipts, the pay logs that never agreed. Taught himself to build, then built the system he needed. Owns product, architecture, and the allocation engine.</p>
+    </div>
+  </div>
+  <div class="backing reveal">
+    <h3>Backed by the operation it was built inside</h3>
+    <p>A working multi-building property-management company funded the build, contributed its entire hand-kept workflow, and runs Caliper in production today — the design partner, the proving ground, and the first reference. Not a hypothetical customer; an operating one.</p>
+  </div>
+</section>
+
+<div class="wrap"><div class="rule" aria-hidden="true"></div></div>
+
+<section class="wrap close">
+  <p class="eyebrow reveal">09 — The ask</p>
+  <h2 class="reveal" style="margin-top:14px">From a working product to a paying one.</h2>
+  <p class="lede reveal" style="margin-top:18px">The build risk is behind us — the hard part, the allocation engine, exists and runs on real data. We're raising a pre-seed round to fund distribution: getting Caliper into the hands of the operators still reconciling by hand.</p>
+  <div class="moat" style="margin-top:30px">
+    <div class="m reveal"><div class="h"><span>⚙</span>Engineering</div><p>Rent Manager sync to GA, receipt OCR at scale, the pay-period lock, and the reliability a system of record earns the right to be trusted with.</p></div>
+    <div class="m reveal"><div class="h"><span>◎</span>Go-to-market</div><p>The first sales motion — design partners to paying operators, the integration marketplace, and a published-pricing page that makes buying a decision, not a negotiation.</p></div>
+    <div class="m reveal"><div class="h"><span>⛨</span>Infrastructure &amp; trust</div><p>Key management at multi-tenant scale, the security review a pay-data platform must pass, and the audit trail our buyers' owners will ask for.</p></div>
+  </div>
+  <div class="plate pos reveal" style="margin-top:32px">
+    <h3>What it buys</h3>
+    <ul>
+      <li><span class="m">→</span><span>The first cohort of paying operators — the thesis, priced and proven.</span></li>
+      <li><span class="m">→</span><span>Rent Manager sync live — distribution through an installed base that keeps its books elsewhere and dislikes its maintenance workflow.</span></li>
+      <li><span class="m">→</span><span>The first white-label channel — enough shops on the ledger to make the benchmark real.</span></li>
+    </ul>
+  </div>
+  <div class="cta-row reveal">
+    <a class="btn pri" href="mailto:1800bobrossdotcom@gmail.com">Talk to the founder</a>
+    <a class="btn" href="https://caliper.solutions">caliper.solutions →</a>
+  </div>
+  <p class="reveal" style="margin-top:22px; color:var(--faint); font-size:0.8rem">Plans and milestones are targets, not guarantees — illustrative of intent, not projections of performance.</p>
 </section>
 
 <footer>
