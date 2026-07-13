@@ -38,6 +38,7 @@ const TAG_CATEGORY = {
   general: 'general', round: 'general', rounds: 'general', misc: 'general', admin: 'general', office: 'general',
   errand: 'general', supplies: 'general', pickup: 'general', meeting: 'general', paperwork: 'general',
   caliper: 'general', development: 'general', dev: 'general', training: 'general', setup: 'general',
+  web: 'general', website: 'general', app: 'general', software: 'general', code: 'general',
 };
 
 // normalize a raw tag → a lookup key: lowercase, strip a trailing "-ing"/"s"
