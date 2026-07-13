@@ -45,8 +45,12 @@ export default function Field({ store }) {
     const s = loadTimer();
     if (!s.running) return 0;
     const end = s.onBreak ? s.onBreak.start : Date.now();
-    return Math.max(0, (end - s.running.start - (s.breakMs || 0)) / 1000);
+    // baseMs = time already banked on this job from earlier sessions (paused → resumed)
+    return Math.max(0, (end - s.running.start - (s.breakMs || 0) + (s.running.baseMs || 0)) / 1000);
   });
+  // jobs parked mid-work (a priority call came in, or it spans days) — kept with
+  // their banked time so they can be resumed later, even after a reload.
+  const [paused, setPaused] = useState(() => loadTimer().paused ?? []);
   const [prop, setProp] = useState(properties[0]?.id || '');
   const [unit, setUnit] = useState('');
   const [cat, setCat] = useState('plumbing');
@@ -95,8 +99,8 @@ export default function Field({ store }) {
 
   // persist everything the clock needs to reconstruct itself
   useEffect(() => {
-    localStorage.setItem(TIMER_KEY, JSON.stringify({ running, log, onBreak, breakMs, lastNudge, lunchNudged, punch }));
-  }, [running, log, onBreak, breakMs, lastNudge, lunchNudged, punch]);
+    localStorage.setItem(TIMER_KEY, JSON.stringify({ running, log, onBreak, breakMs, lastNudge, lunchNudged, punch, paused }));
+  }, [running, log, onBreak, breakMs, lastNudge, lunchNudged, punch, paused]);
 
   // broadcast live presence so the office board sees this timer tick in real time
   useEffect(() => {
@@ -127,7 +131,7 @@ export default function Field({ store }) {
     if (running) {
       tick.current = setInterval(() => {
         const end = onBreak ? onBreak.start : Date.now();
-        setElapsed(Math.max(0, (end - running.start - breakMs) / 1000));
+        setElapsed(Math.max(0, (end - running.start - breakMs + (running.baseMs || 0)) / 1000));
         if (onBreak) setBreakNow((Date.now() - onBreak.start) / 1000);
       }, 250);
       return () => clearInterval(tick.current);
@@ -151,10 +155,35 @@ export default function Field({ store }) {
   const resetBreaks = () => { setOnBreak(null); setBreakMs(0); setBreakNow(0); setLastNudge(0); setLunchNudged(false); };
   const start = () => {
     const selected = properties.find((x) => x.id === prop);
-    setRunning({ propId: prop, unit: unit || '—', category: cat, start: Date.now(), rate: me.rate, woTask: task.trim() || null });
+    setRunning({ propId: prop, unit: unit || '—', category: cat, start: Date.now(), rate: me.rate, woTask: task.trim() || null, baseMs: 0 });
     setElapsed(0); resetBreaks(); setTask('');
     capturePunch(selected);
   };
+  // park the running job with its banked time so a priority call (or a multi-day
+  // job) can be picked back up later — even after a reload. One job runs at a time.
+  const pauseJob = () => {
+    if (!running) return;
+    punchTokenRef.current++;
+    const end = onBreak ? onBreak.start : Date.now();
+    const banked = Math.max(0, end - running.start - breakMs + (running.baseMs || 0));
+    const p = properties.find((x) => x.id === running.propId);
+    setPaused((l) => [{
+      id: 'pj_' + Date.now(), propId: running.propId, unit: running.unit, category: running.category,
+      woId: running.woId || null, woTask: running.woTask || null, rate: running.rate || 0,
+      baseMs: banked, propName: p?.name || 'Unassigned', at: Date.now(),
+    }, ...l]);
+    setRunning(null); setElapsed(0); resetBreaks(); setPunch(null);
+  };
+  // pick a parked job back up — its banked time carries over, the clock continues.
+  const resumeJob = (pj) => {
+    if (running) return;                 // finish or pause the current job first
+    const selected = properties.find((x) => x.id === pj.propId);
+    setRunning({ propId: pj.propId, unit: pj.unit, category: pj.category, start: Date.now(), rate: pj.rate || me.rate, woId: pj.woId || null, woTask: pj.woTask || null, baseMs: pj.baseMs || 0 });
+    setElapsed((pj.baseMs || 0) / 1000); resetBreaks();
+    setPaused((l) => l.filter((x) => x.id !== pj.id));
+    capturePunch(selected);
+  };
+  const discardPaused = (id) => setPaused((l) => l.filter((x) => x.id !== id));
   const stop = async () => {
     if (!running) return;             // guard a double-tap from logging the job twice
     punchTokenRef.current++;          // invalidate any GPS capture still in flight
@@ -405,6 +434,10 @@ export default function Field({ store }) {
           </div>
           <div style={{ height: 18 }} />
           <button className="btn stop" onClick={stop}>Stop &amp; log to this job</button>
+          <button className="btn ghost" style={{ marginTop: 10 }} onClick={pauseJob}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+            Pause — switch to another job
+          </button>
           <button className="btn ghost" style={{ marginTop: 10 }} onClick={startBreak}><IcCoffee width={16} height={16} /> Take a break</button>
           {running.woId && (
             <button className="btn ghost" style={{ marginTop: 10 }} onClick={() => { setWoStatus(running.woId, 'done'); stop(); }}>
@@ -413,6 +446,25 @@ export default function Field({ store }) {
           )}
         </div>
       ) : (
+        <>
+        {paused.length > 0 && (
+          <div className="card" style={{ marginBottom: 'var(--gap)' }}>
+            <div className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+              Paused jobs — pick one back up
+            </div>
+            {paused.map((pj) => (
+              <div className="row" key={pj.id} style={{ alignItems: 'center' }}>
+                <div className="lead">
+                  <div className="t">{pj.propName}{pj.unit && pj.unit !== '—' ? ` · ${pj.unit}` : ''}</div>
+                  <div className="s">{pj.woTask ? `${pj.woTask} · ` : ''}{pj.category} · <b>{fmtHrs((pj.baseMs || 0) / 3600000)}h banked</b></div>
+                </div>
+                <button className="btn grad sm" onClick={() => resumeJob(pj)}><IcPlay width={14} height={14} /> Resume</button>
+                <button className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)', marginLeft: 6 }} onClick={() => discardPaused(pj.id)} aria-label="Discard paused job"><IcTrash width={13} height={13} /></button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="card">
           <div className="field-label">Property</div>
           <select className="rangebar" value={prop} onChange={(e) => setProp(e.target.value)}
@@ -450,6 +502,7 @@ export default function Field({ store }) {
           <div style={{ height: 16 }} />
           <button className="btn grad" onClick={start}><IcPlay width={16} height={16} /> Start timer</button>
         </div>
+        </>
       )}
 
       {log.length > 0 && (
