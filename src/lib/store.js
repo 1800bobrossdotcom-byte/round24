@@ -501,40 +501,69 @@ export function useStore() {
       try {
         const saved = await insertWorkOrder(orgId, local);
         // return the PERSISTED row (real id) so a caller attaching a photo targets
-        // the right row — the temp id is already remapped out of state here
-        if (saved?.id) { setWorkOrders((l) => l.map((w) => (w.id === local.id ? saved : w))); return saved; }
+        // the right row — the temp id is already remapped out of state here. Dedup
+        // by id in case realtime already added the saved row (clock-skew miss on the
+        // optimistic match) — otherwise we'd hold two rows with the same id.
+        if (saved?.id) {
+          setWorkOrders((l) => {
+            const seen = new Set();
+            return l.map((w) => (w.id === local.id ? saved : w)).filter((w) => (seen.has(w.id) ? false : (seen.add(w.id), true)));
+          });
+          return saved;
+        }
       } catch { /* keep the local copy; it syncs on next migration */ }
     }
     return local;
   }, [orgId, woBackend]);
 
-  const setWoStatus = useCallback((id, status) => {
+  // WO mutations are optimistic. If the cloud write fails the DB row is unchanged
+  // and no realtime UPDATE fires to correct us, so a swallowed error would let a
+  // cancel/reassign/reprioritize silently resurrect on the next load. Revert the
+  // optimistic change on failure (mirrors setPurchaseStatus).
+  const setWoStatus = useCallback(async (id, status) => {
+    const prev = woRef.current.find((w) => w.id === id)?.status;
     setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, status } : w)));
     if (isConfigured() && woBackend === 'db' && !String(id).startsWith('wo_')) {
-      updateWorkOrderStatus(id, status).catch(() => {});
+      try { await updateWorkOrderStatus(id, status); }
+      catch { setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, status: prev } : w))); return { ok: false }; }
     }
+    return { ok: true };
   }, [woBackend]);
 
-  const setWoPriority = useCallback((id, priority) => {
+  const setWoPriority = useCallback(async (id, priority) => {
+    const prev = woRef.current.find((w) => w.id === id)?.priority;
     setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, priority } : w)));
     if (isConfigured() && woBackend === 'db' && !String(id).startsWith('wo_')) {
-      updateWorkOrderPriority(id, priority).catch(() => {});
+      try { await updateWorkOrderPriority(id, priority); }
+      catch { setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, priority: prev } : w))); return { ok: false }; }
     }
+    return { ok: true };
   }, [woBackend]);
 
-  const setWoAssignee = useCallback((id, assigneeLabel) => {
+  const setWoAssignee = useCallback(async (id, assigneeLabel) => {
+    const prev = woRef.current.find((w) => w.id === id)?.assigneeLabel;
     setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, assigneeLabel } : w)));
     if (isConfigured() && woBackend === 'db' && !String(id).startsWith('wo_')) {
-      updateWorkOrderAssignee(id, assigneeLabel).catch(() => {});
+      try { await updateWorkOrderAssignee(id, assigneeLabel); }
+      catch { setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, assigneeLabel: prev } : w))); return { ok: false }; }
     }
+    return { ok: true };
   }, [woBackend]);
 
   // tenant billing on a work order — service fee, repair cost, billed state
-  const setWoBilling = useCallback((id, patch) => {
+  const setWoBilling = useCallback(async (id, patch) => {
+    const before = woRef.current.find((w) => w.id === id);
     setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, ...patch } : w)));
     if (isConfigured() && woBackend === 'db' && !String(id).startsWith('wo_')) {
-      updateWorkOrderBilling(id, patch).catch(() => {});
+      try { await updateWorkOrderBilling(id, patch); }
+      catch {
+        // restore only the keys we optimistically changed
+        const revert = {}; for (const k of Object.keys(patch)) revert[k] = before ? before[k] : undefined;
+        setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, ...revert } : w)));
+        return { ok: false };
+      }
     }
+    return { ok: true };
   }, [woBackend]);
 
   // attach a photo or document to a work order. Images go on `photos` (rendered
@@ -614,8 +643,15 @@ export function useStore() {
         } else if (prev && upd.status !== prev.status) {
           notify(`“${upd.task}” is now ${upd.status.replace('_', ' ')}`);
         }
+        // the payload carries the full new row — merge every column so an update
+        // from another viewer (e.g. a newly attached photo, an edited detail or
+        // category) isn't dropped and reverted until a full reload.
         setWorkOrders((l) => l.map((w) => (w.id === upd.id
-          ? { ...w, status: upd.status, priority: upd.priority ?? 3, due: upd.due_date, task: upd.task, assigneeLabel: upd.assignee_label,
+          ? { ...w, status: upd.status, priority: upd.priority ?? 3, due: upd.due_date, task: upd.task,
+              detail: upd.detail ?? w.detail, category: upd.category ?? w.category,
+              unit: upd.unit ?? w.unit, propLabel: upd.property_label ?? w.propLabel,
+              assigneeLabel: upd.assignee_label,
+              photos: upd.photos ?? w.photos ?? [], files: upd.files ?? w.files ?? [],
               serviceFee: upd.service_fee != null ? Number(upd.service_fee) : w.serviceFee, repairCost: upd.repair_cost != null ? Number(upd.repair_cost) : w.repairCost, tenantBilled: upd.tenant_billed ?? w.tenantBilled }
           : w)));
       } else if (eventType === 'DELETE' && payload.old?.id) {
