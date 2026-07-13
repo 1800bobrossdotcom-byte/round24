@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { fmtHrs } from '../lib/rollups.js';
 import { categoryMedian } from '../lib/rollups.js';
 import { categoryForText, tagSegments } from '../lib/taskTags.js';
@@ -31,7 +31,7 @@ function loadTimer() {
 }
 
 export default function Field({ store }) {
-  const { pickProperties: properties = [], allTimers, workOrders, setWoStatus } = store;
+  const { pickProperties: properties = [], allTimers, workOrders, setWoStatus, liveTimers = [] } = store;
   // the crew member IS the signed-in user — not a hardcoded demo tech. Rate is
   // matched from the roster by name when known (imported orgs carry rates);
   // otherwise 0 (the office holds the real rate server-side).
@@ -112,6 +112,22 @@ export default function Field({ store }) {
       task: running.woTask || null, propLabel: p?.name || null, unit: running.unit, onBreak: !!onBreak,
     });
   }, [running, onBreak]);
+
+  // a timer running on ANOTHER device for this same login: the clock lives in that
+  // device's localStorage, but presence is in the cloud (live_timers), so surface
+  // it here (read-only) instead of showing an empty "start a job". It's stopped on
+  // the device that owns it — that device holds the exact break/pause bookkeeping,
+  // so letting a second device stop it would risk an inaccurate or duplicate log.
+  const myLive = useMemo(
+    () => (running || !store.myId ? null : liveTimers.find((t) => t.userId && t.userId === store.myId) || null),
+    [running, liveTimers, store.myId],
+  );
+  const [mirrorNow, setMirrorNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!myLive) return undefined;
+    const id = setInterval(() => setMirrorNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [myLive]);
 
   const myWos = workOrders.filter((w) => w.status === 'open' || w.status === 'in_progress').sort(byPriority);
 
@@ -345,6 +361,33 @@ export default function Field({ store }) {
           </div>
         </div>
       </div>
+
+      {/* a timer this login has running on another device — mirror it live so the
+          desktop/other tab isn't blank while the phone is on the clock */}
+      {myLive && (() => {
+        const secs = Math.max(0, (mirrorNow - Date.parse(myLive.startedAt)) / 1000);
+        const hh = String(Math.floor(secs / 3600)).padStart(2, '0');
+        const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+        const ss = String(Math.floor(secs % 60)).padStart(2, '0');
+        const where = [myLive.propLabel, myLive.unit && `Unit ${myLive.unit}`, myLive.task].filter(Boolean).join(' · ');
+        return (
+          <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'var(--warn)', background: 'color-mix(in srgb, var(--warn) 8%, var(--surface))' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--warn)', fontWeight: 800, fontSize: 12, letterSpacing: '.02em' }}>
+                <IcPlay width={13} height={13} /> RUNNING ON ANOTHER DEVICE
+              </span>
+              {myLive.onBreak && <span className="chip" style={{ color: 'var(--warn)' }}>on break</span>}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 6 }}>
+              <span className="mono" style={{ fontSize: 26, fontWeight: 700 }}>{hh}:{mm}:{ss}</span>
+              {where && <span style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 700 }}>{where}</span>}
+            </div>
+            <p className="note" style={{ margin: '6px 0 0' }}>
+              You’re on the clock on another device{myLive.onBreak ? ' (paused for break)' : ''}. Stop it there to log your exact time — this view updates live.
+            </p>
+          </div>
+        );
+      })()}
 
       <div className="offline">◐ Offline-safe — timers and photos queue on-device, sync when signal returns.</div>
 
