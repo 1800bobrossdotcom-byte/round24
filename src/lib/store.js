@@ -22,6 +22,7 @@ import {
   fetchMyOperatorId, insertTimer, updateTimer, insertProperties, getUserSettings,
   setPropertyLocation, listTimers, deleteTimer, wipeOrgData, listProperties, listOperators, setOperatorRate as setOperatorRateDb,
   listOrgMembers, enableFieldWork, disableFieldWork,
+  listMaintenanceSchedules, insertMaintenanceSchedule, updateMaintenanceSchedule, deleteMaintenanceSchedule,
 } from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
@@ -45,6 +46,12 @@ function isoAhead(days = 0) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 const DEFAULT_RANGE = () => ({ from: '2026-05-11', to: isoAhead(14) });
+
+// add N days to a YYYY-MM-DD string, staying in local time (no UTC drift).
+function addDaysISO(iso, n) {
+  const d = new Date(`${iso}T00:00:00`); d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 // locate an unsynced timer payload in the offline queue by CONTENT. Matches on
 // building + hours + category + date + note so two same-shaped punches on
@@ -576,6 +583,57 @@ export function useStore() {
     }
     return local;
   }, [orgId, woBackend]);
+
+  // ---- preventive maintenance: recurring schedules that spawn work orders ----
+  const [maintSchedules, setMaintSchedules] = useState([]);
+  useEffect(() => {
+    if (!isConfigured() || !orgId || !isStaffMember) { setMaintSchedules([]); return undefined; }
+    let alive = true;
+    listMaintenanceSchedules(orgId).then((r) => { if (alive) setMaintSchedules(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, [orgId, isStaffMember]);
+
+  // add or update a schedule (optimistic; id present → update).
+  const setSchedule = useCallback(async (s) => {
+    if (s.id && !String(s.id).startsWith('ms_')) {
+      setMaintSchedules((l) => l.map((x) => (x.id === s.id ? { ...x, ...s } : x)));
+      if (isConfigured() && orgId && !demoMode) { try { await updateMaintenanceSchedule(s.id, s); } catch { /* keep local */ } }
+      return s.id;
+    }
+    const local = { active: true, priority: 3, intervalDays: 30, category: 'general', ...s, id: `ms_${Math.random().toString(36).slice(2, 9)}` };
+    setMaintSchedules((l) => [...l, local]);
+    if (isConfigured() && orgId && !demoMode) {
+      try { const saved = await insertMaintenanceSchedule(orgId, local); setMaintSchedules((l) => l.map((x) => (x.id === local.id ? saved : x))); audit('add_schedule', saved.task); return saved.id; }
+      catch { /* keep local */ }
+    }
+    return local.id;
+  }, [orgId, demoMode]); // audit resolved via closure
+
+  const removeSchedule = useCallback(async (id) => {
+    setMaintSchedules((l) => l.filter((x) => x.id !== id));
+    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('ms_')) { try { await deleteMaintenanceSchedule(id); } catch { /* gone */ } }
+  }, [orgId, demoMode]);
+
+  // spawn a work order from a due schedule, then advance next_due to the next
+  // future occurrence (skipping any missed ones so a stale schedule doesn't dump
+  // a backlog of orders). Returns the created work order.
+  const generateFromSchedule = useCallback(async (sched) => {
+    const wo = await addWorkOrder({
+      task: sched.task, detail: sched.detail || 'Recurring preventive maintenance',
+      propLabel: sched.propLabel, unit: sched.unit, category: sched.category || 'general',
+      priority: sched.priority ?? 3, assigneeLabel: sched.assigneeLabel || null,
+      due: sched.nextDue, source: 'schedule', status: 'open',
+    });
+    const today = isoAhead(0);
+    let nd = sched.nextDue;
+    do { nd = addDaysISO(nd, Number(sched.intervalDays) || 30); } while (nd <= today);
+    setMaintSchedules((l) => l.map((x) => (x.id === sched.id ? { ...x, nextDue: nd, lastGenerated: new Date().toISOString() } : x)));
+    if (isConfigured() && orgId && !demoMode && !String(sched.id).startsWith('ms_')) {
+      try { await updateMaintenanceSchedule(sched.id, { nextDue: nd, lastGenerated: new Date().toISOString() }); } catch { /* keep local */ }
+    }
+    audit('generate_wo_from_schedule', `${sched.task} · ${sched.propLabel || ''}`);
+    return wo;
+  }, [orgId, demoMode, addWorkOrder]);
 
   // WO mutations are optimistic. If the cloud write fails the DB row is unchanged
   // and no realtime UPDATE fires to correct us, so a swallowed error would let a
@@ -1453,6 +1511,7 @@ export function useStore() {
     importedCount: imported.timers.length,
     // work orders
     workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, addWoAttachment, woBackend,
+    maintSchedules, setSchedule, removeSchedule, generateFromSchedule,
     woNotice, clearWoNotice: () => setWoNotice(null),
     // cloud timers
     addTimerEntry, updateTimerEntry, deleteTimerEntry, operatorId,

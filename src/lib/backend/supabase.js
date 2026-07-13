@@ -441,6 +441,51 @@ export async function updateWorkOrderStatus(id, status) {
   if (error) throw error;
 }
 
+// ---- preventive / recurring maintenance schedules ----
+const maintFromDb = (r) => ({
+  id: r.id, propLabel: r.property_label, unit: r.unit, task: r.task, detail: r.detail,
+  category: r.category, intervalDays: Number(r.interval_days) || 30, nextDue: r.next_due,
+  assigneeLabel: r.assignee_label, priority: r.priority ?? 3, active: r.active !== false,
+  lastGenerated: r.last_generated || null, createdAt: r.created_at,
+});
+const maintToDb = (s) => ({
+  property_label: s.propLabel || null, unit: s.unit || null, task: s.task, detail: s.detail || null,
+  category: s.category || 'general', interval_days: Number(s.intervalDays) || 30, next_due: s.nextDue,
+  assignee_label: s.assigneeLabel || null, priority: s.priority ?? 3, active: s.active !== false,
+});
+export async function listMaintenanceSchedules(orgId) {
+  const { data, error } = await supabase.from('maintenance_schedules').select('*')
+    .eq('org_id', orgId).order('next_due', { ascending: true });
+  if (error) throw error;
+  return (data || []).map(maintFromDb);
+}
+export async function insertMaintenanceSchedule(orgId, s) {
+  const { data, error } = await supabase.from('maintenance_schedules')
+    .insert({ org_id: orgId, ...maintToDb(s) }).select().single();
+  if (error) throw error;
+  return maintFromDb(data);
+}
+export async function updateMaintenanceSchedule(id, patch) {
+  const db = {};
+  if ('propLabel' in patch) db.property_label = patch.propLabel || null;
+  if ('unit' in patch) db.unit = patch.unit || null;
+  if ('task' in patch) db.task = patch.task;
+  if ('detail' in patch) db.detail = patch.detail || null;
+  if ('category' in patch) db.category = patch.category || 'general';
+  if ('intervalDays' in patch) db.interval_days = Number(patch.intervalDays) || 30;
+  if ('nextDue' in patch) db.next_due = patch.nextDue;
+  if ('assigneeLabel' in patch) db.assignee_label = patch.assigneeLabel || null;
+  if ('priority' in patch) db.priority = patch.priority ?? 3;
+  if ('active' in patch) db.active = patch.active !== false;
+  if ('lastGenerated' in patch) db.last_generated = patch.lastGenerated;
+  const { error } = await supabase.from('maintenance_schedules').update(db).eq('id', id);
+  if (error) throw error;
+}
+export async function deleteMaintenanceSchedule(id) {
+  const { error } = await supabase.from('maintenance_schedules').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export async function updateWorkOrderPriority(id, priority) {
   const { error } = await supabase.from('work_orders').update({ priority }).eq('id', id);
   if (error) throw error;
