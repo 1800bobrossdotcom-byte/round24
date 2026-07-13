@@ -44,6 +44,24 @@ function isoAhead(days = 0) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 const DEFAULT_RANGE = () => ({ from: '2026-05-11', to: isoAhead(14) });
+
+// locate an unsynced timer payload in the offline queue by CONTENT. Matches on
+// building + hours + category + date + note so two same-shaped punches on
+// different days (or a same-day edit) don't splice the wrong one. Returns -1 if
+// no confident match. Used to retract a stale payload before re-submitting an
+// edit, and to drop a queued entry the user deleted before it ever synced.
+function queueMatchIdx(q, entry) {
+  const label = entry.prop ?? entry.propLabel ?? null;
+  const hrs = entry.hrs ?? entry.durationHrs ?? 0;
+  const date = entry.date ?? null;
+  const note = entry.note ?? entry.issue ?? null;
+  const cat = entry.category || 'general';
+  return q.findIndex((t) => (t.propLabel ?? null) === label
+    && Math.abs((t.durationHrs || 0) - hrs) < 0.001
+    && (t.category || 'general') === cat
+    && (t.date ?? null) === date
+    && (t.note ?? t.issue ?? null) === note);
+}
 // Cache write that can't crash an effect. Demo/local mode stashes inline data URLs
 // (photos, voice notes) that can blow past the ~5MB quota — a QuotaExceededError here
 // must degrade to "not cached", never throw out of the render/effect.
@@ -660,16 +678,25 @@ export function useStore() {
     fetchMyOperatorId().then(setOperatorId).catch(() => setOperatorId(null));
   }, [orgId]);
 
+  // guard against two overlapping flushes (the operatorId effect + the post-insert
+  // flush in addTimerEntry can race) both reading the same snapshot and inserting
+  // every queued entry twice.
+  const flushingRef = useRef(false);
   const flushTimerQueue = useCallback(async (opId) => {
-    if (!isConfigured() || !orgId || !opId) return;
+    if (!isConfigured() || !orgId || !opId || flushingRef.current) return;
     const queue = loadLS(TQ_KEY, []);
     if (!queue.length) return;
-    const remaining = [];
-    for (const t of queue) {
-      try { await insertTimer(orgId, opId, t); }
-      catch { remaining.push(t); }
-    }
-    localStorage.setItem(TQ_KEY, JSON.stringify(remaining));
+    flushingRef.current = true;
+    try {
+      const remaining = [];
+      for (const t of queue) {
+        try { await insertTimer(orgId, opId, t); }
+        catch { remaining.push(t); }
+      }
+      // entries enqueued while this flush was draining sit past the snapshot — keep them
+      const appendedDuring = loadLS(TQ_KEY, []).slice(queue.length);
+      localStorage.setItem(TQ_KEY, JSON.stringify([...remaining, ...appendedDuring]));
+    } finally { flushingRef.current = false; }
   }, [orgId]);
 
   useEffect(() => { if (operatorId) flushTimerQueue(operatorId); }, [operatorId, flushTimerQueue]);
@@ -699,6 +726,14 @@ export function useStore() {
       try { await updateTimer(entry.dbId, patch); return { status: 'synced', id: entry.dbId }; }
       catch { return { status: entry.sync || 'queued', id: entry.dbId }; }
     }
+    // never synced — it may be sitting in the offline queue. Retract the STALE
+    // payload before re-submitting, or the reconnect flush uploads both the old
+    // and the corrected entry and the building double-counts the hours.
+    try {
+      const q = loadLS(TQ_KEY, []);
+      const idx = queueMatchIdx(q, entry);
+      if (idx >= 0) { q.splice(idx, 1); localStorage.setItem(TQ_KEY, JSON.stringify(q)); }
+    } catch { /* queue unavailable — nothing stale to retract */ }
     return addTimerEntry({
       propLabel: patch.propLabel, unit: patch.unit === '—' ? null : patch.unit,
       date: patch.date, category: patch.category, durationHrs: patch.durationHrs,
@@ -717,10 +752,7 @@ export function useStore() {
     if (!entry?.dbId) {
       try {
         const q = loadLS(TQ_KEY, []);
-        const label = entry.prop ?? entry.propLabel;
-        const hrs = entry.hrs ?? entry.durationHrs ?? 0;
-        const idx = q.findIndex((t) => (t.propLabel ?? null) === (label ?? null)
-          && Math.abs((t.durationHrs || 0) - hrs) < 0.001 && (t.category || 'general') === (entry.category || 'general'));
+        const idx = queueMatchIdx(q, entry);
         if (idx >= 0) { q.splice(idx, 1); localStorage.setItem(TQ_KEY, JSON.stringify(q)); }
       } catch { /* queue unavailable — nothing to resurrect anyway */ }
     }
@@ -789,7 +821,9 @@ export function useStore() {
       verified: null, distanceM: null, rate: row.rate || 0, source: 'manual',
     };
     setTsTable((l) => [local, ...l]);
-    if (!demoMode && isConfigured() && orgId && operatorId) {
+    const connected = !demoMode && isConfigured() && orgId;
+    let synced = false;
+    if (connected && operatorId) {
       try {
         const id = await insertTimer(orgId, operatorId, {
           propLabel: local.propLabel, unit: local.unit || null, date: local.date,
@@ -798,9 +832,13 @@ export function useStore() {
         });
         setTsTable((l) => l.map((x) => (x.id === local.id ? { ...x, dbId: id } : x)));
         audit('add_timesheet', `${local.propLabel} · ${local.durationHrs}h`);
+        synced = true;
       } catch { /* keep local */ }
     }
-    return local;
+    // connected but no operator seat → the timers table (operator_id NOT NULL)
+    // rejects the row, so it only lives this session and vanishes on the next
+    // reload. Flag it so the caller can tell the user instead of losing it silently.
+    return { ...local, synced, needsOperator: connected && !operatorId };
   }, [demoMode, orgId, operatorId]); // audit resolved via closure (defined below)
 
   const updateTimesheet = useCallback(async (id, patch) => {
@@ -821,8 +859,12 @@ export function useStore() {
     const row = tsTableRef.current.find((x) => x.id === id);
     setTsTable((l) => l.filter((x) => x.id !== id));
     if (!demoMode && isConfigured() && row?.dbId) {
-      try { await deleteTimer(row.dbId); audit('delete_timesheet', row.propLabel || id); } catch { /* gone locally */ }
+      // the cloud row is the source of truth: if the delete fails, restore the row
+      // rather than let a refresh silently resurrect it as if never deleted.
+      try { await deleteTimer(row.dbId); audit('delete_timesheet', row.propLabel || id); }
+      catch { setTsTable((l) => (l.some((x) => x.id === id) ? l : [row, ...l])); return { ok: false }; }
     }
+    return { ok: true };
   }, [demoMode]); // audit resolved via closure (defined below)
 
   // ---- documents: DB+storage only (no meaningful local fallback for files) ----

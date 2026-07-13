@@ -376,6 +376,7 @@ export default function Timesheet({ store }) {
   const startSplit = (date = todayISO()) => { setEditId(null); setDraft(null); setSplitDate(date); };
   const saveSplit = async ({ date, lines }) => {
     setBusy(true);
+    let unsynced = false;
     for (const ln of lines) {
       const hrs = Math.round((Number(ln.hrs) || 0) * 100) / 100;
       if (hrs <= 0) continue;
@@ -383,9 +384,12 @@ export default function Timesheet({ store }) {
       const tags = tagsOf(note);
       const propLabel = (ln.propLabel && ln.propLabel !== 'Unassigned') ? ln.propLabel : (tags[0] || 'Unassigned');
       // eslint-disable-next-line no-await-in-loop
-      await store.addTimesheet({ date, durationHrs: hrs, propLabel, unit: (ln.unit || '').trim(), category: ln.category || 'general', note, workOrderId: ln.workOrderId || null });
+      const res = await store.addTimesheet({ date, durationHrs: hrs, propLabel, unit: (ln.unit || '').trim(), category: ln.category || 'general', note, workOrderId: ln.workOrderId || null });
+      if (res?.needsOperator) unsynced = true;
     }
     setBusy(false); cancel();
+    // login not linked to an operator → the rows can't reach the shared timers table
+    if (unsynced) alert('Your login isn’t linked to an operator, so these hours stay on this device only and won’t sync. Ask the office to link your account.');
   };
   // office drills into an operator — land on List (their history is usually not this week)
   // and anchor the week to their last logged day so a Week toggle is populated too

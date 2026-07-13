@@ -203,12 +203,15 @@ export default function WorkOrders({ store, focus }) {
       // so the office approves the work and its labor together
       if (draft.logWork && Number(draft.hours) > 0 && addTimesheet) {
         try {
-          await addTimesheet({
+          const res = await addTimesheet({
             date: new Date().toISOString().slice(0, 10),
             propLabel: draft.propLabel || 'Unassigned', unit: draft.unit || '',
             category: draft.category || 'general', note: draft.task || '',
             durationHrs: Number(draft.hours), workOrderId: wo?.id || null,
           });
+          // login not linked to an operator → the hours can't sync (timers.operator_id
+          // is required). The work order still saved; tell them so the labor isn't lost.
+          if (res?.needsOperator) alert('Work order saved, but your login isn’t linked to an operator, so the logged hours stay on this device only. Ask the office to link your account to sync them.');
         } catch { /* WO still created; hours can be added from the timesheet */ }
       }
       if (draft.photoPreview) URL.revokeObjectURL(draft.photoPreview);
