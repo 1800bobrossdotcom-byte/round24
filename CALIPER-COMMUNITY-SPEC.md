@@ -1,4 +1,4 @@
-# Caliper Community — Architecture Spec (v0.1)
+# Caliper Community — Architecture Spec (v0.2)
 
 **The resident product.** A per-building community + maintenance layer that turns
 residents from ticket-submitters into a self-governing community, wired into the
@@ -115,6 +115,65 @@ Direct-to-unit is the powerful and dangerous one. Extra guardrails there:
 per-day cap to any single unit, recipient can mute a sender pseudonym, repeated
 reports auto-escalate to the office queue.
 
+### Resident reachability controls (the resident's own privacy dial)
+
+Adoption gate: privacy-conscious residents won't join if opening the app means
+any stranger can reach them. Every resident controls their *own* reachability —
+overriding **down** from the building default (never up; if the office turned
+social off, a resident can't turn it on). Four independent switches, not one:
+
+**1. Direct messages — who can DM me:**
+
+| Mode | Behavior |
+|---|---|
+| `open` | any verified neighbor can DM (pseudonymously) |
+| `requests` *(recommended default)* | a stranger's first message waits in a **Requests tray** — accept (→ trusted) or decline/block; trusted contacts DM directly |
+| `trusted` | only already-approved contacts; strangers can't even send a request |
+| `off` | no DMs at all |
+
+`requests` mode **is** "only trusted neighbors" — Instagram/Signal-style message
+requests, and it works while everyone is still pseudonymous (you approve "4B",
+not a name). It's the sweet spot: never bothered by strangers, but a genuine
+neighbor can still reach out and earn trust.
+
+**2. Neighbor broadcasts** (building/floor posts): on / off.
+**3. Community pages** (tips, events, favorites): opt-in by simply visiting — no toggle.
+**4. Official office announcements:** **always delivered when the office flags them
+urgent** (water shut-off, inspection). FYI ones are mutable. A privacy setting
+must never cause a resident to miss a mandatory notice — safety/legal line.
+
+→ "I only want maintenance, no social" = DMs off + broadcasts off. The account
+still submits repairs. À-la-carte participation falls out for free.
+
+**The tension to resolve — "DMs off" vs the flagship "turn your music down" case.**
+If a resident can mute everyone, the noisy neighbor just turns messaging off and
+the nudge never lands — the privacy dial quietly kills the self-governing feature.
+Resolution: split **open conversation** from a **courtesy nudge**.
+
+- A *courtesy nudge* is a **structured, one-directional, rate-limited,
+  template-assisted** one-liner ("noise, please" / "package in wrong spot" /
+  "hallway blocked"). Not a thread, capped per day, reportable — hard to abuse.
+- Nudges stay **on by default even for residents with DMs off**, because that's
+  the load-reducing behavior the PM is paying for.
+- A resident *can* still disable even nudges. If they do, a neighbor's only
+  recourse is to **escalate to the office** — exactly today's status quo, so no
+  worse than before, and the office sees the pattern. The dial goes all the way to
+  silent, but the *default* keeps the loop working.
+
+### Notifications & Away mode (how I'm told, vs who can reach me)
+
+Reachability decides *who* reaches me; delivery decides *how I'm notified* of what
+does. Separate axis, per resident:
+
+- **Channels:** in-app · push (mobile) · **email** · daily digest. Mix per
+  category (e.g. urgent announcements → push + email; neighbor broadcasts →
+  digest only).
+- **Away / out-of-town mode:** one toggle that routes every *eligible* message
+  (respecting reachability) to **email** so nothing's missed while traveling —
+  the water shut-off notice, a package alert, an accepted DM. Reuses the existing
+  Resend email edge function; no new infra.
+- Quiet hours (no push overnight) as a later nicety.
+
 ### Guardrails (baked in, not bolted on)
 
 - **Rate limits** — reuse the `intake_guard` trigger pattern from migration 0046.
@@ -161,11 +220,16 @@ Scoped to the building, pseudonymous or opt-in named:
 
 ```
 residents(id=auth.uid, org_id, unit_id→units, pseudonym, status, verified_by,
-          joined_at, moved_out_at, social_opt_in)
+          joined_at, moved_out_at, social_opt_in,
+          -- reachability dial (§3): who can reach me + how I'm notified
+          dm_mode('open'|'requests'|'trusted'|'off'), nudges_on, broadcasts_on,
+          announce_mute_fyi, notify_channels(jsonb per-category), away_mode)
+resident_contacts(resident_id, other_resident_id,
+          state('trusted'|'requested'|'blocked'), created_at)       -- trust + block lists
 resident_join_codes(org_id, property_id, code, expires_at)        -- lobby QR/codes
-community_messages(id, org_id, property_id, scope['building'|'floor'|'unit'],
+community_messages(id, org_id, property_id, scope['building'|'floor'|'unit'|'nudge'],
           floor, target_unit_id, sender_resident_id, pseudonym_snapshot, body,
-          created_at, flagged, hidden)
+          delivery('inbox'|'request'), created_at, flagged, hidden)
 community_posts(id, org_id, property_id, kind['tip'|'favorite'|'event'],
           author_resident_id, pseudonym_snapshot, title, body, event_at, created_at)
 post_votes(post_id, resident_id)                                  -- upvotes
