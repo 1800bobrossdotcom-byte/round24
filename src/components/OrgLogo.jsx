@@ -6,8 +6,8 @@ import { Mark } from './ui.jsx';
 // image actually loads; otherwise falls back to the Caliper lockup (so an org
 // with no logo, or a not-yet-uploaded file, degrades cleanly). `poweredBy` adds
 // a small "powered by Caliper" line beneath a whitelabel logo.
-export default function OrgLogo({ orgId, height = 26, poweredBy = false, fallback = null }) {
-  const brand = brandFor(orgId);
+export default function OrgLogo({ orgId, orgName, height = 26, poweredBy = false, fallback = null }) {
+  const brand = brandFor(orgId, orgName);
   const [failed, setFailed] = useState(false);
   if (!brand || failed) {
     return fallback ?? (<span className="ol-caliper"><Mark /> <span className="ol-word">Caliper</span></span>);
