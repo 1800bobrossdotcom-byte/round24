@@ -53,10 +53,9 @@
 /* whitelabel org logo (topbar brand + resident page). Falls back to the Caliper
    lockup when no logo is configured or the image fails to load. */
 .ol-wrap { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-.ol-img { width: auto; display: block; object-fit: contain; max-width: 220px; }
+.ol-img { width: auto; display: block; object-fit: contain; max-width: 260px; }
 .ol-caliper { display: inline-flex; align-items: center; gap: 9px; }
-.ol-powered { font-size: 10px; font-weight: 600; letter-spacing: .04em; color: var(--text-faint); text-transform: none; }
-.brand .ol-img { height: 26px; }
+.ol-powered { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--text-faint); text-transform: none; }
 .topbar .spacer { flex: 1; }
 .org-pill {
   font-size: 11px; color: var(--text-dim); font-weight: 600;

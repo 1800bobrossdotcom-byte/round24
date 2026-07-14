@@ -62,7 +62,7 @@ export default function ResidentRequest({ orgId, building = '' }) {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: 440, padding: '28px 20px 60px' }}>
         <div style={{ marginBottom: 18 }}>
-          <OrgLogo orgId={orgId} height={44} poweredBy
+          <OrgLogo orgId={orgId} height={76} poweredBy
             fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 9 }}><Mark className="mark" /><span style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.02em' }}>Caliper</span></span>} />
         </div>
 
