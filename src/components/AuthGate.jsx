@@ -425,9 +425,11 @@ function Login({ invite }) {
   const [product, setProduct] = useState(() => localStorage.getItem('caliper_product') || null); // 'portfolio' | 'pro'
   const [portal, setPortal] = useState(() => localStorage.getItem('caliper_portal') || null);     // pro only: 'office' | 'crew'
   const [beta, setBeta] = useState(false);
-  // fresh visitors land on "What is Caliper" first; returning users (a product
-  // chosen) and invite links skip straight to sign-in.
-  const [entered, setEntered] = useState(() => !!localStorage.getItem('caliper_product') || !!localStorage.getItem('caliper_seen_landing') || !!invite);
+  // caliper.solutions IS the funnel: every signed-out visit lands on it — sign-in
+  // is one tap away in the sticky header. Invite links skip straight to sign-in,
+  // and once you head for sign-in it sticks for the browser session only, so a
+  // mid-login refresh doesn't bounce you back to marketing.
+  const [entered, setEntered] = useState(() => !!sessionStorage.getItem('caliper_signin') || !!invite);
   // only block on the invite lookup when we don't already know the tier; and
   // never hang on it — a slow/failed lookup falls through to the picker.
   const [resolving, setResolving] = useState(!!invite && !localStorage.getItem('caliper_product'));
@@ -459,9 +461,10 @@ function Login({ invite }) {
     </div>
   );
 
-  // landing — "What is Caliper" (fresh visitors, before the sign-in picker)
-  if (!entered && !product) {
-    return <Landing onEnter={() => { localStorage.setItem('caliper_seen_landing', '1'); setEntered(true); }} onBeta={() => setBeta(true)} />;
+  // landing — the marketing funnel, shown to everyone signed out (even with a
+  // remembered product: they land here, and Sign in drops them into that login)
+  if (!entered) {
+    return <Landing onEnter={() => { sessionStorage.setItem('caliper_signin', '1'); setEntered(true); }} onBeta={() => setBeta(true)} />;
   }
 
   // level 1 — the sign-in page: choose a product
@@ -492,7 +495,7 @@ function Login({ invite }) {
           <p className="note" style={{ textAlign: 'center', marginTop: 22 }}>
             Not invited yet? <a onClick={() => setBeta(true)} style={{ color: 'var(--info)', cursor: 'pointer', fontWeight: 700 }}>Request a beta invite →</a>
             <span style={{ color: 'var(--text-faint)', margin: '0 8px' }}>·</span>
-            <a onClick={() => { localStorage.removeItem('caliper_seen_landing'); setEntered(false); }} style={{ color: 'var(--text-dim)', cursor: 'pointer' }}>What is Caliper?</a>
+            <a onClick={() => { sessionStorage.removeItem('caliper_signin'); setEntered(false); }} style={{ color: 'var(--text-dim)', cursor: 'pointer' }}>What is Caliper?</a>
           </p>
         </div>
       </div>
