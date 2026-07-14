@@ -19,6 +19,7 @@ import Turns from './views/Turns.jsx';
 import Requests from './views/Requests.jsx';
 import ResidentRequest from './views/ResidentRequest.jsx';
 import ResidentJoin from './views/ResidentJoin.jsx';
+import ResidentHome from './views/ResidentHome.jsx';
 import Residents from './views/Residents.jsx';
 import Calendar from './views/Calendar.jsx';
 import Purchases from './views/Purchases.jsx';
@@ -105,12 +106,19 @@ const MAX_BAR = 5; // slots in the mobile bottom bar (incl. a possible "More")
 // every tab id the app can ever route to — hash routing accepts these even
 // before async gates (isPlat, operator seat) have resolved, so a deep link to
 // #platform or #field survives the first render instead of being clobbered.
-const KNOWN_TAB_IDS = new Set([...TABS.map((t) => t.id), ...OWNER_TABS.map((t) => t.id), 'platform']);
+const KNOWN_TAB_IDS = new Set([...TABS.map((t) => t.id), ...OWNER_TABS.map((t) => t.id), 'platform', 'myhome']);
 const hashTab = () => window.location.hash.replace(/^#\/?/, '');
+
+// dual-hat: staff who ALSO hold a residency (founder / crew who lives in a
+// building) get their Caliper Community home as a tab inside the shell.
+function MyHomeView() {
+  const { resident } = useAuth();
+  return resident ? <ResidentHome resident={resident} embedded /> : null;
+}
 
 function Shell() {
   const store = useStore();
-  const { role, orgKind } = useAuth();
+  const { role, orgKind, resident } = useAuth();
   const [isPlat, setIsPlat] = useState(false);
   useEffect(() => { isPlatformAdmin().then(setIsPlat).catch(() => {}); }, []);
   let roleTabs = orgKind === 'owner' ? OWNER_TABS : TABS.filter((t) => t.roles.includes(role));
@@ -127,6 +135,8 @@ function Shell() {
   const baseTabs = roleTabs.length ? roleTabs : TABS.filter((t) => t.id === 'settings');
   const tabs = [
     ...baseTabs,
+    // resident dual-hat: staff who also live in a building get their Community home
+    ...(resident ? [{ id: 'myhome', label: 'My Home', Icon: IcBuilding, View: MyHomeView, cat: 'account' }] : []),
     ...(isPlat ? [{ id: 'platform', label: 'Platform', Icon: IcShield, View: Platform, cat: 'account' }] : []),
   ];
   // hash routing: the active tab lives in the URL (#timesheet, #wo…), so views

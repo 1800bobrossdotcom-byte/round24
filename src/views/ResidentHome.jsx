@@ -42,7 +42,9 @@ const fmtWhen = (iso) => (iso ? new Date(iso).toLocaleDateString('en-US', { mont
 
 // Caliper Community — the signed-in resident's home. Their identity (building +
 // unit) comes from the verified residency, so reporting an issue is 2 fields.
-export default function ResidentHome({ resident }) {
+// `embedded` renders it inside the staff shell (dual-hat: a founder/crew member
+// who also lives in a building) — no logo header or sign-out, the shell has both.
+export default function ResidentHome({ resident, embedded = false }) {
   const [brand, setBrand] = useState(null);
   const [requests, setRequests] = useState(null);   // null = loading
   const [anns, setAnns] = useState([]);
@@ -112,12 +114,14 @@ export default function ResidentHome({ resident }) {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', display: 'flex', justifyContent: 'center' }}>
-      <div style={{ width: '100%', maxWidth: 480, padding: '24px 18px 60px' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
-          <OrgLogo logo={brand?.logo} name={brand?.name} height={64} poweredBy centered
-            fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 9 }}><Mark className="mark" /><span style={{ fontWeight: 800, fontSize: 19 }}>Caliper</span></span>} />
-        </div>
+    <div style={embedded ? { display: 'flex', justifyContent: 'center' } : { minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', display: 'flex', justifyContent: 'center' }}>
+      <div style={{ width: '100%', maxWidth: 480, padding: embedded ? '4px 0 24px' : '24px 18px 60px' }}>
+        {!embedded && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
+            <OrgLogo logo={brand?.logo} name={brand?.name} height={64} poweredBy centered
+              fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 9 }}><Mark className="mark" /><span style={{ fontWeight: 800, fontSize: 19 }}>Caliper</span></span>} />
+          </div>
+        )}
 
         {/* who/where + status */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
@@ -205,10 +209,12 @@ export default function ResidentHome({ resident }) {
           </div>
         )}
 
-        {/* settings */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
-          <button className="btn ghost sm" style={{ width: 'auto' }} onClick={async () => { await signOut().catch(() => {}); window.location.href = '/'; }}>Sign out</button>
-        </div>
+        {/* settings — the staff shell has its own sign-out, skip when embedded */}
+        {!embedded && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
+            <button className="btn ghost sm" style={{ width: 'auto' }} onClick={async () => { await signOut().catch(() => {}); window.location.href = '/'; }}>Sign out</button>
+          </div>
+        )}
         <p className="note" style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: 12, marginTop: 16 }}>Powered by Caliper Community</p>
       </div>
     </div>

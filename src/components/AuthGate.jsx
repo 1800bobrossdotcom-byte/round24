@@ -70,8 +70,10 @@ export function AuthGate({ children }) {
         try { await redeemInvite(getPendingInvite()); clearPendingInvite(); setInvite(null); m = await fetchMembership().catch(() => null); }
         catch { /* bad/used/expired invite — stays unonboarded */ }
       }
-      // no staff seat → maybe they're a RESIDENT (Caliper Community)
-      const r = m ? null : await getMyResident().catch(() => null);
+      // fetch any residency too — staff can ALSO live in a building they manage
+      // (founder / crew-resident dual-hat). Without a seat it routes them to the
+      // resident home; with one, the shell surfaces a "My Home" tab.
+      const r = await getMyResident().catch(() => null);
       if (on) { setMem(m); setResident(r); setMemReady(true); }
     })();
     return () => { on = false; };
@@ -109,7 +111,8 @@ export function AuthGate({ children }) {
 
   return (
     <AuthCtx.Provider value={{ session, role: mem.role, orgId: mem.org_id, orgName: mem.orgName, orgKind: mem.orgKind || 'company',
-      theme: mem.theme || {}, patchOrg: (patch) => setMem((m) => (m ? { ...m, ...patch } : m)) }}>
+      theme: mem.theme || {}, patchOrg: (patch) => setMem((m) => (m ? { ...m, ...patch } : m)),
+      resident: resident && resident.status !== 'declined' ? resident : null }}>
       {children}
     </AuthCtx.Provider>
   );

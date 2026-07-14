@@ -62,7 +62,13 @@ export default function ResidentJoin({ orgId, building = '' }) {
         setSession(await getSession());
         const r = await getMyResident().catch(() => null); setResident(r);
       }
-    } catch (e) { setErr(e.message || 'Could not sign in.'); }
+    } catch (e) {
+      // e.g. a staff/crew member who also lives here — same login works for both
+      if (/already registered/i.test(e.message || '')) {
+        setMode('signin');
+        setErr('You already have a Caliper account with this email — sign in with your usual password and it works for both.');
+      } else setErr(e.message || 'Could not sign in.');
+    }
     finally { setBusy(false); }
   };
 
@@ -110,7 +116,9 @@ export default function ResidentJoin({ orgId, building = '' }) {
       </div>
       <p className="note">{resident.propLabel || 'Your building'}{resident.unit ? ` · Unit ${resident.unit}` : ''}
         {resident.status === 'pending' ? ' — the office checks your claim against the lease, usually within a day. You can already report repairs.' : ''}</p>
-      <button className="btn grad" style={{ marginTop: 16 }} onClick={() => { window.location.href = '/'; }}>Open my home</button>
+      {/* #myhome lands dual-hat staff on their resident tab; pure residents get
+          their full-screen home regardless of hash */}
+      <button className="btn grad" style={{ marginTop: 16 }} onClick={() => { window.location.href = '/#myhome'; }}>Open my home</button>
     </div>
   );
 
