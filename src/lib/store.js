@@ -680,6 +680,7 @@ export function useStore() {
       detail: `Resident request${req.tenantName ? ` from ${req.tenantName}` : ''}${req.tenantContact ? ` (${req.tenantContact})` : ''}\n${req.description || ''}`,
       propLabel: req.propLabel || null, unit: req.unit || null, category: 'general',
       priority: 3, source: 'resident', status: 'open',
+      photos: Array.isArray(req.photos) ? req.photos : (req.photo ? [req.photo] : []),
     });
     await setRequestStatus(req.id, 'converted', wo?.id || null);
     audit('convert_request', `${req.propLabel || ''} · ${(req.description || '').slice(0, 40)}`);

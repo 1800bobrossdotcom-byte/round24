@@ -46,10 +46,14 @@ export default function Requests({ store, navigate }) {
 
   const card = (r, active) => (
     <div className="card" key={r.id} style={{ marginBottom: 'var(--gap)', opacity: active ? 1 : 0.7 }}>
+      {(() => { const pics = (r.photos && r.photos.length ? r.photos : (r.photo ? [r.photo] : [])); return (
       <div style={{ display: 'flex', gap: 12 }}>
-        {r.photo && (
-          <img src={r.photo} alt="issue" onClick={() => setPhoto(r.photo)}
-            style={{ width: 76, height: 76, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)', cursor: 'zoom-in', flex: 'none' }} />
+        {pics[0] && (
+          <div style={{ position: 'relative', flex: 'none' }}>
+            <img src={pics[0]} alt="issue" onClick={() => setPhoto(pics[0])}
+              style={{ width: 76, height: 76, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)', cursor: 'zoom-in' }} />
+            {pics.length > 1 && <span style={{ position: 'absolute', bottom: 3, right: 3, background: '#000b', color: '#fff', fontSize: 11, padding: '1px 5px', borderRadius: 6 }}>+{pics.length - 1}</span>}
+          </div>
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -59,11 +63,21 @@ export default function Requests({ store, navigate }) {
             <span className="chip" style={{ marginLeft: 'auto', color: 'var(--text-faint)' }}>{fmtWhen(r.createdAt)}</span>
           </div>
           <div style={{ margin: '5px 0', lineHeight: 1.45 }}>{r.description}</div>
+          {pics.length > 1 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '6px 0' }}>
+              {pics.slice(1).map((p, i) => (
+                <img key={i} src={p} alt={`issue ${i + 2}`} onClick={() => setPhoto(p)}
+                  style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--line)', cursor: 'zoom-in' }} />
+              ))}
+            </div>
+          )}
+          {r.voice && <audio controls src={r.voice} style={{ height: 34, margin: '6px 0', maxWidth: '100%' }} />}
           {(r.tenantName || r.tenantContact) && (
             <div className="note" style={{ margin: 0 }}>{[r.tenantName, r.tenantContact].filter(Boolean).join(' · ')}</div>
           )}
         </div>
       </div>
+      ); })()}
       {active && (
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
           <button className="btn ghost sm" style={{ color: 'var(--danger)' }} disabled={busy === r.id} onClick={() => decline(r)}><IcX width={13} height={13} /> Decline</button>

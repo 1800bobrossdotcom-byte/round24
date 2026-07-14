@@ -433,6 +433,7 @@ export async function insertWorkOrder(orgId, wo) {
     priority: wo.priority ?? 3,
     voice_transcript: wo.transcript || null,
     checklist: Array.isArray(wo.checklist) && wo.checklist.length ? wo.checklist : null,
+    photos: Array.isArray(wo.photos) && wo.photos.length ? wo.photos : undefined,
   }).select().single();
   if (error) throw error;
   return woFromDb(data);
@@ -500,15 +501,22 @@ export async function deleteMaintenanceSchedule(id) {
 const reqFromDb = (r) => ({
   id: r.id, propLabel: r.property_label, unit: r.unit, tenantName: r.tenant_name,
   tenantContact: r.tenant_contact, description: r.description, photo: r.photo || null,
+  // multi-photo (v44); fall back to the single legacy photo so old rows still show
+  photos: Array.isArray(r.photos) && r.photos.length ? r.photos : (r.photo ? [r.photo] : []),
+  voice: r.voice || null,
   status: r.status, workOrderId: r.work_order_id, createdAt: r.created_at,
 });
 // submit a request. Callable by an UNAUTHENTICATED resident (anon key) — the
 // mr_public_insert RLS policy allows the insert; they can't read anything back.
 export async function submitMaintenanceRequest(orgId, r) {
+  const photos = Array.isArray(r.photos) ? r.photos.filter(Boolean) : (r.photo ? [r.photo] : []);
   const { error } = await supabase.from('maintenance_requests').insert({
     org_id: orgId, property_label: r.propLabel || null, unit: r.unit || null,
     tenant_name: r.tenantName || null, tenant_contact: r.tenantContact || null,
-    description: r.description, photo: r.photo || null,
+    description: r.description,
+    photo: photos[0] || null,           // keep the single column populated (first photo)
+    photos: photos.length ? photos : null,
+    voice: r.voice || null,
   });
   if (error) throw error;
 }
