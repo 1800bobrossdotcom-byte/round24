@@ -222,6 +222,28 @@ function Shell() {
     return () => clearTimeout(t);
   }, [woNotice]);
 
+  // My Home is a room of its own — a dual-hat user who taps it leaves the ops
+  // nav entirely for the clean Community surface, with one way back to work.
+  // (A pure resident never reaches here; AuthGate gives them the full-screen home.)
+  if (tab === 'myhome' && resident) {
+    const backTo = (baseTabs[0]?.id) || 'settings';
+    const backLabel = orgKind === 'owner' ? 'portfolio' : role === 'tech' ? 'crew' : 'office';
+    return (
+      <div className="app desk community-scope" style={{ minHeight: '100vh' }}>
+        <TopStrip />
+        <div style={{ maxWidth: 620, margin: '0 auto', padding: '10px 16px 60px', width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 2px 12px' }}>
+            <button className="btn ghost sm" style={{ width: 'auto' }} onClick={() => navigate(backTo)}>← Back to {backLabel}</button>
+            <span style={{ flex: 1 }} />
+            <OrgLogo logo={store.orgLogo} name={store.meta?.org} height={30}
+              fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800 }}><Mark /> Caliper</span>} />
+          </div>
+          <ResidentHome resident={resident} embedded />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app desk">
       <TopStrip />
