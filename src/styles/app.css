@@ -1085,3 +1085,29 @@ button.clk-card{font:inherit;color:inherit;width:100%;text-align:left;display:bl
 .lp-phone { max-width: 288px; margin: 0 auto; border: 1px solid var(--line); border-radius: 26px; overflow: hidden; box-shadow: 0 26px 64px -26px rgba(0,0,0,.34); background: var(--surface); }
 .lp-final { text-align: center; padding: 84px 22px 44px; }
 .lp-foot { text-align: center; color: var(--text-faint); font-size: 12px; padding: 26px 20px 64px; border-top: 1px solid var(--line); margin-top: 40px; }
+
+/* Phones — tighten the vertical rhythm (desktop stacks left too much padding on
+   a narrow screen) and keep headings from wrapping loose. */
+@media (max-width: 640px) {
+  .lp-wrap { padding: 0 18px; }
+  .lp-head-in { padding: 0 18px; height: 54px; }
+  .lp-head-cta { gap: 10px; }
+  .lp-hero { padding: 40px 0 26px; }
+  .lp-hero h1 { line-height: 1.08; }
+  .lp-sub { margin-top: 14px; line-height: 1.5; }
+  .lp-cta { margin-top: 22px; }
+  .lp-frame { margin-top: 26px; border-radius: 12px; }
+  .lp-band { padding: 42px 0; margin-top: 34px; }
+  .lp-sec { padding: 44px 0 0; }
+  .lp-sec h2, .lp-band h2, .lp-final h2 { line-height: 1.15; }
+  .lp-p { margin-top: 12px; line-height: 1.55; }
+  .lp-steps { margin-top: 20px; gap: 12px; }
+  .lp-step { padding: 18px; }
+  .lp-scene { margin-top: 20px; gap: 18px; }
+  .lp-scene-txt h3 { font-size: 1.28rem; line-height: 1.18; }
+  .lp-scene-txt p { margin-top: 8px; line-height: 1.5; }
+  .lp-products { margin-top: 20px; gap: 12px; }
+  .lp-prod { padding: 18px; }
+  .lp-final { padding: 54px 18px 36px; }
+  .lp-foot { padding: 22px 18px 52px; margin-top: 32px; }
+}
