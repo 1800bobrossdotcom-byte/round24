@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { submitMaintenanceRequest } from '../lib/backend/supabase.js';
 import { Mark } from '../components/ui.jsx';
+import OrgLogo from '../components/OrgLogo.jsx';
 
 // downscale a photo client-side to a reasonable data URL (a phone photo is huge;
 // the office only needs to see what's wrong).
@@ -60,8 +61,9 @@ export default function ResidentRequest({ orgId, building = '' }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: 440, padding: '28px 20px 60px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 18 }}>
-          <Mark className="mark" /><span style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.02em' }}>Caliper</span>
+        <div style={{ marginBottom: 18 }}>
+          <OrgLogo orgId={orgId} height={44} poweredBy
+            fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 9 }}><Mark className="mark" /><span style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.02em' }}>Caliper</span></span>} />
         </div>
 
         {done ? (

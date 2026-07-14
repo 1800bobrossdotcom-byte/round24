@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { AuthGate, SignOutButton, AccountButton, useAuth } from './components/AuthGate.jsx';
 import TopStrip from './components/TopStrip.jsx';
 import { useStore } from './lib/store.js';
+import OrgLogo from './components/OrgLogo.jsx';
 import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip, IcShield, IcTag, IcChart, IcTable, IcChevron, IcTrend, IcSync } from './components/ui.jsx';
 import { isPlatformAdmin, isConfigured } from './lib/backend/supabase.js';
 import Dashboard from './views/Dashboard.jsx';
@@ -217,7 +218,7 @@ function Shell() {
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <header className="topbar">
-          <div className="brand"><Mark /> Caliper <span className="sub">{orgKind === 'owner' ? 'portfolio' : role === 'tech' ? 'crew' : role === 'viewer' ? 'viewer' : 'office'}</span></div>
+          <div className="brand"><OrgLogo orgId={store.orgId} height={26} fallback={<><Mark /> Caliper</>} /> <span className="sub">{orgKind === 'owner' ? 'portfolio' : role === 'tech' ? 'crew' : role === 'viewer' ? 'viewer' : 'office'}</span></div>
           <div className="spacer" />
           <div className="org-pill">{store.meta.org}</div>
           <AccountButton onOpen={() => navigate('settings')} />
