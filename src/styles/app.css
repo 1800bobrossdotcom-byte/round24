@@ -1016,3 +1016,23 @@ button.clk-card{font:inherit;color:inherit;width:100%;text-align:left;display:bl
 .rr-occitem:hover{color:var(--text)}
 .rr-occitem b{color:var(--text)}
 .rr-occitem .dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+
+/* ---- Caliper Community · "My Home" scope ------------------------------
+   The resident surface gets its OWN identity: a warm middle tone that sits
+   between the office (light) and crew (dark) shells, with a terracotta accent
+   and its own button gradient — it should feel like home, not like work.
+   Neutrals are overridden for everything inside the scope; the functional
+   status colors (warn/money/danger) stay untouched so state still reads. */
+.community-scope {
+  --bg: #ECE6DA; --surface: #F7F2E9; --surface-2: #E4DCCC;
+  --text: #2B2620; --text-dim: #5C544A; --text-faint: #8B8172;
+  --line: #D8CFBD; --accent: #C96F3B; --info: #A8763B;
+  --grad: linear-gradient(100deg, #E9963F 0%, #DD7A35 45%, #C05F45 100%);
+  background: var(--bg); color: var(--text);
+}
+.community-scope .card { background: var(--surface); border-color: var(--line); }
+/* embedded in the staff shell: a soft inset panel, clearly its own space */
+.community-embed {
+  border-radius: 16px; padding: 22px 16px 26px; margin: 4px auto 0;
+  max-width: 560px; border: 1px solid var(--line);
+}

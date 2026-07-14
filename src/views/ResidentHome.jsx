@@ -70,6 +70,11 @@ export default function ResidentHome({ resident, embedded = false }) {
     const t = setInterval(refresh, 60000);   // keep "My requests" live-ish
     return () => clearInterval(t);
   }, [resident.orgId, refresh]);
+  // standalone resident: remember this device belongs to a resident, so the
+  // next launch splashes "welcome home" instead of the ops tagline
+  useEffect(() => {
+    if (!embedded) { try { localStorage.setItem('caliper_shell_hint', 'resident'); } catch { /* no storage */ } }
+  }, [embedded]);
 
   const onPhoto = async (e) => {
     const files = Array.from(e.target.files || []); e.target.value = '';
@@ -114,8 +119,9 @@ export default function ResidentHome({ resident, embedded = false }) {
   };
 
   return (
-    <div style={embedded ? { display: 'flex', justifyContent: 'center' } : { minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', display: 'flex', justifyContent: 'center' }}>
-      <div style={{ width: '100%', maxWidth: 480, padding: embedded ? '4px 0 24px' : '24px 18px 60px' }}>
+    <div className={embedded ? 'community-scope community-embed' : 'community-scope'}
+      style={embedded ? { display: 'flex', justifyContent: 'center' } : { minHeight: '100vh', display: 'flex', justifyContent: 'center' }}>
+      <div style={{ width: '100%', maxWidth: 480, padding: embedded ? '4px 2px 12px' : '24px 18px 60px' }}>
         {!embedded && (
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
             <OrgLogo logo={brand?.logo} name={brand?.name} height={64} poweredBy centered

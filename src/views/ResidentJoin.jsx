@@ -89,7 +89,7 @@ export default function ResidentJoin({ orgId, building = '' }) {
   );
 
   const shell = (inner) => (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', display: 'flex', justifyContent: 'center' }}>
+    <div className="community-scope" style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: 420, padding: '28px 20px 60px' }}>{logo}{inner}
         <p className="note" style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: 12, marginTop: 18 }}>Caliper Community · your info is only shared with your building's management office.</p>
       </div>

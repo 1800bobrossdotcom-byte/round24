@@ -194,6 +194,9 @@ function Shell() {
   // notification badges: opening a tab clears its badge
   const { badges, markSeen } = store;
   useEffect(() => { markSeen(tab); }, [tab, markSeen]);
+  // this device runs the staff shell — future splashes use the ops tagline
+  // (a #myhome deep link still gets the Community one via the hash check)
+  useEffect(() => { try { localStorage.setItem('caliper_shell_hint', 'staff'); } catch { /* no storage */ } }, []);
   const badgeFor = (id) => badges?.[id] || 0;
   const overflowBadges = (list) => list.reduce((a, t) => a + badgeFor(t.id), 0);
 
@@ -257,7 +260,7 @@ function Shell() {
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <header className="topbar">
-          <div className="brand"><OrgLogo logo={store.orgLogo} name={store.meta?.org} height={34} fallback={<><Mark /> Caliper</>} /> <span className="sub">{orgKind === 'owner' ? 'portfolio' : role === 'tech' ? 'crew' : role === 'viewer' ? 'viewer' : 'office'}</span></div>
+          <div className="brand"><OrgLogo logo={store.orgLogo} name={store.meta?.org} height={34} fallback={<><Mark /> Caliper</>} /> <span className="sub" style={tab === 'myhome' ? { color: '#C96F3B' } : undefined}>{tab === 'myhome' ? 'home' : orgKind === 'owner' ? 'portfolio' : role === 'tech' ? 'crew' : role === 'viewer' ? 'viewer' : 'office'}</span></div>
           <div className="spacer" />
           <div className="org-pill">{store.meta.org}</div>
           <AccountButton onOpen={() => navigate('settings')} />
@@ -317,7 +320,7 @@ function Shell() {
 
 // Full-screen intro that plays once on load: the brand forms (~2.5s), holds,
 // then dissolves to reveal the app booting underneath. Click/tap skips it.
-function SplashIntro({ onDone }) {
+function SplashIntro({ onDone, community = false }) {
   const [leaving, setLeaving] = useState(false);
   const doneRef = useRef(false);
   const finish = () => { if (doneRef.current) return; doneRef.current = true; setLeaving(true); setTimeout(onDone, 480); };
@@ -327,11 +330,14 @@ function SplashIntro({ onDone }) {
     const t = setTimeout(finish, 2450);
     return () => clearTimeout(t);
   }, []);
+  // heading home ≠ heading to work: the resident-facing launch drops the ops
+  // tagline for a Community one.
+  const tag = community ? 'welcome home' : 'labor, measured true';
   return (
-    <div className={`splash ${leaving ? 'leaving' : ''}`} onClick={finish} role="img" aria-label="Caliper — labor, measured true">
+    <div className={`splash ${leaving ? 'leaving' : ''}`} onClick={finish} role="img" aria-label={`Caliper — ${tag}`}>
       <div className="splash-inner">
         <BrandLockup className="bl-hero" />
-        <div className="splash-tag">labor, measured true</div>
+        <div className="splash-tag">{tag}</div>
       </div>
     </div>
   );
@@ -348,9 +354,15 @@ export default function App() {
   // unit claim. Manages its own auth; the office verifies every claim.
   const joinOrg = params.get('join');
   if (joinOrg) return <ResidentJoin orgId={joinOrg} building={params.get('b') || ''} />;
+  // Community splash: heading to #myhome, or a device that last ran as a
+  // standalone resident, gets "welcome home" instead of the ops tagline.
+  const communitySplash = (() => {
+    try { return hashTab() === 'myhome' || localStorage.getItem('caliper_shell_hint') === 'resident'; }
+    catch { return hashTab() === 'myhome'; }
+  })();
   return (
     <>
-      {intro && <SplashIntro onDone={() => setIntro(false)} />}
+      {intro && <SplashIntro community={communitySplash} onDone={() => setIntro(false)} />}
       <AuthGate>
         <Shell />
       </AuthGate>
