@@ -25,6 +25,9 @@ import {
   listMaintenanceSchedules, insertMaintenanceSchedule, updateMaintenanceSchedule, deleteMaintenanceSchedule,
   getFieldState, upsertFieldState, subscribeFieldState, listFieldStates,
   listMaintenanceRequests, updateMaintenanceRequest, subscribeMaintenanceRequests,
+  updateWorkOrderChecklist,
+  listChecklistTemplates, insertChecklistTemplate, updateChecklistTemplate, deleteChecklistTemplate,
+  listUnitTurns, insertUnitTurn, updateUnitTurn, deleteUnitTurn, subscribeUnitTurns,
 } from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
@@ -683,6 +686,85 @@ export function useStore() {
     return wo;
   }, [addWorkOrder, setRequestStatus]);
 
+  // ---- checklist templates: reusable task lists for work orders + turns ----
+  const [checklistTemplates, setChecklistTemplates] = useState([]);
+  useEffect(() => {
+    if (!isConfigured() || !orgId || !isStaffMember || demoMode) { setChecklistTemplates([]); return undefined; }
+    let alive = true;
+    listChecklistTemplates(orgId).then((r) => { if (alive) setChecklistTemplates(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, [orgId, isStaffMember, demoMode]);
+
+  const setTemplate = useCallback(async (t) => {
+    if (t.id && !String(t.id).startsWith('ct_')) {
+      setChecklistTemplates((l) => l.map((x) => (x.id === t.id ? { ...x, ...t } : x)));
+      if (isConfigured() && orgId && !demoMode) { try { await updateChecklistTemplate(t.id, t); } catch { /* keep local */ } }
+      return t.id;
+    }
+    const local = { kind: 'any', items: [], ...t, id: `ct_${Math.random().toString(36).slice(2, 9)}` };
+    setChecklistTemplates((l) => [...l, local]);
+    if (isConfigured() && orgId && !demoMode) {
+      try { const saved = await insertChecklistTemplate(orgId, local); setChecklistTemplates((l) => l.map((x) => (x.id === local.id ? saved : x))); return saved.id; }
+      catch { /* keep local */ }
+    }
+    return local.id;
+  }, [orgId, demoMode]);
+
+  const removeTemplate = useCallback(async (id) => {
+    setChecklistTemplates((l) => l.filter((x) => x.id !== id));
+    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('ct_')) { try { await deleteChecklistTemplate(id); } catch { /* gone */ } }
+  }, [orgId, demoMode]);
+
+  // ---- unit turns: the make-ready / turnover board (office planning surface) ----
+  const [unitTurns, setUnitTurns] = useState([]);
+  const turnsRef = useRef(unitTurns);
+  useEffect(() => { turnsRef.current = unitTurns; }, [unitTurns]);
+  useEffect(() => {
+    if (!isConfigured() || !orgId || !isStaffMember || demoMode) { setUnitTurns([]); return undefined; }
+    let alive = true;
+    const refresh = () => listUnitTurns(orgId).then((r) => { if (alive) setUnitTurns(r); }).catch(() => {});
+    refresh();
+    const unsub = subscribeUnitTurns(orgId, refresh);
+    return () => { alive = false; if (typeof unsub === 'function') unsub(); };
+  }, [orgId, isStaffMember, demoMode]);
+
+  // add or update a turn (optimistic; id present → update).
+  const setTurn = useCallback(async (t) => {
+    if (t.id && !String(t.id).startsWith('ut_')) {
+      setUnitTurns((l) => l.map((x) => (x.id === t.id ? { ...x, ...t } : x)));
+      if (isConfigured() && orgId && !demoMode) { try { await updateUnitTurn(t.id, t); } catch { /* keep local */ } }
+      return t.id;
+    }
+    const local = { stage: 'notice', checklist: null, ...t, id: `ut_${Math.random().toString(36).slice(2, 9)}`, createdAt: new Date().toISOString() };
+    setUnitTurns((l) => [local, ...l]);
+    if (isConfigured() && orgId && !demoMode) {
+      try { const saved = await insertUnitTurn(orgId, local); setUnitTurns((l) => l.map((x) => (x.id === local.id ? saved : x))); audit('add_turn', `${saved.propLabel || ''} · ${saved.unit || ''}`); return saved.id; }
+      catch { /* keep local */ }
+    }
+    return local.id;
+  }, [orgId, demoMode]); // audit via closure
+
+  const removeTurn = useCallback(async (id) => {
+    setUnitTurns((l) => l.filter((x) => x.id !== id));
+    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('ut_')) { try { await deleteUnitTurn(id); } catch { /* gone */ } }
+  }, [orgId, demoMode]);
+
+  // spawn a work order for a turn's make-ready and link the two, so the crew
+  // picks it up in Orders/Field like any other job.
+  const createTurnWorkOrder = useCallback(async (turn) => {
+    const wo = await addWorkOrder({
+      task: `Make-ready — ${turn.propLabel || 'unit'}${turn.unit ? ` Unit ${turn.unit}` : ''}`,
+      detail: 'Unit turnover / make-ready.' + (turn.notes ? `\n${turn.notes}` : ''),
+      propLabel: turn.propLabel || null, unit: turn.unit || null, category: 'turn',
+      priority: 2, assigneeLabel: turn.assigneeLabel || null, due: turn.targetReady || null,
+      source: 'turn', status: 'open',
+      checklist: Array.isArray(turn.checklist) ? turn.checklist : null,
+    });
+    await setTurn({ id: turn.id, workOrderId: wo?.id || null, stage: turn.stage === 'notice' ? 'make_ready' : turn.stage });
+    audit('turn_work_order', `${turn.propLabel || ''} · ${turn.unit || ''}`);
+    return wo;
+  }, [addWorkOrder, setTurn]);
+
   // WO mutations are optimistic. If the cloud write fails the DB row is unchanged
   // and no realtime UPDATE fires to correct us, so a swallowed error would let a
   // cancel/reassign/reprioritize silently resurrect on the next load. Revert the
@@ -729,6 +811,18 @@ export function useStore() {
         setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, ...revert } : w)));
         return { ok: false };
       }
+    }
+    return { ok: true };
+  }, [woBackend]);
+
+  // templated task list on a work order. Optimistic; persist the full array.
+  // Crew (checking items off) and office (adding/removing items) both call this.
+  const setWoChecklist = useCallback(async (id, checklist) => {
+    const before = woRef.current.find((w) => w.id === id)?.checklist;
+    setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, checklist } : w)));
+    if (isConfigured() && woBackend === 'db' && !String(id).startsWith('wo_')) {
+      try { await updateWorkOrderChecklist(id, checklist); }
+      catch { setWorkOrders((l) => l.map((w) => (w.id === id ? { ...w, checklist: before ?? null } : w))); return { ok: false }; }
     }
     return { ok: true };
   }, [woBackend]);
@@ -1585,9 +1679,12 @@ export function useStore() {
     hasImported: imported.timers.length > 0,
     importedCount: imported.timers.length,
     // work orders
-    workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, addWoAttachment, woBackend,
+    workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, addWoAttachment, setWoChecklist, woBackend,
     maintSchedules, setSchedule, removeSchedule, generateFromSchedule,
     maintRequests, setRequestStatus, convertRequestToWorkOrder,
+    // reusable checklist templates + make-ready turn board
+    checklistTemplates, setTemplate, removeTemplate,
+    unitTurns, setTurn, removeTurn, createTurnWorkOrder,
     woNotice, clearWoNotice: () => setWoNotice(null),
     // cloud timers
     addTimerEntry, updateTimerEntry, deleteTimerEntry, operatorId,

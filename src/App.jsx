@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { AuthGate, SignOutButton, AccountButton, useAuth } from './components/AuthGate.jsx';
 import TopStrip from './components/TopStrip.jsx';
 import { useStore } from './lib/store.js';
-import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip, IcShield, IcTag, IcChart, IcTable, IcChevron, IcTrend } from './components/ui.jsx';
+import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip, IcShield, IcTag, IcChart, IcTable, IcChevron, IcTrend, IcSync } from './components/ui.jsx';
 import { isPlatformAdmin, isConfigured } from './lib/backend/supabase.js';
 import Dashboard from './views/Dashboard.jsx';
 import DayOverview from './views/DayOverview.jsx';
@@ -14,6 +14,7 @@ import Team from './views/Team.jsx';
 import Import from './views/Import.jsx';
 import WorkOrders from './views/WorkOrders.jsx';
 import Maintenance from './views/Maintenance.jsx';
+import Turns from './views/Turns.jsx';
 import Requests from './views/Requests.jsx';
 import ResidentRequest from './views/ResidentRequest.jsx';
 import Calendar from './views/Calendar.jsx';
@@ -57,6 +58,7 @@ const TABS = [
   { id: 'timesheet', label: 'Timesheet', Icon: IcTable, View: Timesheet, roles: ['admin', 'manager', 'tech'], cat: 'work', primary: true },
   { id: 'wo', label: 'Orders', Icon: IcWrench, View: WorkOrders, roles: ['admin', 'manager', 'tech', 'viewer'], cat: 'work', primary: true },
   { id: 'maint', label: 'Maintenance', Icon: IcClip, View: Maintenance, roles: ['admin', 'manager'], cat: 'work' },
+  { id: 'turns', label: 'Make-ready', Icon: IcSync, View: Turns, roles: ['admin', 'manager'], cat: 'work' },
   { id: 'requests', label: 'Requests', Icon: IcChat, View: Requests, roles: ['admin', 'manager'], cat: 'work' },
   { id: 'chat', label: 'Chat', Icon: IcChat, View: Chat, roles: ['admin', 'manager', 'tech', 'viewer'], cat: 'work', primary: true },
   { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, roles: ['admin', 'manager', 'viewer'], cat: 'work' },

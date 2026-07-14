@@ -413,6 +413,7 @@ const woFromDb = (r) => ({
   serviceFee: r.service_fee != null ? Number(r.service_fee) : null,
   repairCost: r.repair_cost != null ? Number(r.repair_cost) : null,
   tenantBilled: r.tenant_billed || 'no',
+  checklist: Array.isArray(r.checklist) ? r.checklist : null,   // templated task list (v43)
 });
 
 export async function listWorkOrders(orgId) {
@@ -431,6 +432,7 @@ export async function insertWorkOrder(orgId, wo) {
     status: wo.status || 'open', source: wo.source || 'manual',
     priority: wo.priority ?? 3,
     voice_transcript: wo.transcript || null,
+    checklist: Array.isArray(wo.checklist) && wo.checklist.length ? wo.checklist : null,
   }).select().single();
   if (error) throw error;
   return woFromDb(data);
@@ -438,6 +440,14 @@ export async function insertWorkOrder(orgId, wo) {
 
 export async function updateWorkOrderStatus(id, status) {
   const { error } = await supabase.from('work_orders').update({ status }).eq('id', id);
+  if (error) throw error;
+}
+
+// checklist on a work order — array of { id, text, done, doneAt }. Tolerates a
+// DB without the column (pre-v43): the update simply no-ops on schema error.
+export async function updateWorkOrderChecklist(id, checklist) {
+  const { error } = await supabase.from('work_orders')
+    .update({ checklist: Array.isArray(checklist) ? checklist : [] }).eq('id', id);
   if (error) throw error;
 }
 
@@ -518,6 +528,91 @@ export async function updateMaintenanceRequest(id, patch) {
 export function subscribeMaintenanceRequests(orgId, cb) {
   const ch = supabase.channel(`mreq-${orgId}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'maintenance_requests', filter: `org_id=eq.${orgId}` }, () => cb())
+    .subscribe();
+  return () => supabase.removeChannel(ch);
+}
+
+// ---- checklist templates (reusable task lists for work orders + turns) ----
+const tmplFromDb = (r) => ({
+  id: r.id, name: r.name, kind: r.kind || 'any', category: r.category || null,
+  items: Array.isArray(r.items) ? r.items : [], createdAt: r.created_at,
+});
+export async function listChecklistTemplates(orgId) {
+  const { data, error } = await supabase.from('checklist_templates').select('*')
+    .eq('org_id', orgId).order('name', { ascending: true });
+  if (error) throw error;
+  return (data || []).map(tmplFromDb);
+}
+export async function insertChecklistTemplate(orgId, t) {
+  const { data, error } = await supabase.from('checklist_templates').insert({
+    org_id: orgId, name: t.name, kind: t.kind || 'any', category: t.category || null,
+    items: Array.isArray(t.items) ? t.items : [],
+  }).select().single();
+  if (error) throw error;
+  return tmplFromDb(data);
+}
+export async function updateChecklistTemplate(id, patch) {
+  const db = {};
+  if ('name' in patch) db.name = patch.name;
+  if ('kind' in patch) db.kind = patch.kind || 'any';
+  if ('category' in patch) db.category = patch.category || null;
+  if ('items' in patch) db.items = Array.isArray(patch.items) ? patch.items : [];
+  const { error } = await supabase.from('checklist_templates').update(db).eq('id', id);
+  if (error) throw error;
+}
+export async function deleteChecklistTemplate(id) {
+  const { error } = await supabase.from('checklist_templates').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ---- unit turns (make-ready / turnover board) ----
+const turnFromDb = (r) => ({
+  id: r.id, propLabel: r.property_label, unit: r.unit, stage: r.stage || 'notice',
+  moveOut: r.move_out, targetReady: r.target_ready, actualReady: r.actual_ready,
+  assigneeLabel: r.assignee_label, marketRent: r.market_rent != null ? Number(r.market_rent) : null,
+  checklist: Array.isArray(r.checklist) ? r.checklist : null, notes: r.notes || null,
+  workOrderId: r.work_order_id || null, createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const turnToDb = (t) => ({
+  property_label: t.propLabel || null, unit: t.unit || null, stage: t.stage || 'notice',
+  move_out: t.moveOut || null, target_ready: t.targetReady || null, actual_ready: t.actualReady || null,
+  assignee_label: t.assigneeLabel || null,
+  market_rent: t.marketRent === '' || t.marketRent == null ? null : Number(t.marketRent),
+  checklist: Array.isArray(t.checklist) ? t.checklist : null, notes: t.notes || null,
+  work_order_id: t.workOrderId || null,
+});
+export async function listUnitTurns(orgId) {
+  const { data, error } = await supabase.from('unit_turns').select('*')
+    .eq('org_id', orgId).order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(turnFromDb);
+}
+export async function insertUnitTurn(orgId, t) {
+  const { data, error } = await supabase.from('unit_turns')
+    .insert({ org_id: orgId, ...turnToDb(t) }).select().single();
+  if (error) throw error;
+  return turnFromDb(data);
+}
+export async function updateUnitTurn(id, patch) {
+  const full = turnToDb(patch);
+  const db = { updated_at: new Date().toISOString() };
+  // only send keys the caller actually provided (patch semantics)
+  const MAP = {
+    propLabel: 'property_label', unit: 'unit', stage: 'stage', moveOut: 'move_out',
+    targetReady: 'target_ready', actualReady: 'actual_ready', assigneeLabel: 'assignee_label',
+    marketRent: 'market_rent', checklist: 'checklist', notes: 'notes', workOrderId: 'work_order_id',
+  };
+  for (const k of Object.keys(patch)) if (MAP[k]) db[MAP[k]] = full[MAP[k]];
+  const { error } = await supabase.from('unit_turns').update(db).eq('id', id);
+  if (error) throw error;
+}
+export async function deleteUnitTurn(id) {
+  const { error } = await supabase.from('unit_turns').delete().eq('id', id);
+  if (error) throw error;
+}
+export function subscribeUnitTurns(orgId, cb) {
+  const ch = supabase.channel(`turns-${orgId}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'unit_turns', filter: `org_id=eq.${orgId}` }, () => cb())
     .subscribe();
   return () => supabase.removeChannel(ch);
 }

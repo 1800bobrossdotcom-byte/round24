@@ -104,7 +104,7 @@ const inputStyle = {
 export default function WorkOrders({ store, focus }) {
   // only ACTIVE operators are assignable; departed ones keep their history but
   // can't take new work (falls back to techs so nothing breaks pre-status-tag).
-  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, addWoAttachment, addTimesheet, pickProperties: properties = [], activeTechs, techs: allTechs = [], role, woBackend, purchases = [], vendors = [] } = store;
+  const { workOrders, addWorkOrder, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, addWoAttachment, setWoChecklist, checklistTemplates = [], addTimesheet, pickProperties: properties = [], activeTechs, techs: allTechs = [], role, woBackend, purchases = [], vendors = [] } = store;
   const techs = activeTechs || allTechs;
   // typing a #tag in the task auto-sets the category bucket (#mopping → turn)
   const setTask = (v) => setDraft((d) => { const c = categoryForText(v); return { ...d, task: v, ...(c ? { category: c } : {}) }; });
@@ -422,7 +422,7 @@ export default function WorkOrders({ store, focus }) {
           {pending.map((w) => (
             <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} setWoAssignee={setWoAssignee} setWoBilling={setWoBilling}
               isStaff={isStaff} canRun={canRun} canAttach={isStaff || role === 'tech'} addWoAttachment={addWoAttachment} receipts={receiptsByWo[w.id]}
-              vendors={vendors} techs={techs} />
+              vendors={vendors} techs={techs} templates={checklistTemplates} setChecklist={setWoChecklist} canCheckList={isStaff || canRun} canEditList={isStaff} />
           ))}
         </div>
       )}
@@ -431,13 +431,13 @@ export default function WorkOrders({ store, focus }) {
       <div className="card">
         <span className="field-label">Open ({open.length}) — sorted by priority</span>
         {open.length === 0 && <p className="note">Nothing open. {isStaff ? 'Create one above — or just say it out loud.' : 'Nothing assigned to you right now.'}</p>}
-        {open.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} setWoBilling={setWoBilling} isStaff={isStaff} canRun={canRun} canAttach={isStaff || role === 'tech'} addWoAttachment={addWoAttachment} receipts={receiptsByWo[w.id]} />)}
+        {open.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} setWoBilling={setWoBilling} isStaff={isStaff} canRun={canRun} canAttach={isStaff || role === 'tech'} addWoAttachment={addWoAttachment} receipts={receiptsByWo[w.id]} templates={checklistTemplates} setChecklist={setWoChecklist} canCheckList={isStaff || canRun} canEditList={isStaff} />)}
       </div>
 
       {closed.length > 0 && (
         <div className="card" style={{ marginTop: 'var(--gap)' }}>
           <span className="field-label">Closed ({closed.length})</span>
-          {closed.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} setWoBilling={setWoBilling} isStaff={isStaff} canRun={canRun} canAttach={isStaff || role === 'tech'} addWoAttachment={addWoAttachment} receipts={receiptsByWo[w.id]} done />)}
+          {closed.map((w) => <WoRow key={w.id} w={w} setWoStatus={setWoStatus} setWoPriority={setWoPriority} setWoBilling={setWoBilling} isStaff={isStaff} canRun={canRun} canAttach={isStaff || role === 'tech'} addWoAttachment={addWoAttachment} receipts={receiptsByWo[w.id]} templates={checklistTemplates} setChecklist={setWoChecklist} canCheckList={isStaff || canRun} canEditList={isStaff} done />)}
         </div>
       )}
     </div>
@@ -447,11 +447,14 @@ export default function WorkOrders({ store, focus }) {
 const BILL_LABEL = { no: 'not billed', billed: 'billed', paid: 'paid' };
 const BILL_COLOR = { no: 'var(--text-faint)', billed: 'var(--warn)', paid: 'var(--money)' };
 
-function WoRow({ w, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, isStaff, canRun, canAttach, addWoAttachment, done, receipts = [], vendors = [], techs = [] }) {
+function WoRow({ w, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, isStaff, canRun, canAttach, addWoAttachment, done, receipts = [], vendors = [], techs = [], templates = [], setChecklist, canCheckList, canEditList }) {
   const pr = WO_PRIORITIES[w.priority ?? 3];
   const [open, setOpen] = useState(false);
   const [billOpen, setBillOpen] = useState(false);
   const [attOpen, setAttOpen] = useState(false);
+  const [clOpen, setClOpen] = useState(false);
+  const checklist = Array.isArray(w.checklist) ? w.checklist : null;
+  const clDone = checklist ? checklist.filter((i) => i.done).length : 0;
   const [upBusy, setUpBusy] = useState(false);
   const [lb, setLb] = useState(null); // lightbox start index
   const photos = w.photos || [];
@@ -480,6 +483,9 @@ function WoRow({ w, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, isS
             {nAtt > 0
               ? <> · <a onClick={() => setAttOpen((o) => !o)} style={{ color: 'var(--info)', cursor: 'pointer' }}><IcClip width={11} height={11} style={{ verticalAlign: -1 }} /> {nAtt}</a></>
               : (canAttach && addWoAttachment) && <> · <a onClick={() => setAttOpen(true)} style={{ color: 'var(--text-faint)', cursor: 'pointer' }}><IcClip width={11} height={11} style={{ verticalAlign: -1 }} /> add photo</a></>}
+            {setChecklist && (checklist
+              ? <> · <a onClick={() => setClOpen((o) => !o)} style={{ color: clDone === checklist.length && checklist.length ? 'var(--money)' : 'var(--warn)', cursor: 'pointer' }}><IcCheck width={11} height={11} style={{ verticalAlign: -1 }} /> {clDone}/{checklist.length}</a></>
+              : (canEditList && <> · <a onClick={() => setClOpen(true)} style={{ color: 'var(--text-faint)', cursor: 'pointer' }}><IcCheck width={11} height={11} style={{ verticalAlign: -1 }} /> checklist</a></>))}
             {isStaff && setWoBilling && <> · <a onClick={() => setBillOpen((o) => !o)} style={{ color: w.serviceFee > 0 ? BILL_COLOR[w.tenantBilled || 'no'] : 'var(--text-faint)', cursor: 'pointer' }}>
               {w.serviceFee > 0 ? <>{fmtMoneyC(w.serviceFee)} · {BILL_LABEL[w.tenantBilled || 'no']}</> : 'bill tenant'}</a></>}
           </div>
@@ -572,7 +578,61 @@ function WoRow({ w, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, isS
           )}
         </div>
       )}
+      {clOpen && setChecklist && <WoChecklist w={w} checklist={checklist} templates={templates} canCheck={canCheckList} canEdit={canEditList} onChange={(next) => setChecklist(w.id, next)} />}
       {lb !== null && lbItems.length > 0 && <Lightbox items={lbItems} index={lb} onClose={() => setLb(null)} />}
+    </div>
+  );
+}
+
+// templated task list on a work order. Office applies a template or adds items;
+// crew (and office) check them off as the job gets done. Progress rides the row.
+const clId = () => 'ci_' + Math.random().toString(36).slice(2, 9);
+function WoChecklist({ checklist, templates = [], canCheck, canEdit, onChange }) {
+  const [adding, setAdding] = useState('');
+  const items = Array.isArray(checklist) ? checklist : [];
+  const relevant = templates.filter((t) => t.kind === 'any' || t.kind === 'workorder');
+  const toggle = (id) => onChange(items.map((i) => (i.id === id ? { ...i, done: !i.done, doneAt: !i.done ? new Date().toISOString() : null } : i)));
+  const removeItem = (id) => onChange(items.filter((i) => i.id !== id));
+  const addItem = () => { const t = adding.trim(); if (!t) return; onChange([...items, { id: clId(), text: t, done: false }]); setAdding(''); };
+  const applyTemplate = (tmpl) => {
+    if (!tmpl) return;
+    const add = (tmpl.items || []).map((text) => ({ id: clId(), text, done: false }));
+    onChange([...items, ...add]);
+  };
+  const pct = items.length ? Math.round((items.filter((i) => i.done).length / items.length) * 100) : 0;
+  return (
+    <div className="pur-items" style={{ padding: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span className="field-label" style={{ margin: 0 }}>Checklist</span>
+        {items.length > 0 && <span className="mono" style={{ fontSize: 11, color: pct === 100 ? 'var(--money)' : 'var(--text-dim)' }}>{pct}%</span>}
+        {canEdit && relevant.length > 0 && (
+          <select onChange={(e) => { const t = relevant.find((x) => x.id === e.target.value); applyTemplate(t); e.target.value = ''; }} defaultValue=""
+            style={{ marginLeft: 'auto', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 12, padding: '5px 7px', borderRadius: 8 }}>
+            <option value="" disabled>+ Apply template…</option>
+            {relevant.map((t) => <option key={t.id} value={t.id}>{t.name} ({(t.items || []).length})</option>)}
+          </select>
+        )}
+      </div>
+      {items.length > 0 && (
+        <div style={{ height: 4, background: 'var(--surface-2)', borderRadius: 3, overflow: 'hidden', marginBottom: 10 }}>
+          <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? 'var(--money)' : 'var(--accent)', transition: 'width .2s' }} />
+        </div>
+      )}
+      {items.length === 0 && <p className="note" style={{ margin: '0 0 8px' }}>No items yet.{canEdit ? ' Apply a template or add steps below.' : ''}</p>}
+      {items.map((i) => (
+        <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '5px 0' }}>
+          <input type="checkbox" checked={!!i.done} disabled={!canCheck} onChange={() => toggle(i.id)} style={{ width: 17, height: 17, flex: 'none', cursor: canCheck ? 'pointer' : 'default' }} />
+          <span style={{ flex: 1, fontSize: 13, textDecoration: i.done ? 'line-through' : 'none', color: i.done ? 'var(--text-dim)' : 'var(--text)' }}>{i.text}</span>
+          {canEdit && <button className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)' }} onClick={() => removeItem(i.id)} aria-label="Remove item"><IcX width={12} height={12} /></button>}
+        </div>
+      ))}
+      {canEdit && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <input value={adding} onChange={(e) => setAdding(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addItem(); }} placeholder="Add a step…"
+            style={{ flex: 1, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, padding: 8, borderRadius: 8 }} />
+          <button className="btn ghost sm" onClick={addItem} disabled={!adding.trim()}>Add</button>
+        </div>
+      )}
     </div>
   );
 }
