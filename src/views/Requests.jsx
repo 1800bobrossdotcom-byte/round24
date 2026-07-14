@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { IcCheck, IcX, IcWrench, IcBuilding } from '../components/ui.jsx';
+import { qrDataUrl, downloadDataUrl, qrPosterDataUrl } from '../lib/qr.js';
 
 function fmtWhen(iso) {
   if (!iso) return '';
@@ -16,6 +17,19 @@ export default function Requests({ store, navigate }) {
 
   const orgId = store.orgId || '';
   const link = `${window.location.origin}/?request=${orgId}`;
+  // optional per-door QR: append &b=<building> so a posted code prefills the unit's building
+  const [bld, setBld] = useState('');
+  const qrLink = bld.trim() ? `${link}&b=${encodeURIComponent(bld.trim())}` : link;
+  const [qrImg, setQrImg] = useState('');
+  const [posterBusy, setPosterBusy] = useState(false);
+  useEffect(() => { try { setQrImg(qrDataUrl(qrLink, { size: 320, margin: 3 })); } catch { setQrImg(''); } }, [qrLink]);
+  const slug = (bld.trim() || 'evolution24').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const dlQr = () => downloadDataUrl(qrDataUrl(qrLink, { size: 1024, margin: 4 }), `caliper-request-qr-${slug}.png`);
+  const dlPoster = async () => {
+    setPosterBusy(true);
+    try { const png = await qrPosterDataUrl(qrLink, { building: bld.trim() }); downloadDataUrl(png, `caliper-request-poster-${slug}.png`); }
+    finally { setPosterBusy(false); }
+  };
 
   const { queue, handled } = useMemo(() => ({
     queue: maintRequests.filter((r) => r.status === 'new'),
@@ -77,6 +91,22 @@ export default function Requests({ store, navigate }) {
           <a className="btn ghost sm" href={link} target="_blank" rel="noreferrer">Preview</a>
         </div>
         <p className="note" style={{ margin: '8px 0 0', color: 'var(--text-faint)' }}>Tip: add <span className="mono">&amp;b=121%20Park</span> to prefill a specific building on a per-door link.</p>
+
+        {/* QR: download a printable code / poster to drop into notices, lease packets, doors */}
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)', flexWrap: 'wrap' }}>
+          {qrImg && <img src={qrImg} alt="Resident request QR code" style={{ width: 108, height: 108, borderRadius: 10, border: '1px solid var(--line)', background: '#fff', flex: 'none' }} />}
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <span className="field-label" style={{ display: 'block', marginBottom: 4 }}>Printable QR code</span>
+            <p className="note" style={{ margin: '0 0 8px' }}>Residents scan with their phone camera — straight to the request form. Drop it in notices, lease packets, or on each door.</p>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input value={bld} onChange={(e) => setBld(e.target.value)} placeholder="Building for this code (optional)"
+                style={{ flex: 1, minWidth: 160, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, padding: 9, borderRadius: 9 }} />
+              <button className="btn ghost sm" onClick={dlQr}>Download QR (PNG)</button>
+              <button className="btn grad sm" onClick={dlPoster} disabled={posterBusy}>{posterBusy ? 'Building…' : 'Download poster'}</button>
+            </div>
+            {bld.trim() && <p className="note" style={{ margin: '6px 0 0', color: 'var(--text-faint)' }}>This code prefills <b>{bld.trim()}</b> — post it at that building.</p>}
+          </div>
+        </div>
       </div>
 
       {queue.length > 0 ? (
