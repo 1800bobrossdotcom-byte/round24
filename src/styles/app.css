@@ -169,7 +169,7 @@
 .landing-h1 { font-size: clamp(26px, 5vw, 42px); font-weight: 800; line-height: 1.1; letter-spacing: -.02em; margin: 14px 0 0; }
 .landing-sub { color: var(--text-dim); font-size: clamp(14px, 2.2vw, 16px); line-height: 1.5; max-width: 620px; margin: 14px auto 0; }
 .landing-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 26px 0 6px; }
-.landing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 30px 0 0; text-align: left; }
+.landing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin: 30px 0 0; text-align: left; }
 @media (max-width: 720px) { .landing-grid { grid-template-columns: 1fr; } }
 .landing-card { border: 1px solid var(--line); border-radius: 14px; padding: 18px; background: var(--surface); }
 .landing-ic { display: inline-flex; padding: 9px; border-radius: 10px; background: var(--surface-2); color: var(--accent); margin-bottom: 10px; }

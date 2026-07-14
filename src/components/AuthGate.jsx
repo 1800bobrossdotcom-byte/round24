@@ -133,6 +133,14 @@ function NeedsAccess() {
 
   useEffect(() => { isPlatformAdmin().then(setPlat).catch(() => setPlat(false)); }, []);
 
+  // extract an org id from a pasted join link (or a bare id) → the resident flow
+  const gotoJoin = (raw) => {
+    const s = (raw || '').trim(); if (!s) return;
+    const m = s.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+    const org = m ? m[0] : (/^join=/.test(s) ? s.split('join=')[1] : null);
+    if (org) window.location.href = `/?join=${encodeURIComponent(org)}`;
+  };
+
   const join = async () => {
     setErr(null); setBusy(true);
     try { await redeemInvite(code.trim().toUpperCase()); clearPendingInvite(); window.location.reload(); }
@@ -144,6 +152,28 @@ function NeedsAccess() {
     catch (e) { setErr(e.message || 'Could not send your request.'); }
     finally { setBusy(false); }
   };
+
+  // a resident who signed in via Community but hasn't joined a building yet →
+  // point them at their office's link (or let them paste it) rather than the
+  // staff invite/beta flow.
+  let cameFromCommunity = false;
+  try { cameFromCommunity = localStorage.getItem('caliper_product') === 'community'; } catch { /* no storage */ }
+  if (cameFromCommunity && plat === false) {
+    return (
+      <div className="community-scope" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
+        <div style={{ width: '100%', maxWidth: 380, textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><BrandLockup /></div>
+          <div style={{ fontWeight: 800, fontSize: 17, marginTop: 12 }}>Join your building</div>
+          <p className="note" style={{ margin: '8px 0 16px' }}>You're signed in. To finish, open the join link your management office shared — or paste it below.</p>
+          <input placeholder="Paste your building's join link" onKeyDown={(e) => { if (e.key === 'Enter') gotoJoin(e.currentTarget.value); }}
+            id="join-paste" style={inputStyle} />
+          <button className="btn grad" style={{ marginTop: 12 }} onClick={() => gotoJoin(document.getElementById('join-paste')?.value || '')}>Continue</button>
+          <p className="note" style={{ marginTop: 16 }}><a onClick={() => { try { localStorage.removeItem('caliper_product'); } catch { /* */ } window.location.reload(); }} style={{ color: 'var(--text-dim)', cursor: 'pointer' }}>Not a resident? Switch</a></p>
+          <div style={{ marginTop: 14 }}><SignOutButton /></div>
+        </div>
+      </div>
+    );
+  }
 
   // superadmin without an org → the platform console (provision / approve)
   if (plat) {
@@ -230,6 +260,7 @@ const BRANDS = {
   portfolio: { chip: 'portfolio', Icon: IcBuilding, tagline: 'Your portfolio, measured true.' },
   office: { chip: 'office', Icon: IcChart, tagline: 'The whole operation, measured true.' },
   crew: { chip: 'crew', Icon: IcWrench, tagline: 'Clock in. Get your orders. Snap your receipts.' },
+  community: { chip: 'community', Icon: IcBuilding, tagline: 'Your building, in your pocket.' },
 };
 // top-level product cards (the main page)
 const PRODUCTS = {
@@ -245,6 +276,12 @@ const PRODUCTS = {
     tagline: 'For maintenance companies & their crews.',
     points: ['Office: dashboards & dispatch', 'Crew: timers & receipts', 'Team, compliance & payroll'],
   },
+  community: {
+    title: 'Caliper Community',
+    Icon: IcBuilding,
+    tagline: 'For residents — report repairs and reach your building.',
+    points: ['Report a repair in seconds', 'Follow it to done', 'Hear from your management office'],
+  },
 };
 
 // "What is Caliper" — the landing page after the splash. Explains the product
@@ -253,6 +290,7 @@ const LANDING_FEATURES = [
   { Icon: IcMapPin, title: 'Measured labor', body: 'Geofenced clock-in and a hands-free field timer put real hours on the right door — not a guess, not a spreadsheet after the fact.' },
   { Icon: IcChart, title: 'Connected money', body: 'Rent, receipts, and pay flow into per-door P&L, expense forecasts, and monthly statements that assemble themselves.' },
   { Icon: IcMic, title: 'Built for the field', body: 'Offline-safe and voice-driven on any phone. Import the pay logs and rent rolls you already keep — Caliper reads them.' },
+  { Icon: IcBuilding, title: 'The whole building', body: 'Residents report repairs, follow them to done, and hear from the office — Caliper Community turns a ticket queue into a building that runs itself.' },
 ];
 function Landing({ onEnter, onBeta }) {
   return (
@@ -260,7 +298,7 @@ function Landing({ onEnter, onBeta }) {
       <div className="landing-inner">
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><BrandLockup className="bl-hero" /></div>
         <h1 className="landing-h1">The maintenance platform that <span className="grad-text">measures the labor</span>.</h1>
-        <p className="landing-sub">Every hour, receipt, and door — reconciled automatically. Caliper turns the pay logs, rent rolls, and P&amp;L sheets your crew and office keep by hand into one connected, encrypted ledger.</p>
+        <p className="landing-sub">Every hour, receipt, and door — reconciled automatically. Caliper turns the pay logs, rent rolls, and P&amp;L sheets your crew and office keep by hand into one connected, encrypted ledger — and gives your residents a way in, so the whole building runs on one system.</p>
 
         <div className="landing-cta">
           <button className="btn grad" style={{ width: 'auto', padding: '13px 22px' }} onClick={onBeta}>Request beta access →</button>
@@ -279,12 +317,16 @@ function Landing({ onEnter, onBeta }) {
 
         <div className="landing-personas">
           <button className="landing-persona" onClick={onEnter}>
+            <IcChart width={18} height={18} />
+            <div><b>Caliper Pro</b><span>Maintenance companies — office dispatch + a crew in the field.</span></div>
+          </button>
+          <button className="landing-persona" onClick={onEnter}>
             <IcBuilding width={18} height={18} />
             <div><b>Caliper Portfolio</b><span>Owners &amp; families — a handful of homes, apartments, or land.</span></div>
           </button>
           <button className="landing-persona" onClick={onEnter}>
-            <IcChart width={18} height={18} />
-            <div><b>Caliper Pro</b><span>Maintenance companies — office dispatch + a crew in the field.</span></div>
+            <IcBuilding width={18} height={18} />
+            <div><b>Caliper Community</b><span>Residents — report a repair, follow it to done, reach your building.</span></div>
           </button>
         </div>
 
@@ -368,6 +410,17 @@ function Login({ invite }) {
             <a onClick={() => { localStorage.removeItem('caliper_seen_landing'); setEntered(false); }} style={{ color: 'var(--text-dim)', cursor: 'pointer' }}>What is Caliper?</a>
           </p>
         </div>
+      </div>
+    );
+  }
+
+  // Community (residents) → its own warm-palette login. No beta gate; residents
+  // arrive via a building join link, so sign-in routes to their home and the
+  // no-residency fallback points them at their office's link.
+  if (product === 'community') {
+    return (
+      <div className="community-scope" style={{ minHeight: '100vh' }}>
+        <LoginForm brand="community" invite={invite} onSwitch={backToProducts} switchLabel="Not a resident? Choose a different Caliper" community />
       </div>
     );
   }
@@ -472,7 +525,7 @@ function BetaRequest({ onBack }) {
   );
 }
 
-function LoginForm({ brand, onSwitch, onBeta, invite, switchLabel }) {
+function LoginForm({ brand, onSwitch, onBeta, invite, switchLabel, community = false }) {
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [mode, setMode] = useState(invite ? 'signup' : 'signin'); // invited → create account
@@ -536,9 +589,11 @@ function LoginForm({ brand, onSwitch, onBeta, invite, switchLabel }) {
         {/* primary: switch sign-in ⇄ create, and the no-invite path — grouped together */}
         <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', flexDirection: 'column', gap: 5 }}>
           <a onClick={() => { setMode(isSignup ? 'signin' : 'signup'); setErr(null); }} style={{ color: 'var(--info)', cursor: 'pointer', fontSize: 13.5, fontWeight: 600 }}>
-            {isSignup ? 'Already have an account? Sign in' : 'Have an invite? Create your account'}
+            {isSignup ? 'Already have an account? Sign in' : community ? 'New here? Create your account' : 'Have an invite? Create your account'}
           </a>
-          {onBeta && (
+          {community ? (
+            <span className="note" style={{ margin: 0 }}>Joining a building? Open the link your management office shared.</span>
+          ) : onBeta && (
             <span className="note" style={{ margin: 0 }}>
               No invite? <a onClick={onBeta} style={{ color: 'var(--info)', cursor: 'pointer', fontWeight: 700 }}>Request beta access</a>
             </span>
