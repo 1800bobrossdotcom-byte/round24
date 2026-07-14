@@ -140,7 +140,7 @@
   .feat .ft svg { width:15px; height:15px; color:var(--accent); flex:none; }
   .feat p { color:var(--muted); font-size:0.9rem; line-height:1.5; }
 
-  .personas { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  .personas { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
   @media (max-width:760px){ .personas{ grid-template-columns:1fr; } }
   .persona { border:1px solid var(--line); border-radius:4px; padding:22px; background:var(--surface); display:flex; flex-direction:column; gap:10px; }
   .persona .tag { font-family:var(--mono); font-size:0.68rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--accent-ink); }
@@ -354,12 +354,13 @@
 <section class="wrap">
   <div class="sec-head reveal">
     <span class="n">03 — WHO IT'S FOR</span>
-    <h2>Two products, three seats — priced to the person using them.</h2>
+    <h2>Three products, one spine — everyone in the building, priced to the person using it.</h2>
   </div>
   <div class="personas">
-    <div class="persona reveal"><span class="tag">Portfolio</span><h3>Owners</h3><p>The P&amp;L per door, the occupancy, the true cost of holding each building — without the spreadsheets.</p></div>
     <div class="persona reveal"><span class="tag">Pro · Office</span><h3>Dispatch</h3><p>Assign work, approve receipts and field reports, and watch labor reconcile to the right building in real time.</p></div>
     <div class="persona reveal"><span class="tag">Pro · Crew</span><h3>The field</h3><p>Clock in, get your orders, snap your receipts, split your day — mobile-first, for people who never had software.</p></div>
+    <div class="persona reveal"><span class="tag">Portfolio</span><h3>Owners</h3><p>The P&amp;L per door, the occupancy, the true cost of holding each building — without the spreadsheets.</p></div>
+    <div class="persona reveal"><span class="tag">Community</span><h3>Residents</h3><p>Report a repair from a QR on the door, follow it to done, and reach your neighbors — a self-governing building layer, free with Pro, that keeps small frictions from ever becoming management's problem.</p></div>
   </div>
 </section>
 
@@ -440,11 +441,16 @@
         <tr><td class="who">Coordination tools<span class="sub">Property Meld · Latchel</span></td><td>Managers who outsource repairs</td><td>Vendor dispatch, resident comms</td><td>No in-house crew tools. Spend read from invoices, not the field.</td></tr>
         <tr><td class="who">Enterprise multifamily<span class="sub">AppWork · Accolade</span></td><td>Institutional, centralized portfolios</td><td>Technician productivity, turns</td><td>Labor without materials. Enterprise-only. Quote-based pricing.</td></tr>
         <tr><td class="who">Systems of record<span class="sub">Rent Manager · AppFolio · Yardi</span></td><td>Their installed base</td><td>Accounting, leases, trust</td><td>The field is an afterthought. We integrate — we don't compete.</td></tr>
-        <tr class="us"><td class="who">Caliper</td><td>Small-to-mid operators with in-house crews</td><td>The allocation engine — labor + materials, per door</td><td>Published pricing. White-label. Built by the crew, for the crew.</td></tr>
+        <tr class="us"><td class="who">Caliper</td><td>Small-to-mid operators with in-house crews</td><td>The allocation engine — labor + materials, per door — plus the resident layer</td><td>Published pricing. White-label. Built by the crew, for the crew.</td></tr>
       </tbody>
     </table>
   </div>
   <p class="reveal" style="margin-top:22px; max-width:64ch; color:var(--muted)">We don't replace the accounting system — that fight is a decade long and a liability. We own the operational ledger it depends on, and we sync.</p>
+
+  <div class="plate pos reveal" style="margin-top:32px">
+    <h3>The second moat: the building's community, not just its work orders.</h3>
+    <p style="margin:10px 0 0; color:var(--muted); line-height:1.6">Every tool in the table treats residents as ticket submitters. <b>Caliper Community</b> treats the building as a neighborhood. Today, residents report repairs from a QR on their door — no app, no login — straight into the work-order pipeline. Next, verified residents follow their requests to done and reach their neighbors through pseudonymous, accountable messaging, so "can you turn the music down" never has to become a management call. Small frictions resolve peer-to-peer; management sees less noise; residents who feel at home stay longer — and because Pro already measures make-ready labor per door, Caliper is the only system that can show an owner what that retention is worth. A community is also the one thing a competitor can't migrate away: switching software would mean unplugging the building from itself.</p>
+  </div>
 </section>
 
 <div class="wrap"><div class="rule" aria-hidden="true"></div></div>
