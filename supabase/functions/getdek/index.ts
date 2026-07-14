@@ -23,11 +23,17 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { KMSClient, DecryptCommand, GenerateDataKeyCommand } from 'npm:@aws-sdk/client-kms@3';
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
+// CORS: reflect only the app's own origins (audit S5) — never '*'. Re-bound per
+// request in the handler; a concurrent re-bind can only swap one allowlisted
+// origin for another, so it stays safe.
+const CORS_ORIGINS = ['https://caliper.solutions', 'https://www.caliper.solutions', 'http://localhost:5173', 'http://localhost:4173'];
+const corsFor = (origin: string | null) => ({
+  'Access-Control-Allow-Origin': origin && CORS_ORIGINS.includes(origin) ? origin : CORS_ORIGINS[0],
+  'Vary': 'Origin',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+});
+let CORS = corsFor(null);
 
 const AWS_REGION = Deno.env.get('CALIPER_AWS_REGION');
 const AWS_KEY_ID = Deno.env.get('CALIPER_AWS_ACCESS_KEY_ID');
@@ -37,6 +43,7 @@ const kmsConfigured = !!(AWS_REGION && AWS_KEY_ID && AWS_SECRET && KMS_KEY_ID);
 const DEV_MODE = !kmsConfigured && Deno.env.get('CALIPER_DEV_MODE') === 'true';
 
 Deno.serve(async (req) => {
+  CORS = corsFor(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
     // ---- authenticate the caller ----

@@ -14,11 +14,17 @@ import Anthropic from 'npm:@anthropic-ai/sdk@0.70.0';
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
+// CORS: reflect only the app's own origins (audit S5) — never '*'. Re-bound per
+// request in the handler; a concurrent re-bind can only swap one allowlisted
+// origin for another, so it stays safe.
+const CORS_ORIGINS = ['https://caliper.solutions', 'https://www.caliper.solutions', 'http://localhost:5173', 'http://localhost:4173'];
+const corsFor = (origin: string | null) => ({
+  'Access-Control-Allow-Origin': origin && CORS_ORIGINS.includes(origin) ? origin : CORS_ORIGINS[0],
+  'Vary': 'Origin',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+});
+let CORS = corsFor(null);
 
 const SUMMARY_TOOL = {
   name: 'record_update',
@@ -40,6 +46,7 @@ const SUMMARY_TOOL = {
 };
 
 Deno.serve(async (req) => {
+  CORS = corsFor(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
     const authHeader = req.headers.get('Authorization');

@@ -22,11 +22,17 @@ const UNSUB_SECRET = Deno.env.get('UNSUB_SECRET') || SERVICE; // signs one-click
 const POSTAL = Deno.env.get('EMAIL_POSTAL') || 'Evolution24 Property Management, Rochester, NY';
 const APP = 'https://caliper.solutions';
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
+// CORS: reflect only the app's own origins (audit S5) — never '*'. Re-bound per
+// request in the handler; a concurrent re-bind can only swap one allowlisted
+// origin for another, so it stays safe.
+const CORS_ORIGINS = ['https://caliper.solutions', 'https://www.caliper.solutions', 'http://localhost:5173', 'http://localhost:4173'];
+const corsFor = (origin: string | null) => ({
+  'Access-Control-Allow-Origin': origin && CORS_ORIGINS.includes(origin) ? origin : CORS_ORIGINS[0],
+  'Vary': 'Origin',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+});
+let CORS = corsFor(null);
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } });
 const esc = (s = '') => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
 
@@ -86,6 +92,7 @@ function render(type: string, v: { name?: string; code?: string; orgName?: strin
 }
 
 Deno.serve(async (req) => {
+  CORS = corsFor(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
     const authHeader = req.headers.get('Authorization');
