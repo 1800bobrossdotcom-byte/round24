@@ -99,6 +99,12 @@ const OWNER_TABS = [
 
 const MAX_BAR = 5; // slots in the mobile bottom bar (incl. a possible "More")
 
+// every tab id the app can ever route to — hash routing accepts these even
+// before async gates (isPlat, operator seat) have resolved, so a deep link to
+// #platform or #field survives the first render instead of being clobbered.
+const KNOWN_TAB_IDS = new Set([...TABS.map((t) => t.id), ...OWNER_TABS.map((t) => t.id), 'platform']);
+const hashTab = () => window.location.hash.replace(/^#\/?/, '');
+
 function Shell() {
   const store = useStore();
   const { role, orgKind } = useAuth();
@@ -120,7 +126,9 @@ function Shell() {
     ...baseTabs,
     ...(isPlat ? [{ id: 'platform', label: 'Platform', Icon: IcShield, View: Platform, cat: 'account' }] : []),
   ];
-  const [tab, setTab] = useState(tabs[0]?.id);
+  // hash routing: the active tab lives in the URL (#timesheet, #wo…), so views
+  // are linkable, refresh keeps your place, and back/forward walk tab history.
+  const [tab, setTab] = useState(() => (KNOWN_TAB_IDS.has(hashTab()) ? hashTab() : tabs[0]?.id));
   const [moreOpen, setMoreOpen] = useState(false);
   // collapsible nav categories — compress the rail as the tool count grows
   const [navCollapsed, setNavCollapsed] = useState(() => {
@@ -140,7 +148,22 @@ function Shell() {
   const navigate = (id, params = null) => {
     if (!tabs.some((t) => t.id === id)) return;
     setTab(id); setFocus(params); setMoreOpen(false);
+    if (hashTab() !== id) window.location.hash = id; // pushes a history entry → back button works
   };
+
+  // back/forward (and hand-typed hashes) drive the tab
+  useEffect(() => {
+    const onHash = () => {
+      const h = hashTab();
+      if (h && KNOWN_TAB_IDS.has(h)) { setTab(h); setFocus(null); setMoreOpen(false); }
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  // keep the URL honest when the tab changes by other paths (role guard, seed)
+  useEffect(() => {
+    if (tab && hashTab() !== tab) window.history.replaceState(null, '', '#' + tab);
+  }, [tab]);
 
   const seedDemo = async () => {
     setSeeding(true);
@@ -148,7 +171,10 @@ function Shell() {
     finally { setSeeding(false); }
   };
   useEffect(() => {
-    if (!tabs.some((t) => t.id === tab)) setTab(tabs[0]?.id);
+    // reset only truly unknown ids — a KNOWN id this shell can't show yet (e.g.
+    // #platform before isPlat resolves, #field before the seat loads) renders
+    // the fallback view meanwhile and activates once its gate opens.
+    if (!tabs.some((t) => t.id === tab) && !KNOWN_TAB_IDS.has(tab)) setTab(tabs[0]?.id);
   }, [role]); // role change (re-login) can invalidate the active tab
   const Active = (tabs.find((t) => t.id === tab) || tabs[0])?.View || Settings;
 
