@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { submitMaintenanceRequest, getOrgBranding } from '../lib/backend/supabase.js';
+import { submitMaintenanceRequest, getOrgBranding, getOrgProperties } from '../lib/backend/supabase.js';
 import { Mark } from '../components/ui.jsx';
 import OrgLogo from '../components/OrgLogo.jsx';
 
@@ -46,6 +46,21 @@ export default function ResidentRequest({ orgId, building = '' }) {
   // this workspace's own branding (name + logo), fetched by org id (public read)
   const [brand, setBrand] = useState(null);
   useEffect(() => { let on = true; getOrgBranding(orgId).then((b) => { if (on) setBrand(b); }).catch(() => {}); return () => { on = false; }; }, [orgId]);
+
+  // the org's real buildings → a dropdown, so requests land on a known property.
+  // "__other__" reveals a free-text field for anything not yet in Caliper.
+  const [props, setProps] = useState(null);   // null = loading, [] = none/unavailable
+  const [otherMode, setOtherMode] = useState(false);
+  useEffect(() => {
+    let on = true;
+    getOrgProperties(orgId).then((list) => {
+      if (!on) return;
+      setProps(list);
+      // a prefilled building (&b=) that isn't a known property → drop into free text
+      if (building && list.length && !list.includes(building)) setOtherMode(true);
+    }).catch(() => { if (on) setProps([]); });
+    return () => { on = false; };
+  }, [orgId, building]);
 
   const onPhoto = async (e) => {
     const files = Array.from(e.target.files || []); e.target.value = '';
@@ -115,7 +130,22 @@ export default function ResidentRequest({ orgId, building = '' }) {
             <p className="note" style={{ margin: '0 0 18px' }}>Tell us what's wrong — type it or tap Speak — and add photos. The office will create a work order and follow up.</p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div><div className="field-label">Building / address</div><input style={inp} value={bld} onChange={(e) => setBld(e.target.value)} placeholder="e.g. 121 Park" autoCapitalize="words" /></div>
+              <div>
+                <div className="field-label">Building / address</div>
+                {props && props.length > 0 ? (
+                  <>
+                    <select style={{ ...inp, appearance: 'auto' }} value={otherMode ? '__other__' : bld}
+                      onChange={(e) => { if (e.target.value === '__other__') { setOtherMode(true); setBld(''); } else { setOtherMode(false); setBld(e.target.value); } }}>
+                      <option value="">Select your building…</option>
+                      {props.map((p) => <option key={p} value={p}>{p}</option>)}
+                      <option value="__other__">Other / not listed</option>
+                    </select>
+                    {otherMode && <input style={{ ...inp, marginTop: 8 }} value={bld} onChange={(e) => setBld(e.target.value)} placeholder="Type your building / address" autoCapitalize="words" />}
+                  </>
+                ) : (
+                  <input style={inp} value={bld} onChange={(e) => setBld(e.target.value)} placeholder="e.g. 121 Park" autoCapitalize="words" />
+                )}
+              </div>
               <div><div className="field-label">Unit</div><input style={inp} value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="e.g. 4B" /></div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

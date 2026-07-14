@@ -337,6 +337,14 @@ export async function getOrgBranding(orgId) {
   const r = Array.isArray(data) ? data[0] : data;
   return r ? { name: r.name || null, logo: r.logo || null } : null;
 }
+// public building list by org id — for the unauthenticated resident form's
+// property dropdown. Returns names only.
+export async function getOrgProperties(orgId) {
+  if (!isConfigured() || !orgId) return [];
+  const { data, error } = await supabase.rpc('get_org_properties', { p_org_id: orgId });
+  if (error) return [];
+  return (data || []).map((r) => r.name).filter(Boolean);
+}
 // upload a workspace logo to the public brand-logos bucket → returns its URL.
 export async function uploadBrandLogo(orgId, file) {
   const ext = ((file.name || '').split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
