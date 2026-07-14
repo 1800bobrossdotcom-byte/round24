@@ -6,7 +6,9 @@
 // Logo files live in public/brands/ — drop a PNG (transparent background works
 // best) there and point to it here. Until the file exists the <img> 404s and the
 // UI falls back to the Caliper lockup, so adding an org here never breaks anything.
-const EVOLUTION24 = { name: 'Evolution24 Properties', logo: '/brands/evolution24.png' };
+// ?v= cache-busts: browsers that hit the link before the logo was uploaded may
+// have cached a 404 for the bare path; bump the version to force a fresh fetch.
+const EVOLUTION24 = { name: 'Evolution24 Properties', logo: '/brands/evolution24.png?v=2' };
 
 export const ORG_BRANDS = {
   '10233d8a-0d9b-4f7d-9df7-65ef915c36f3': EVOLUTION24, // Evolution24 Property Management

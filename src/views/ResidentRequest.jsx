@@ -3,10 +3,6 @@ import { submitMaintenanceRequest } from '../lib/backend/supabase.js';
 import { Mark } from '../components/ui.jsx';
 import OrgLogo from '../components/OrgLogo.jsx';
 
-function blobToDataUrl(blob) {
-  return new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res(null); r.readAsDataURL(blob); });
-}
-
 // downscale a photo client-side to a reasonable data URL (a phone photo is huge;
 // the office only needs to see what's wrong).
 function resizePhoto(file, maxDim = 1000, quality = 0.7) {
@@ -40,16 +36,12 @@ export default function ResidentRequest({ orgId, building = '' }) {
   const [contact, setContact] = useState('');
   const [desc, setDesc] = useState('');
   const [photos, setPhotos] = useState([]);          // required, multiple
-  const [voice, setVoice] = useState(null);          // optional voice-note data URL
-  const [recording, setRecording] = useState(false);
-  const [recSecs, setRecSecs] = useState(0);
+  const [dictating, setDictating] = useState(false); // speech-to-text into desc
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr] = useState(null);
-  const recRef = useRef(null);
-  const chunksRef = useRef([]);
-  const timerRef = useRef(null);
-  const MAX_PHOTOS = 6, MAX_SECS = 90;
+  const recogRef = useRef(null);
+  const MAX_PHOTOS = 6;
 
   const onPhoto = async (e) => {
     const files = Array.from(e.target.files || []); e.target.value = '';
@@ -61,25 +53,28 @@ export default function ResidentRequest({ orgId, building = '' }) {
   };
   const removePhoto = (i) => setPhotos((p) => p.filter((_, idx) => idx !== i));
 
-  // voice note via MediaRecorder — unauthenticated, so stored as a data URL
-  const startRec = async () => {
+  // voice-to-text: dictate the issue straight into the description (Web Speech
+  // API). Appends to whatever's already typed, so speaking and typing mix.
+  const toggleDictation = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { setErr('Voice typing needs Chrome, Edge, or Safari. You can type the issue instead.'); return; }
+    if (dictating) { try { recogRef.current?.stop(); } catch { /* */ } return; }
     setErr(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const rec = new MediaRecorder(stream);
-      recRef.current = rec; chunksRef.current = [];
-      rec.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data); };
-      rec.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: rec.mimeType || 'audio/webm' });
-        setVoice(await blobToDataUrl(blob));
-      };
-      rec.start(); setRecording(true); setRecSecs(0);
-      timerRef.current = setInterval(() => setRecSecs((s) => { if (s + 1 >= MAX_SECS) stopRec(); return s + 1; }), 1000);
-    } catch { setErr('Could not access the microphone. Check your browser permissions, or skip the voice note.'); }
+    const rec = new SR();
+    recogRef.current = rec;
+    rec.lang = 'en-US'; rec.interimResults = true; rec.continuous = true;
+    const base = desc.trim();
+    rec.onresult = (e) => {
+      let text = '';
+      for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
+      text = text.replace(/\s+/g, ' ').trim();
+      if (text) { const s = text.charAt(0).toUpperCase() + text.slice(1); setDesc(base ? `${base} ${s}` : s); }
+    };
+    rec.onerror = (ev) => { setDictating(false); if (ev.error === 'not-allowed') setErr('Microphone permission denied — you can type the issue instead.'); };
+    rec.onend = () => setDictating(false);
+    try { rec.start(); setDictating(true); } catch { setDictating(false); }
   };
-  const stopRec = () => { try { recRef.current?.stop(); } catch { /* */ } clearInterval(timerRef.current); setRecording(false); };
-  useEffect(() => () => { try { recRef.current?.stop(); } catch { /* */ } clearInterval(timerRef.current); }, []);
+  useEffect(() => () => { try { recogRef.current?.stop(); } catch { /* */ } }, []);
 
   const submit = async () => {
     if (!desc.trim() || photos.length === 0) return;
@@ -88,7 +83,7 @@ export default function ResidentRequest({ orgId, building = '' }) {
       await submitMaintenanceRequest(orgId, {
         propLabel: bld.trim() || null, unit: unit.trim() || null,
         tenantName: name.trim() || null, tenantContact: contact.trim() || null,
-        description: desc.trim(), photos, voice,
+        description: desc.trim(), photos,
       });
       setDone(true);
     } catch { setErr('Could not submit — please check your connection and try again.'); }
@@ -107,18 +102,27 @@ export default function ResidentRequest({ orgId, building = '' }) {
           <div className="card" style={{ textAlign: 'center', padding: 30 }}>
             <div style={{ fontSize: 40, marginBottom: 8 }}>✓</div>
             <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 6 }}>Request submitted</div>
-            <p className="note" style={{ margin: '0 auto', maxWidth: 320 }}>Thanks — the maintenance office has your request{photos.length ? ` and ${photos.length} photo${photos.length > 1 ? 's' : ''}` : ''}{voice ? ' and voice note' : ''} and will follow up. You can close this page.</p>
-            <button className="btn ghost" style={{ marginTop: 18 }} onClick={() => { setDone(false); setDesc(''); setPhotos([]); setVoice(null); setUnit(''); }}>Submit another</button>
+            <p className="note" style={{ margin: '0 auto', maxWidth: 320 }}>Thanks — the maintenance office has your request{photos.length ? ` and ${photos.length} photo${photos.length > 1 ? 's' : ''}` : ''} and will follow up. You can close this page.</p>
+            <button className="btn ghost" style={{ marginTop: 18 }} onClick={() => { setDone(false); setDesc(''); setPhotos([]); setUnit(''); }}>Submit another</button>
           </div>
         ) : (
           <>
             <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em', margin: '0 0 6px' }}>Report a maintenance issue</h1>
-            <p className="note" style={{ margin: '0 0 18px' }}>Tell us what's wrong, add photos, and record a voice note if it's easier. The office will create a work order and follow up.</p>
+            <p className="note" style={{ margin: '0 0 18px' }}>Tell us what's wrong — type it or tap Speak — and add photos. The office will create a work order and follow up.</p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div><div className="field-label">Building / address</div><input style={inp} value={bld} onChange={(e) => setBld(e.target.value)} placeholder="e.g. 121 Park" autoCapitalize="words" /></div>
               <div><div className="field-label">Unit</div><input style={inp} value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="e.g. 4B" /></div>
-              <div><div className="field-label">What's wrong?</div><textarea style={{ ...inp, minHeight: 96 }} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="e.g. Kitchen sink is leaking under the cabinet" /></div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div className="field-label">What's wrong?</div>
+                  <button type="button" onClick={toggleDictation}
+                    style={{ border: '1px solid var(--line)', background: dictating ? 'var(--danger)' : 'var(--surface-2)', color: dictating ? '#fff' : 'var(--text)', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 700, padding: '5px 10px', borderRadius: 8, cursor: 'pointer' }}>
+                    {dictating ? '● Listening… tap to stop' : '🎙 Speak'}
+                  </button>
+                </div>
+                <textarea style={{ ...inp, minHeight: 96 }} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="e.g. Kitchen sink is leaking under the cabinet — or tap Speak and describe it" />
+              </div>
 
               {/* photos — required, multiple */}
               <div>
@@ -141,25 +145,6 @@ export default function ResidentRequest({ orgId, building = '' }) {
                   </label>
                 )}
                 {photos.length === 0 && <p className="note" style={{ margin: '6px 0 0', color: 'var(--text-faint)' }}>At least one photo is required — it's how the office sees the problem.</p>}
-              </div>
-
-              {/* voice note — optional */}
-              <div>
-                <div className="field-label">Voice note (optional)</div>
-                {voice ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <audio controls src={voice} style={{ flex: 1, height: 40 }} />
-                    <button className="btn ghost" style={{ width: 'auto' }} onClick={() => setVoice(null)}>Remove</button>
-                  </div>
-                ) : recording ? (
-                  <button className="btn" onClick={stopRec} style={{ width: '100%', justifyContent: 'center', background: 'var(--danger)', color: '#fff', border: 'none' }}>
-                    ● Recording {recSecs}s — tap to stop
-                  </button>
-                ) : (
-                  <label className="btn ghost" style={{ width: '100%', justifyContent: 'center', cursor: 'pointer' }} onClick={startRec}>
-                    🎙 Record a voice note
-                  </label>
-                )}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
