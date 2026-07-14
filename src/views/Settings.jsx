@@ -92,6 +92,9 @@ export default function Settings({ store }) {
         <div className="s" style={{ marginTop: 10, color: 'var(--text-dim)', fontSize: 12 }}>{email} · {ROLE_LABEL[role] || role}{orgName ? ` · ${orgName}` : ''}</div>
       </div>
 
+      {/* workspace branding — office admins/managers only */}
+      {(role === 'admin' || role === 'manager') && <WorkspaceBranding store={store} orgName={orgName} flash={flash} />}
+
       {/* preferences */}
       <div className="card" style={{ marginBottom: 'var(--gap)' }}>
         <span className="field-label">Preferences</span>
@@ -339,6 +342,61 @@ function Certifications({ certs, onChange }) {
         <input style={{ ...inputStyle, padding: 9 }} type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
       </div>
       <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={add} disabled={!name.trim()}>+ Add</button>
+    </div>
+  );
+}
+
+// Workspace branding — the org's own name + logo. Replaces any hardcoded brand:
+// each workspace shows ITS logo (or the Caliper fallback), never another tenant's.
+function WorkspaceBranding({ store, orgName, flash }) {
+  const [name, setName] = useState(orgName || '');
+  const [busy, setBusy] = useState(false);
+  const logo = store.orgLogo || null;
+  useEffect(() => { setName(orgName || ''); }, [orgName]);
+
+  const saveName = async () => {
+    const n = name.trim();
+    if (!n || n === orgName) return;
+    setBusy(true); const r = await store.setOrgBranding({ name: n }); setBusy(false);
+    flash(r?.ok ? 'Workspace name saved' : 'Could not save');
+  };
+  const onLogo = async (e) => {
+    const f = e.target.files?.[0]; e.target.value = '';
+    if (!f) return;
+    setBusy(true); const r = await store.setOrgBranding({ logoFile: f }); setBusy(false);
+    flash(r?.ok ? 'Logo updated' : 'Upload failed');
+  };
+  const removeLogo = async () => {
+    if (!window.confirm('Remove the workspace logo? It will fall back to the Caliper mark.')) return;
+    setBusy(true); const r = await store.setOrgBranding({ logoUrl: null }); setBusy(false);
+    flash(r?.ok ? 'Logo removed' : 'Could not remove');
+  };
+
+  return (
+    <div className="card" style={{ marginBottom: 'var(--gap)' }}>
+      <span className="field-label">Workspace branding</span>
+      <p className="note" style={{ margin: '2px 0 12px' }}>Your workspace name and logo — shown in the app header and on your residents' repair-request page. Each workspace is branded on its own; nothing carries over from another.</p>
+
+      <div className="field-label">Workspace name</div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input style={{ ...inputStyle, flex: 1 }} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Evolution24 Properties" />
+        <button className="btn ghost sm" style={{ width: 'auto' }} onClick={saveName} disabled={busy || !name.trim() || name.trim() === orgName}>Save</button>
+      </div>
+
+      <div className="field-label" style={{ marginTop: 14 }}>Logo</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <div style={{ height: 56, minWidth: 120, display: 'flex', alignItems: 'center', padding: '0 12px', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10 }}>
+          {logo
+            ? <img src={logo} alt="Workspace logo" style={{ maxHeight: 44, maxWidth: 200, objectFit: 'contain' }} />
+            : <span className="s" style={{ color: 'var(--text-faint)' }}>Caliper (default)</span>}
+        </div>
+        <label className="btn ghost sm" style={{ width: 'auto', cursor: 'pointer' }}>
+          {logo ? 'Replace logo' : 'Upload logo'}
+          <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden onChange={onLogo} disabled={busy} />
+        </label>
+        {logo && <button className="btn ghost sm" style={{ width: 'auto', color: 'var(--danger)' }} onClick={removeLogo} disabled={busy}>Remove</button>}
+      </div>
+      <p className="note" style={{ margin: '8px 0 0', color: 'var(--text-faint)' }}>PNG with a transparent background works best. Shown small — a wide/horizontal logo reads best.</p>
     </div>
   );
 }

@@ -218,7 +218,7 @@ function Shell() {
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <header className="topbar">
-          <div className="brand"><OrgLogo orgId={store.orgId} orgName={store.meta?.org} height={34} fallback={<><Mark /> Caliper</>} /> <span className="sub">{orgKind === 'owner' ? 'portfolio' : role === 'tech' ? 'crew' : role === 'viewer' ? 'viewer' : 'office'}</span></div>
+          <div className="brand"><OrgLogo logo={store.orgLogo} name={store.meta?.org} height={34} fallback={<><Mark /> Caliper</>} /> <span className="sub">{orgKind === 'owner' ? 'portfolio' : role === 'tech' ? 'crew' : role === 'viewer' ? 'viewer' : 'office'}</span></div>
           <div className="spacer" />
           <div className="org-pill">{store.meta.org}</div>
           <AccountButton onOpen={() => navigate('settings')} />

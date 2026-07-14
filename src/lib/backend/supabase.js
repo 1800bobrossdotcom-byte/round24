@@ -328,6 +328,33 @@ export async function updateOrgName(orgId, name) {
   if (error) throw error;
 }
 
+// ---- per-workspace branding: name + logo (logo lives in orgs.theme.logo) ----
+// public read (name + logo) by org id — used by the unauthenticated resident page.
+export async function getOrgBranding(orgId) {
+  if (!isConfigured() || !orgId) return null;
+  const { data, error } = await supabase.rpc('get_org_branding', { p_org_id: orgId });
+  if (error) return null;
+  const r = Array.isArray(data) ? data[0] : data;
+  return r ? { name: r.name || null, logo: r.logo || null } : null;
+}
+// upload a workspace logo to the public brand-logos bucket → returns its URL.
+export async function uploadBrandLogo(orgId, file) {
+  const ext = ((file.name || '').split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
+  const path = `${orgId}/logo-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from('brand-logos').upload(path, file, { upsert: true, contentType: file.type || undefined });
+  if (error) throw error;
+  return supabase.storage.from('brand-logos').getPublicUrl(path).data.publicUrl;
+}
+// set (or clear, with null) the workspace logo on orgs.theme, preserving the rest of the theme.
+export async function setOrgLogo(orgId, logoUrl) {
+  const { data: cur } = await supabase.from('orgs').select('theme').eq('id', orgId).maybeSingle();
+  const theme = { ...(cur?.theme || {}) };
+  if (logoUrl) theme.logo = logoUrl; else delete theme.logo;
+  const { error } = await supabase.from('orgs').update({ theme }).eq('id', orgId);
+  if (error) throw error;
+  return theme;
+}
+
 // ---- platform superadmin (cross-tenant, gated by is_platform_admin) ----
 export async function isPlatformAdmin() {
   if (!isConfigured()) return false;

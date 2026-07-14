@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { submitMaintenanceRequest } from '../lib/backend/supabase.js';
+import { submitMaintenanceRequest, getOrgBranding } from '../lib/backend/supabase.js';
 import { Mark } from '../components/ui.jsx';
 import OrgLogo from '../components/OrgLogo.jsx';
 
@@ -42,6 +42,10 @@ export default function ResidentRequest({ orgId, building = '' }) {
   const [err, setErr] = useState(null);
   const recogRef = useRef(null);
   const MAX_PHOTOS = 6;
+
+  // this workspace's own branding (name + logo), fetched by org id (public read)
+  const [brand, setBrand] = useState(null);
+  useEffect(() => { let on = true; getOrgBranding(orgId).then((b) => { if (on) setBrand(b); }).catch(() => {}); return () => { on = false; }; }, [orgId]);
 
   const onPhoto = async (e) => {
     const files = Array.from(e.target.files || []); e.target.value = '';
@@ -94,7 +98,7 @@ export default function ResidentRequest({ orgId, building = '' }) {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: 440, padding: '28px 20px 60px' }}>
         <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'center' }}>
-          <OrgLogo orgId={orgId} height={92} poweredBy centered
+          <OrgLogo logo={brand?.logo} name={brand?.name} height={92} poweredBy centered
             fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 9 }}><Mark className="mark" /><span style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.02em' }}>Caliper</span></span>} />
         </div>
 

@@ -28,6 +28,7 @@ import {
   updateWorkOrderChecklist,
   listChecklistTemplates, insertChecklistTemplate, updateChecklistTemplate, deleteChecklistTemplate,
   listUnitTurns, insertUnitTurn, updateUnitTurn, deleteUnitTurn, subscribeUnitTurns,
+  updateOrgName, uploadBrandLogo, setOrgLogo,
 } from './backend/supabase.js';
 
 const IMP_KEY = 'caliper_imported_v1';
@@ -122,7 +123,7 @@ const slugTech = (name) =>
 const normName = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 export function useStore() {
-  const { orgId, role, session, orgName } = useAuth();
+  const { orgId, role, session, orgName, theme, patchOrg } = useAuth();
   const myId = session?.user?.id || null;
   // prefer the display name the person set in Settings; fall back to the email
   // handle. This is what labels their chat messages, live presence, availability,
@@ -1659,9 +1660,27 @@ export function useStore() {
     };
   }, [workOrders, purchases, documents, messages, seen, myId]);
 
+  // ---- per-workspace branding: this org's own logo (theme.logo) + name ----
+  const orgLogo = (isConfigured() && theme && theme.logo) ? theme.logo : null;
+  // set the workspace name and/or logo. logoFile uploads to storage first; pass
+  // logoUrl:null to clear. Reflects immediately via patchOrg, persists in the DB.
+  const setOrgBranding = useCallback(async ({ name, logoFile, logoUrl } = {}) => {
+    if (!isConfigured() || !orgId) return { ok: false };
+    try {
+      if (typeof name === 'string' && name.trim()) { await updateOrgName(orgId, name.trim()); patchOrg?.({ orgName: name.trim() }); }
+      if (logoFile || logoUrl !== undefined) {
+        const url = logoFile ? await uploadBrandLogo(orgId, logoFile) : logoUrl;
+        const nextTheme = await setOrgLogo(orgId, url || null);
+        patchOrg?.({ theme: nextTheme });
+      }
+      audit('update_branding', name || 'logo');
+      return { ok: true };
+    } catch { return { ok: false }; }
+  }, [orgId, patchOrg, audit]);
+
   return {
     meta: { ...seed.meta, org: (isConfigured() && orgName) ? orgName : seed.meta.org },
-    orgId,
+    orgId, orgLogo, setOrgBranding,
     properties,
     pickProperties,
     cloudProps,

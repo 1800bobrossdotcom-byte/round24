@@ -102,7 +102,8 @@ export function AuthGate({ children }) {
   if (!mem) return <NeedsAccess />;
 
   return (
-    <AuthCtx.Provider value={{ session, role: mem.role, orgId: mem.org_id, orgName: mem.orgName, orgKind: mem.orgKind || 'company' }}>
+    <AuthCtx.Provider value={{ session, role: mem.role, orgId: mem.org_id, orgName: mem.orgName, orgKind: mem.orgKind || 'company',
+      theme: mem.theme || {}, patchOrg: (patch) => setMem((m) => (m ? { ...m, ...patch } : m)) }}>
       {children}
     </AuthCtx.Provider>
   );
