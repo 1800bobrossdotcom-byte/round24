@@ -1,4 +1,4 @@
-# Caliper Community — Architecture Spec (v0.2)
+# Caliper Community — Architecture Spec (v0.3)
 
 **The resident product.** A per-building community + maintenance layer that turns
 residents from ticket-submitters into a self-governing community, wired into the
@@ -301,3 +301,96 @@ audience* and must be walled off from all Pro data:
 lowers it — by turning residents into a self-governing community that resolves
 its own friction, reports its own problems, and stays longer.** Nobody else in
 the category has both halves.
+
+---
+
+## 11. Shaping pass — the committed bet (Shape Up style)
+
+The design above is the territory. This section is the *bet*: what we actually
+commit to building first, sized, with the rabbit holes fenced off. Two shaped
+slices; each is independently shippable and demoable at Evolution24.
+
+### Slice 1 — "Community Core" (identity + verified requests)
+
+**Problem, one line:** the resident form is a one-shot — no account, no history,
+no verified identity, so nothing else can be built on it.
+
+**Appetite:** small batch. This is mostly plumbing we already have (Supabase
+Auth, invite codes, the request pipeline, the office-queue pattern).
+
+**Fat-marker sketch — resident side (mobile-first, whitelabeled):**
+
+```
+┌──────────────────────────┐   ┌──────────────────────────┐
+│  [Evolution24 logo]      │   │  MY HOME  · 121 Park 4B  │
+│  Join your building      │   │  ────────────────────    │
+│  ─ email (lease match)   │   │  ⚒ Report an issue       │
+│  ─ or building code      │   │  ⏱ My requests (2 open)  │
+│  → pick building + unit  │   │     • Leak — in progress │
+│  → pending / verified ✓  │   │     • Bulb — done ✓      │
+└──────────────────────────┘   │  📣 Announcements        │
+                               │  ⚙ My settings           │
+                               └──────────────────────────┘
+```
+
+**Fat-marker sketch — office side:** a **Residents** tab: verify queue (approve /
+decline against the lease, same interaction as the request queue), roster by
+building/unit, per-building join-code + QR (reuse the poster generator).
+
+**In scope:** resident auth (email OTP/password), unit binding via lease-email
+match + join code, verify states, "My requests" with live status (the request →
+WO status already exists — just surface it), announcements read-only, settings
+stub. **Done =** a real Evolution24 resident signs up, gets verified, submits a
+request, and watches it move to done.
+
+**Rabbit holes — do NOT enter:** RM/Google OAuth (Phase 4); editing requests
+after submit; per-unit invite emails (join code is enough for v1); password
+reset flows beyond Supabase defaults; native app (PWA only).
+
+### Slice 2 — "Neighbor Layer" (messaging + moderation)
+
+**Problem, one line:** friction between neighbors escalates to management
+because there's no lighter channel.
+
+**Appetite:** big batch — the moderation/reachability machinery (§3) is the
+product. Do not start until Slice 1 is live and a real building has verified
+residents (messaging into an empty room is worthless).
+
+**Fat-marker sketch:**
+
+```
+┌──────────────────────────┐   Office adds two queues:
+│  MY BUILDING             │   ─ Reports (unmask, audited)
+│  ── Building feed ────── │   ─ Requests-to-join trays
+│  "hot water out? — 3rd   │
+│   floor neighbor" 💬 4    │   Resident settings adds the dial:
+│  ── Nudge a neighbor ─── │   DMs: off/requests/trusted/open
+│  unit ▸ template ▸ send  │   Nudges ▸ Broadcasts ▸ Away→email
+│  ── Requests tray (1) ── │
+└──────────────────────────┘
+```
+
+**In scope:** building/floor feed, courtesy nudges (template-first), DM with the
+reachability dial + requests tray, report → office queue → unmask (audited),
+Claude content filter, rate limits (0046 pattern), away→email. **Done =** two
+real residents resolve a nudge-worthy issue without the office touching it.
+
+**Rabbit holes — do NOT enter:** visual floor maps; read receipts/typing
+indicators; media attachments in DMs (text first — photos are where abuse
+lives); resident-to-resident marketplace; push-notification infra beyond what
+the PWA already does (email covers Away mode).
+
+### No-gos (both slices — hard lines)
+
+- **No true anonymity.** Pseudonymity with audited unmask, or nothing.
+- **No resident PII visible to neighbors, ever** — including in payloads.
+- **No building goes social by default.** Office opts each building in.
+- **No custom chat infra.** Supabase realtime + Postgres, same as team chat.
+- **No public launch of Slice 2 without the moderation queue live** — the
+  content filter alone is not enough.
+
+### Sequencing note
+
+Slice 1 has zero social risk and compounds immediately (verified identities make
+every future feature better). Ship it, seed Evolution24's buildings, *then* bet
+on Slice 2 with real residents in the room.
