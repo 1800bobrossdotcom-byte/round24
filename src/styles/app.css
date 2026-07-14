@@ -1047,7 +1047,9 @@ button.clk-card{font:inherit;color:inherit;width:100%;text-align:left;display:bl
 .lp-link:hover { color: var(--text); }
 .btn.lp-sm { width: auto; padding: 9px 16px; font-size: 13px; }
 .lp-ey { font-family: var(--mono); font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
-.lp-hero { text-align: center; padding: 66px 0 34px; }
+/* vertical-only padding: use the long-hand so it can't clobber the horizontal
+   padding .lp-wrap sets on the same element (both classes land on one node) */
+.lp-hero { text-align: center; padding-top: 66px; padding-bottom: 34px; }
 .lp-hero h1 { font-size: clamp(2.2rem, 6vw, 4rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; max-width: 17ch; margin: 8px auto 0; text-wrap: balance; }
 .grad-text { background: var(--grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 .lp-sub { color: var(--text-dim); font-size: clamp(1rem, 2vw, 1.24rem); max-width: 58ch; margin: 18px auto 0; line-height: 1.55; }
@@ -1059,7 +1061,7 @@ button.clk-card{font:inherit;color:inherit;width:100%;text-align:left;display:bl
 .lp-bar span { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
 .lp-frame img, .lp-phone img { display: block; width: 100%; height: auto; }
 .lp-band { border-top: 1px solid var(--line); margin-top: 46px; }
-.lp-sec { padding: 74px 0 0; }
+.lp-sec { padding-top: 74px; }
 .lp-sec h2, .lp-band h2, .lp-final h2 { font-size: clamp(1.6rem, 3.4vw, 2.45rem); font-weight: 800; letter-spacing: -0.02em; margin: 12px 0 0; max-width: 24ch; line-height: 1.1; text-wrap: balance; }
 .lp-band { padding: 60px 0; }
 .lp-p { color: var(--text-dim); font-size: 1.06rem; line-height: 1.62; max-width: 60ch; margin: 16px 0 0; }
@@ -1089,16 +1091,16 @@ button.clk-card{font:inherit;color:inherit;width:100%;text-align:left;display:bl
 /* Phones — tighten the vertical rhythm (desktop stacks left too much padding on
    a narrow screen) and keep headings from wrapping loose. */
 @media (max-width: 640px) {
-  .lp-wrap { padding: 0 18px; }
-  .lp-head-in { padding: 0 18px; height: 54px; }
+  .lp-wrap { padding: 0 20px; }
+  .lp-head-in { padding: 0 20px; height: 54px; }
   .lp-head-cta { gap: 10px; }
-  .lp-hero { padding: 40px 0 26px; }
+  .lp-hero { padding-top: 40px; padding-bottom: 26px; }
   .lp-hero h1 { line-height: 1.08; }
   .lp-sub { margin-top: 14px; line-height: 1.5; }
   .lp-cta { margin-top: 22px; }
   .lp-frame { margin-top: 26px; border-radius: 12px; }
   .lp-band { padding: 42px 0; margin-top: 34px; }
-  .lp-sec { padding: 44px 0 0; }
+  .lp-sec { padding-top: 44px; }
   .lp-sec h2, .lp-band h2, .lp-final h2 { line-height: 1.15; }
   .lp-p { margin-top: 12px; line-height: 1.55; }
   .lp-steps { margin-top: 20px; gap: 12px; }
