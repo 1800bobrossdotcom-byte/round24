@@ -292,46 +292,131 @@ const LANDING_FEATURES = [
   { Icon: IcMic, title: 'Built for the field', body: 'Offline-safe and voice-driven on any phone. Import the pay logs and rent rolls you already keep — Caliper reads them.' },
   { Icon: IcBuilding, title: 'The whole building', body: 'Residents report repairs, follow them to done, and hear from the office — Caliper Community turns a ticket queue into a building that runs itself.' },
 ];
-function Landing({ onEnter, onBeta }) {
+// a framed product screenshot (browser-chrome mockup). Images are captured from
+// the app in DEMO mode — fictional company/buildings/people, sample numbers.
+function Shot({ src, alt }) {
   return (
-    <div className="landing">
-      <div className="landing-inner">
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><BrandLockup className="bl-hero" /></div>
-        <h1 className="landing-h1">The maintenance platform that <span className="grad-text">measures the labor</span>.</h1>
-        <p className="landing-sub">Every hour, receipt, and door — reconciled automatically. Caliper turns the pay logs, rent rolls, and P&amp;L sheets your crew and office keep by hand into one connected, encrypted ledger — and gives your residents a way in, so the whole building runs on one system.</p>
+    <figure className="lp-frame" style={{ margin: 0 }}>
+      <div className="lp-bar"><span /><span /><span /></div>
+      <img src={src} alt={alt} loading="lazy" />
+    </figure>
+  );
+}
 
-        <div className="landing-cta">
-          <button className="btn grad" style={{ width: 'auto', padding: '13px 22px' }} onClick={onBeta}>Request beta access →</button>
-          <button className="btn ghost" style={{ width: 'auto', padding: '13px 22px' }} onClick={onEnter}>Sign in</button>
+// The fresh-visitor marketing funnel: info + proof + product, with sign-in and
+// beta CTAs threaded throughout. Returning users skip this (see Login()).
+function Landing({ onEnter, onBeta }) {
+  const PRODS = [
+    { Icon: IcChart, name: 'Caliper Pro', tag: 'Maintenance companies — office dispatch + a crew in the field.' },
+    { Icon: IcBuilding, name: 'Caliper Portfolio', tag: 'Owners & families — a handful of homes, apartments, or land.' },
+    { Icon: IcBuilding, name: 'Caliper Community', tag: 'Residents — report a repair, follow it to done, reach your building.' },
+  ];
+  return (
+    <div className="lp">
+      {/* sticky header — CTAs always in reach */}
+      <header className="lp-head">
+        <div className="lp-head-in">
+          <BrandLockup />
+          <div className="lp-head-cta">
+            <button className="lp-link" onClick={onEnter}>Sign in</button>
+            <button className="btn grad lp-sm" onClick={onBeta}>Request beta →</button>
+          </div>
         </div>
+      </header>
 
-        <div className="landing-grid">
-          {LANDING_FEATURES.map((f) => (
-            <div className="landing-card" key={f.title}>
-              <span className="landing-ic"><f.Icon width={20} height={20} /></span>
-              <div className="landing-card-t">{f.title}</div>
-              <div className="landing-card-b">{f.body}</div>
-            </div>
+      {/* hero */}
+      <section className="lp-wrap lp-hero">
+        <span className="lp-ey">Property maintenance · measured true</span>
+        <h1>The maintenance platform that <span className="grad-text">measures the labor</span>.</h1>
+        <p className="lp-sub">Every hour, receipt, and door — reconciled automatically. Caliper turns the pay logs, rent rolls, and P&amp;L sheets your crew and office keep by hand into one connected, encrypted ledger — and gives your residents a way in, so the whole building runs on one system.</p>
+        <div className="lp-cta">
+          <button className="btn grad" onClick={onBeta}>Request beta access →</button>
+          <button className="btn ghost" onClick={onEnter}>Sign in</button>
+        </div>
+        <p className="lp-trust">🔒 AES-256 encrypted · live in beta · built by the crew that had the problem</p>
+        <Shot src="/shots/dash.png" alt="Caliper dashboard — true labor cost, reconciled to each building" />
+      </section>
+
+      {/* the problem */}
+      <section className="lp-band"><div className="lp-wrap">
+        <span className="lp-ey">The problem</span>
+        <h2>The books say one thing. The field did another. Nobody could prove which.</h2>
+        <p className="lp-p">Rent is tracked to the dollar. But the labor — the biggest controllable cost in the building — lives in pay logs, texts, and memory. When an owner asks what a unit actually cost to maintain, the honest answer is a guess. Caliper measures it.</p>
+      </div></section>
+
+      {/* how it works — the loop */}
+      <section className="lp-wrap lp-sec">
+        <span className="lp-ey">How it works</span>
+        <h2>One connected ledger, from the timer in the field to the P&amp;L per door.</h2>
+        <div className="lp-steps">
+          <div className="lp-step"><div className="n">01 · Field</div><h3>Measure the hour</h3><p>Crews clock in with a geofenced, hands-free timer and snap receipts — real hours and materials, on the right door, not a spreadsheet after the fact.</p></div>
+          <div className="lp-step"><div className="n">02 · Allocate</div><h3>Reconcile it automatically</h3><p>Every hour and dollar lands on the building and unit it was spent on — the allocation engine does the math the moment a timer closes.</p></div>
+          <div className="lp-step"><div className="n">03 · Prove</div><h3>See the true cost</h3><p>Per-door P&amp;L, forecasts, and statements that assemble themselves — the one number nobody else in the category can produce.</p></div>
+        </div>
+      </section>
+
+      {/* scene: per-door P&L */}
+      <section className="lp-wrap lp-sec">
+        <div className="lp-scene">
+          <div className="lp-scene-txt">
+            <span className="lp-ey">Per-door P&amp;L</span>
+            <h3>The bottom line of every door — rent in, verified labor and materials out.</h3>
+            <p>Change a rate or log a job and every building's P&amp;L moves. Labor comes straight from the crew's verified timers; materials from approved receipts. It's the connected ledger, end to end — and it's running today.</p>
+          </div>
+          <Shot src="/shots/pnl.png" alt="Per-door P&L — rent, labor, materials and net for each building" />
+        </div>
+      </section>
+
+      {/* scene: work orders + mobile */}
+      <section className="lp-wrap lp-sec">
+        <div className="lp-scene rev">
+          <div className="lp-scene-txt">
+            <span className="lp-ey">Built for the field</span>
+            <h3>Voice-driven, offline-safe, and mobile-first — for people who never had software.</h3>
+            <p>Say a work order out loud. Report a repair with a photo. Split a day across four buildings from a phone in a stairwell. Import the pay logs and rent rolls you already keep — Caliper reads them.</p>
+          </div>
+          <div className="lp-phone"><img src="/shots/mobile-wo.png" alt="Caliper work orders on a phone" loading="lazy" /></div>
+        </div>
+      </section>
+
+      {/* three products → portals */}
+      <section className="lp-band"><div className="lp-wrap">
+        <span className="lp-ey">Three products, one spine</span>
+        <h2>Everyone in the building — priced to the person using it.</h2>
+        <div className="lp-products">
+          {PRODS.map((p) => (
+            <button key={p.name} className="lp-prod" onClick={onEnter}>
+              <div className="ic"><p.Icon width={24} height={24} /></div>
+              <b>{p.name}</b>
+              <div className="t">{p.tag}</div>
+              <div className="go">Sign in →</div>
+            </button>
           ))}
         </div>
+      </div></section>
 
-        <div className="landing-personas">
-          <button className="landing-persona" onClick={onEnter}>
-            <IcChart width={18} height={18} />
-            <div><b>Caliper Pro</b><span>Maintenance companies — office dispatch + a crew in the field.</span></div>
-          </button>
-          <button className="landing-persona" onClick={onEnter}>
-            <IcBuilding width={18} height={18} />
-            <div><b>Caliper Portfolio</b><span>Owners &amp; families — a handful of homes, apartments, or land.</span></div>
-          </button>
-          <button className="landing-persona" onClick={onEnter}>
-            <IcBuilding width={18} height={18} />
-            <div><b>Caliper Community</b><span>Residents — report a repair, follow it to done, reach your building.</span></div>
-          </button>
+      {/* proof — honest */}
+      <section className="lp-wrap lp-sec">
+        <span className="lp-ey">Why trust it</span>
+        <h2>Above-market security. Built inside a real operation.</h2>
+        <div className="lp-steps">
+          <div className="lp-step"><div className="n">Encrypted</div><h3>AES-256 + KMS</h3><p>Pay data and identity fields are field-encrypted with per-org keys; row-level security scopes every read and write at the database.</p></div>
+          <div className="lp-step"><div className="n">Live</div><h3>Real beta, real data</h3><p>Caliper runs a working multi-building maintenance operation in production today — the design partner and first proving ground.</p></div>
+          <div className="lp-step"><div className="n">Native</div><h3>Reads what you keep</h3><p>Excel-native onboarding. Rent Manager sync. No rip-and-replace — Caliper owns the operational ledger and syncs the rest.</p></div>
         </div>
+      </section>
 
-        <p className="landing-foot"><IcShield width={12} height={12} style={{ verticalAlign: -2 }} /> Private beta · AES-256 encrypted · live on a 183-unit portfolio</p>
-      </div>
+      {/* final CTA */}
+      <section className="lp-final">
+        <h2 style={{ margin: '0 auto', maxWidth: '20ch' }}>See your labor, measured true.</h2>
+        <p className="lp-sub" style={{ margin: '14px auto 0' }}>Request a beta invite, or sign in to your portal.</p>
+        <div className="lp-cta">
+          <button className="btn grad" onClick={onBeta}>Request beta access →</button>
+          <button className="btn ghost" onClick={onEnter}>Sign in</button>
+        </div>
+      </section>
+
+      <footer className="lp-foot"><IcShield width={12} height={12} style={{ verticalAlign: -2 }} /> Private beta · AES-256 encrypted · screenshots use sample data</footer>
     </div>
   );
 }
