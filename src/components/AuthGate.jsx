@@ -1,7 +1,8 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, fetchMembership, redeemInvite, inviteInfo, requestBeta, isPlatformAdmin, sendWelcomeEmail } from '../lib/backend/supabase.js';
+import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, fetchMembership, redeemInvite, inviteInfo, requestBeta, isPlatformAdmin, sendWelcomeEmail, getMyResident } from '../lib/backend/supabase.js';
 import { Mark, BrandLockup, IcGear, IcLogout, IcWrench, IcChart, IcBuilding, IcX, IcCheck, IcChevron, IcMapPin, IcMic, IcReceipt, IcShield } from './ui.jsx';
 import Platform from '../views/Platform.jsx';
+import ResidentHome from '../views/ResidentHome.jsx';
 
 // invite links land as ?invite=CODE. Capture it, stash it, strip it from the
 // URL, and it gets redeemed the moment the person is authenticated.
@@ -58,8 +59,9 @@ export function AuthGate({ children }) {
     } catch { /* ignore */ }
   }, [session]);
 
+  const [resident, setResident] = useState(null); // Caliper Community: residency (no staff membership)
   useEffect(() => {
-    if (!isConfigured() || !session) { setMem(null); setMemReady(false); return; }
+    if (!isConfigured() || !session) { setMem(null); setResident(null); setMemReady(false); return; }
     let on = true;
     (async () => {
       let m = await fetchMembership().catch(() => null);
@@ -68,7 +70,9 @@ export function AuthGate({ children }) {
         try { await redeemInvite(getPendingInvite()); clearPendingInvite(); setInvite(null); m = await fetchMembership().catch(() => null); }
         catch { /* bad/used/expired invite — stays unonboarded */ }
       }
-      if (on) { setMem(m); setMemReady(true); }
+      // no staff seat → maybe they're a RESIDENT (Caliper Community)
+      const r = m ? null : await getMyResident().catch(() => null);
+      if (on) { setMem(m); setResident(r); setMemReady(true); }
     })();
     return () => { on = false; };
   }, [session]);
@@ -98,6 +102,8 @@ export function AuthGate({ children }) {
     );
   }
 
+  // a resident (Caliper Community) gets their own home — never the staff shell
+  if (!mem && resident && resident.status !== 'declined') return <ResidentHome resident={resident} />;
   // signed in but not part of any workspace yet → let them redeem an invite
   if (!mem) return <NeedsAccess />;
 

@@ -187,6 +187,9 @@ export default function ResidentRequest({ orgId, building = '' }) {
               </div>
               {err && <div className="note" style={{ color: 'var(--danger)' }}>{err}</div>}
               <button className="btn grad" style={{ padding: 14, fontSize: 16 }} onClick={submit} disabled={busy || !desc.trim() || photos.length === 0}>{busy ? 'Submitting…' : 'Submit request'}</button>
+              <p className="note" style={{ textAlign: 'center', fontSize: 13, margin: '4px 0 0' }}>
+                Want to follow your request to done? <a href={`/?join=${encodeURIComponent(orgId)}${bld.trim() ? `&b=${encodeURIComponent(bld.trim())}` : ''}`} style={{ color: 'var(--info)', fontWeight: 700 }}>Join your building →</a>
+              </p>
               <p className="note" style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: 12 }}>Powered by Caliper · your info is only shared with your maintenance office.</p>
             </div>
           </>

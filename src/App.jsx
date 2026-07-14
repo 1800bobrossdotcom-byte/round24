@@ -18,6 +18,8 @@ import Maintenance from './views/Maintenance.jsx';
 import Turns from './views/Turns.jsx';
 import Requests from './views/Requests.jsx';
 import ResidentRequest from './views/ResidentRequest.jsx';
+import ResidentJoin from './views/ResidentJoin.jsx';
+import Residents from './views/Residents.jsx';
 import Calendar from './views/Calendar.jsx';
 import Purchases from './views/Purchases.jsx';
 import Documents from './views/Documents.jsx';
@@ -71,6 +73,7 @@ const TABS = [
   { id: 'props', label: 'Properties', Icon: IcBuilding, View: Properties, roles: ['admin', 'manager', 'viewer'], cat: 'portfolio' },
   { id: 'vendors', label: 'Vendors', Icon: IcTag, View: Vendors, roles: ['admin', 'manager', 'tech', 'viewer'], cat: 'portfolio' },
   { id: 'team', label: 'Team', Icon: IcUsers, View: Team, roles: ['admin', 'manager'], cat: 'people' },
+  { id: 'residents', label: 'Residents', Icon: IcUsers, View: Residents, roles: ['admin', 'manager'], cat: 'people' },
   { id: 'access', label: 'Access', Icon: IcUsers, View: Access, roles: ['admin', 'manager'], cat: 'people' },
   { id: 'import', label: 'Import', Icon: IcImport, View: Import, roles: ['admin', 'manager'], cat: 'data' },
   { id: 'integrations', label: 'Integrations', Icon: IcPlug, View: Integrations, roles: ['admin', 'manager'], cat: 'data' },
@@ -331,6 +334,10 @@ export default function App() {
   const params = new URLSearchParams(window.location.search);
   const reqOrg = params.get('request');
   if (reqOrg) return <ResidentRequest orgId={reqOrg} building={params.get('b') || ''} />;
+  // Caliper Community: caliper.solutions/?join=<orgId>[&b=…] — resident signup +
+  // unit claim. Manages its own auth; the office verifies every claim.
+  const joinOrg = params.get('join');
+  if (joinOrg) return <ResidentJoin orgId={joinOrg} building={params.get('b') || ''} />;
   return (
     <>
       {intro && <SplashIntro onDone={() => setIntro(false)} />}

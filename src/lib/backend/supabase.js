@@ -345,6 +345,75 @@ export async function getOrgProperties(orgId) {
   if (error) return [];
   return (data || []).map((r) => r.name).filter(Boolean);
 }
+// ---- Caliper Community · Slice 1: resident accounts + verify queue ----
+const residentFromDb = (r) => ({
+  id: r.id, userId: r.user_id, orgId: r.org_id, propLabel: r.property_label,
+  unit: r.unit_label, name: r.display_name, email: r.email, status: r.status,
+  createdAt: r.created_at, verifiedAt: r.verified_at,
+});
+// the signed-in user's residency (if any) — drives the resident shell
+export async function getMyResident() {
+  if (!isConfigured()) return null;
+  const { data, error } = await supabase.from('residents').select('*')
+    .order('created_at', { ascending: false }).limit(1).maybeSingle();
+  if (error || !data) return null;
+  return residentFromDb(data);
+}
+// claim a unit in an org — always lands as 'pending' for the office to verify
+export async function claimResidency(orgId, { propLabel, unit, name, email }) {
+  const { data, error } = await supabase.from('residents').insert({
+    user_id: (await supabase.auth.getUser()).data.user?.id,
+    org_id: orgId, property_label: propLabel || null, unit_label: unit || null,
+    display_name: name || null, email: email || null, status: 'pending',
+  }).select().single();
+  if (error) throw error;
+  return residentFromDb(data);
+}
+// the caller's own requests with live work-order status (definer fn — residents
+// can never read work_orders directly)
+export async function listMyRequests() {
+  const { data, error } = await supabase.rpc('get_my_requests');
+  if (error) throw error;
+  return (data || []).map((r) => ({
+    id: r.id, propLabel: r.property_label, unit: r.unit, description: r.description,
+    status: r.status, woStatus: r.wo_status, createdAt: r.created_at,
+  }));
+}
+// office: roster + verify queue
+export async function listResidents(orgId) {
+  const { data, error } = await supabase.from('residents').select('*')
+    .eq('org_id', orgId).order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(residentFromDb);
+}
+export async function setResidentStatus(id, status) {
+  const patch = { status };
+  if (status === 'verified') {
+    patch.verified_by = (await supabase.auth.getUser()).data.user?.id || null;
+    patch.verified_at = new Date().toISOString();
+  }
+  const { error } = await supabase.from('residents').update(patch).eq('id', id);
+  if (error) throw error;
+}
+// announcements: office posts, residents read
+const annFromDb = (a) => ({ id: a.id, title: a.title, body: a.body || '', urgent: !!a.urgent, createdAt: a.created_at });
+export async function listAnnouncements(orgId) {
+  const { data, error } = await supabase.from('org_announcements').select('*')
+    .eq('org_id', orgId).order('created_at', { ascending: false }).limit(30);
+  if (error) throw error;
+  return (data || []).map(annFromDb);
+}
+export async function postAnnouncement(orgId, { title, body, urgent }) {
+  const { data, error } = await supabase.from('org_announcements')
+    .insert({ org_id: orgId, title, body: body || null, urgent: !!urgent }).select().single();
+  if (error) throw error;
+  return annFromDb(data);
+}
+export async function deleteAnnouncement(id) {
+  const { error } = await supabase.from('org_announcements').delete().eq('id', id);
+  if (error) throw error;
+}
+
 // upload a workspace logo to the public brand-logos bucket → returns its URL.
 export async function uploadBrandLogo(orgId, file) {
   const ext = ((file.name || '').split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
@@ -552,6 +621,7 @@ export async function submitMaintenanceRequest(orgId, r) {
     photo: photos[0] || null,           // keep the single column populated (first photo)
     photos: photos.length ? photos : null,
     voice: r.voice || null,
+    resident_id: r.residentId || null,  // verified-account path (guard enforces ownership)
   });
   if (error) throw error;
 }
