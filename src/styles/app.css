@@ -1045,7 +1045,28 @@ button.clk-card{font:inherit;color:inherit;width:100%;text-align:left;display:bl
   .content { padding: 0 !important; }
   .print-title { display: block !important; font-weight: 800; font-size: 18px; margin: 0 0 14px; }
   .card { break-inside: avoid; }
+  .cam-stmt { border: none !important; box-shadow: none !important; padding: 0 !important; break-after: page; }
+  .cam-stmt:last-of-type { break-after: auto; }
 }
+
+/* CAM per-tenant statement — a formal, branded year-end trueup letter */
+.cam-stmt { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); padding: 26px 28px; margin: 0 0 18px; break-inside: avoid; }
+.cam-stmt-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.cam-stmt-meta { text-align: right; }
+.cam-stmt-meta .t { font-weight: 800; font-size: 16px; letter-spacing: -0.01em; }
+.cam-stmt-meta .s { color: var(--text-dim); font-size: 12.5px; margin-top: 2px; font-family: var(--mono); }
+.cam-stmt-to { display: flex; gap: 30px; flex-wrap: wrap; padding: 16px 0; }
+.cam-stmt-to .k { display: block; font-family: var(--mono); font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 2px; }
+.cam-stmt-to b { font-size: 15px; }
+.cam-stmt-tbl { width: 100%; border-collapse: collapse; }
+.cam-stmt-tbl td { padding: 8px 2px; border-bottom: 1px solid var(--line); font-size: 14px; }
+.cam-stmt-tbl td.num { text-align: right; font-family: var(--mono); white-space: nowrap; }
+.cam-stmt-tbl .src { color: var(--text-faint); font-size: 11.5px; font-family: var(--mono); margin-left: 8px; }
+.cam-stmt-tbl tr.grp td { padding-top: 16px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--accent); border-bottom: none; font-weight: 700; }
+.cam-stmt-tbl tr.sub td { font-weight: 800; border-top: 1px solid var(--line); }
+.cam-stmt-tbl tr.bal td { font-weight: 800; font-size: 15px; border-bottom: none; padding-top: 12px; }
+.cam-stmt-foot { color: var(--text-dim); font-size: 11.5px; line-height: 1.55; margin: 16px 0 0; }
+.cam-stmt-sign { margin: 14px 0 0; font-weight: 700; font-size: 13px; }
 
 .lp { background: var(--bg); color: var(--text); overflow-x: hidden; }
 .lp-wrap { max-width: 1060px; margin: 0 auto; padding: 0 22px; }
