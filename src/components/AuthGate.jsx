@@ -220,9 +220,9 @@ function NeedsAccess() {
               <>
                 <div className="seg" style={{ marginBottom: 10 }}>
                   <button className={kind === 'company' ? 'on' : ''} onClick={() => setKind('company')}>Company + crew</button>
-                  <button className={kind === 'owner' ? 'on' : ''} onClick={() => setKind('owner')}>I own properties</button>
+                  <button className={kind === 'owner' ? 'on' : ''} onClick={() => setKind('owner')}>I own / manage buildings</button>
                 </div>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder={kind === 'owner' ? 'Your name / portfolio' : 'Company name'} style={inputStyle} />
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder={kind === 'owner' ? 'Company, estate, or portfolio' : 'Company name'} style={inputStyle} />
                 <div style={{ height: 10 }} />
                 <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything we should know? (optional)" style={inputStyle} />
                 <div style={{ height: 14 }} />
@@ -239,7 +239,8 @@ function NeedsAccess() {
 }
 
 // ---- two products, one secure backend ----
-// Caliper Portfolio  → property owners & families (a handful of homes/apts/land)
+// Caliper Enterprise → commercial estates: office parks & towers, many tenants
+//                      and buildings (internal product key stays `portfolio`)
 // Caliper Pro        → maintenance companies, split into Office + Crew portals
 // The choice only themes the login; after sign-in the org's KIND and the user's
 // ROLE decide the actual shell + toolset (server-enforced by RLS + getdek).
@@ -257,29 +258,33 @@ const PORTALS = {
 };
 // login branding per tier/portal — chip label, icon, tagline.
 const BRANDS = {
-  portfolio: { chip: 'portfolio', Icon: IcBuilding, tagline: 'Your portfolio, measured true.' },
+  portfolio: { chip: 'enterprise', Icon: IcBuilding, tagline: 'The whole estate, measured true.' },
   office: { chip: 'office', Icon: IcChart, tagline: 'The whole operation, measured true.' },
   crew: { chip: 'crew', Icon: IcWrench, tagline: 'Clock in. Get your orders. Snap your receipts.' },
   community: { chip: 'community', Icon: IcBuilding, tagline: 'Your building, in your pocket.' },
 };
-// top-level product cards (the main page)
+// top-level product cards (the main page). Ordered as the ladder:
+// Pro (operators) → Enterprise (commercial estates) → Community (tenants).
+// NOTE: Enterprise keeps the internal `portfolio` product key — it's the same
+// multi-building engine, one layer up. Commercial-specific features (CAM
+// reconciliation, COI, commercial service requests) phase in on top.
 const PRODUCTS = {
-  portfolio: {
-    title: 'Caliper Portfolio',
-    Icon: IcBuilding,
-    tagline: 'For owners & families — a handful of homes, apartments, or land.',
-    points: ['Rent roll, leases & renewals', 'Buildings, calendar & data', 'Maintenance & expenses'],
-  },
   pro: {
     title: 'Caliper Pro',
     Icon: IcChart,
     tagline: 'For maintenance companies & their crews.',
     points: ['Office: dashboards & dispatch', 'Crew: timers & receipts', 'Team, compliance & payroll'],
   },
+  portfolio: {
+    title: 'Caliper Enterprise',
+    Icon: IcBuilding,
+    tagline: 'For office parks & towers — many tenants, many buildings, one ledger.',
+    points: ['Multi-building roll-ups & dashboards', 'Auditable operating cost per suite', 'Measured labor across the estate'],
+  },
   community: {
     title: 'Caliper Community',
     Icon: IcBuilding,
-    tagline: 'For residents — report repairs and reach your building.',
+    tagline: 'For residents & tenants — report repairs and reach your building.',
     points: ['Report a repair in seconds', 'Follow it to done', 'Hear from your management office'],
   },
 };
@@ -308,8 +313,8 @@ function Shot({ src, alt }) {
 function Landing({ onEnter, onBeta }) {
   const PRODS = [
     { Icon: IcChart, name: 'Caliper Pro', tag: 'Maintenance companies — office dispatch + a crew in the field.' },
-    { Icon: IcBuilding, name: 'Caliper Portfolio', tag: 'Owners & families — a handful of homes, apartments, or land.' },
-    { Icon: IcBuilding, name: 'Caliper Community', tag: 'Residents — report a repair, follow it to done, reach your building.' },
+    { Icon: IcBuilding, name: 'Caliper Enterprise', tag: 'Office parks & towers — many tenants and buildings, one measured ledger.' },
+    { Icon: IcBuilding, name: 'Caliper Community', tag: 'Residents & tenants — report a repair, follow it to done, reach your building.' },
   ];
   return (
     <div className="lp">
@@ -515,7 +520,7 @@ function Login({ invite }) {
 
   // Portfolio → straight to the branded login
   if (product === 'portfolio') {
-    return <LoginForm brand="portfolio" invite={invite} onBeta={() => setBeta(true)} onSwitch={reset} switchLabel="Not an owner? Choose a different Caliper" />;
+    return <LoginForm brand="portfolio" invite={invite} onBeta={() => setBeta(true)} onSwitch={reset} switchLabel="Not enterprise? Choose a different Caliper" />;
   }
 
   // Pro → level 2: pick Office or Crew
@@ -593,14 +598,14 @@ function BetaRequest({ onBack }) {
           <>
             <div className="seg" style={{ marginBottom: 12 }}>
               <button className={f.kind === 'company' ? 'on' : ''} onClick={() => set('kind', 'company')}>Company + crew</button>
-              <button className={f.kind === 'owner' ? 'on' : ''} onClick={() => set('kind', 'owner')}>I own properties</button>
+              <button className={f.kind === 'owner' ? 'on' : ''} onClick={() => set('kind', 'owner')}>I own / manage buildings</button>
             </div>
             {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{err}</div>}
             <input value={f.email} onChange={(e) => set('email', e.target.value)} placeholder="Email *" type="email" autoComplete="email" style={inputStyle} />
             <div style={{ height: 10 }} />
             <input value={f.name} onChange={(e) => set('name', e.target.value)} placeholder="Your name" style={inputStyle} />
             <div style={{ height: 10 }} />
-            <input value={f.company} onChange={(e) => set('company', e.target.value)} placeholder={f.kind === 'owner' ? 'Portfolio name (optional)' : 'Company name (optional)'} style={inputStyle} />
+            <input value={f.company} onChange={(e) => set('company', e.target.value)} placeholder={f.kind === 'owner' ? 'Company / estate name (optional)' : 'Company name (optional)'} style={inputStyle} />
             <div style={{ height: 10 }} />
             <input value={f.note} onChange={(e) => set('note', e.target.value)} placeholder="How many properties? Anything else? (optional)" style={inputStyle} />
             <div style={{ height: 16 }} />
