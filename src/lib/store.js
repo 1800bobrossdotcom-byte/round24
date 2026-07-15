@@ -1287,7 +1287,7 @@ export function useStore() {
     const u = leaseRef.current.find((x) => x.id === unitId);
     const lp = {}, up = {};
     for (const k of ['rent', 'renewalStatus', 'notes', 'tenant', 'phone', 'deposit', 'leaseStart', 'leaseEnd']) if (k in patch) lp[k] = patch[k];
-    for (const k of ['status', 'number', 'beds', 'type', 'furnished']) if (k in patch) up[k] = patch[k];
+    for (const k of ['status', 'number', 'beds', 'type', 'furnished', 'sqft']) if (k in patch) up[k] = patch[k];
     try {
       if (Object.keys(lp).length && u?.leaseId) await updateLeaseRow(u.leaseId, lp);
       if (Object.keys(up).length) await updateUnitRow(unitId, up);

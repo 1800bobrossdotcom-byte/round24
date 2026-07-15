@@ -1109,6 +1109,7 @@ export async function updateUnitRow(unitId, patch) {
   if (patch.beds !== undefined) upd.beds = patch.beds;
   if (patch.type !== undefined) upd.unit_type = patch.type;
   if (patch.furnished !== undefined) upd.furnished = !!patch.furnished;
+  if (patch.sqft !== undefined) upd.sqft = patch.sqft;
   const { error } = await supabase.from('units').update(upd).eq('id', unitId);
   if (error) throw error;
 }

@@ -56,6 +56,7 @@ export default function Leasing({ store, navigate, focus }) {
   const dset = (k, v) => setEditRow((e) => ({ ...e, draft: { ...e.draft, [k]: v } }));
   const beginEdit = (u) => setEditRow({ id: u.id, draft: {
     number: u.number || '', beds: u.beds ?? '', type: u.type || 'residential', furnished: !!u.furnished,
+    sqft: u.sqft ?? '',
     tenant: u.tenant || '', phone: u.phone || '', rent: u.rent ?? '', deposit: u.deposit ?? '',
     leaseStart: u.leaseStart || '', leaseEnd: u.leaseEnd || '', status: u.status || 'vacant',
   } });
@@ -63,6 +64,7 @@ export default function Leasing({ store, navigate, focus }) {
     const d = editRow.draft;
     store.setLeaseField(editRow.id, {
       number: String(d.number).trim(), beds: d.beds === '' ? null : parseInt(d.beds, 10), type: d.type, furnished: !!d.furnished,
+      sqft: d.sqft === '' ? null : parseInt(d.sqft, 10),
       tenant: d.tenant.trim(), phone: d.phone.trim(),
       rent: d.rent === '' ? null : parseFloat(d.rent), deposit: d.deposit === '' ? null : parseFloat(d.deposit),
       leaseStart: d.leaseStart || null, leaseEnd: d.leaseEnd || null, status: d.status,
@@ -76,7 +78,7 @@ export default function Leasing({ store, navigate, focus }) {
     setFilter('all'); setQuery('');
     const id = await store.addUnit(building);
     setCollapsed((s) => { const x = new Set(s); x.delete(building); return x; });
-    setEditRow({ id, draft: { number: '', beds: '', type: 'residential', furnished: false, tenant: '', phone: '', rent: '', deposit: '', leaseStart: '', leaseEnd: '', status: 'vacant' } });
+    setEditRow({ id, draft: { number: '', beds: '', type: 'residential', furnished: false, sqft: '', tenant: '', phone: '', rent: '', deposit: '', leaseStart: '', leaseEnd: '', status: 'vacant' } });
   };
 
   const kpi = useMemo(() => {
@@ -377,6 +379,7 @@ export default function Leasing({ store, navigate, focus }) {
                   <label>Unit #<input value={editRow.draft.number} onChange={(e) => dset('number', e.target.value)} autoFocus /></label>
                   <label>Beds<input type="number" value={editRow.draft.beds} onChange={(e) => dset('beds', e.target.value)} placeholder="—" /></label>
                   <label>Type<select value={editRow.draft.type} onChange={(e) => dset('type', e.target.value)}><option value="residential">Residential</option><option value="commercial">Commercial</option></select></label>
+                  <label>Rentable sq ft<input type="number" value={editRow.draft.sqft} onChange={(e) => dset('sqft', e.target.value)} placeholder="—" title="Rentable floor area — sets this suite's pro-rata CAM share" /></label>
                   <label className="rr-check"><input type="checkbox" checked={editRow.draft.furnished} onChange={(e) => dset('furnished', e.target.checked)} /> Furnished</label>
                   <label className="wide">Tenant<input value={editRow.draft.tenant} onChange={(e) => dset('tenant', e.target.value)} placeholder="Vacant" /></label>
                   <label>Phone<input value={editRow.draft.phone} onChange={(e) => dset('phone', e.target.value)} inputMode="tel" /></label>
