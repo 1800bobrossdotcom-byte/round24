@@ -7,6 +7,7 @@ import { DEMO_VENDORS, DEMO_VENDOR_PRODUCTS } from '../data/vendorDemo.js';
 import { DEMO_COIS } from '../data/coiDemo.js';
 import { DEMO_HANDBOOKS } from '../data/handbookDemo.js';
 import { DEMO_AMENITIES, DEMO_BOOKINGS } from '../data/amenityDemo.js';
+import { DEMO_INSPECTIONS } from '../data/inspectionDemo.js';
 import {
   isConfigured, listWorkOrders, insertWorkOrder, updateWorkOrderStatus,
   updateWorkOrderPriority, updateWorkOrderAssignee, updateWorkOrderBilling, subscribeWorkOrders,
@@ -19,6 +20,7 @@ import {
   listCois, addCoi, updateCoi, deleteCoi,
   listHandbooks, saveHandbook as saveHandbookDb,
   listAmenities, addAmenity, updateAmenity, deleteAmenity, listBookings, addBooking, setBookingStatus,
+  listInspections, addInspection, updateInspection, deleteInspection,
   listVendorProducts, addVendorProduct, updateVendorProduct, deleteVendorProduct, subscribeVendors,
   upsertChatMember, listChatMembers, listChatChannels, insertChatChannel,
   listPropertyCards, insertPropertyCard, deletePropertyCard,
@@ -1475,6 +1477,33 @@ export function useStore() {
     if (isConfigured() && orgId && !demoMode && !String(id).startsWith('nb_')) { try { await setBookingStatus(id, status); audit('set_booking', `${id}:${status}`); } catch { /* keep */ } }
   }, [orgId, demoMode, audit]);
 
+  // ---- inspections ----
+  const [inspections, setInspections] = useState(() => (demoMode ? DEMO_INSPECTIONS : []));
+  const inspectionsRef = useRef(inspections);
+  useEffect(() => { inspectionsRef.current = inspections; }, [inspections]);
+  useEffect(() => {
+    if (demoMode || !isConfigured() || !orgId) return undefined;
+    let alive = true;
+    setInspections([]);
+    listInspections(orgId).then((r) => { if (alive) setInspections(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, [orgId, demoMode]);
+  const saveInspection = useCallback(async (i) => {
+    if (i.id && !String(i.id).startsWith('ni_')) {
+      setInspections((l) => l.map((x) => (x.id === i.id ? { ...x, ...i } : x)));
+      if (isConfigured() && orgId && !demoMode) { try { await updateInspection(i.id, i); } catch { /* keep */ } }
+      return i.id;
+    }
+    const draft = { id: 'ni_' + Math.random().toString(36).slice(2, 9), status: 'in_progress', items: [], ...i };
+    if (!isConfigured() || !orgId || demoMode) { setInspections((l) => [draft, ...l]); return draft.id; }
+    try { const saved = await addInspection(orgId, draft); setInspections((l) => [saved, ...l]); audit('add_inspection', saved.title); return saved.id; }
+    catch { setInspections((l) => [draft, ...l]); return draft.id; }
+  }, [orgId, demoMode, audit]);
+  const removeInspection = useCallback(async (id) => {
+    setInspections((l) => l.filter((x) => x.id !== id));
+    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('ni_')) { try { await deleteInspection(id); } catch { /* gone */ } }
+  }, [orgId, demoMode]);
+
   const saveProduct = useCallback(async (p) => {
     if (p.id && !String(p.id).startsWith('np_')) {
       setVendorProducts((l) => l.map((x) => (x.id === p.id ? { ...x, ...p } : x)));
@@ -1806,6 +1835,7 @@ export function useStore() {
     cois, saveCoi, removeCoi,
     handbooks, saveHandbook,
     amenities, bookings, saveAmenity, removeAmenity, bookAmenity, setBooking,
+    inspections, saveInspection, removeInspection,
     saveProduct, removeProduct, setProductField,
     // live presence + availability + audit
     liveTimers, syncLivePresence, fieldSync, fieldStates,

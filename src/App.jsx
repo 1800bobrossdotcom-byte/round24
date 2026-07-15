@@ -32,6 +32,7 @@ import CAM from './views/CAM.jsx';
 import COI from './views/COI.jsx';
 import Handbook from './views/Handbook.jsx';
 import Amenities from './views/Amenities.jsx';
+import Inspections from './views/Inspections.jsx';
 import PLStatement from './views/PLStatement.jsx';
 import Forecast from './views/Forecast.jsx';
 import Timesheet from './views/Timesheet.jsx';
@@ -68,6 +69,7 @@ const TABS = [
   { id: 'wo', label: 'Orders', Icon: IcWrench, View: WorkOrders, roles: ['admin', 'manager', 'tech', 'viewer'], cat: 'work', primary: true },
   { id: 'maint', label: 'Maintenance', Icon: IcClip, View: Maintenance, roles: ['admin', 'manager'], cat: 'work' },
   { id: 'turns', label: 'Make-ready', Icon: IcSync, View: Turns, roles: ['admin', 'manager'], cat: 'work' },
+  { id: 'inspections', label: 'Inspections', Icon: IcClip, View: Inspections, roles: ['admin', 'manager'], cat: 'work' },
   { id: 'requests', label: 'Requests', Icon: IcChat, View: Requests, roles: ['admin', 'manager'], cat: 'work' },
   { id: 'chat', label: 'Chat', Icon: IcChat, View: Chat, roles: ['admin', 'manager', 'tech', 'viewer'], cat: 'work', primary: true },
   { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, roles: ['admin', 'manager', 'viewer'], cat: 'work' },
@@ -105,6 +107,7 @@ const OWNER_TABS = [
   { id: 'forecast', label: 'Forecast', Icon: IcTrend, View: Forecast, cat: 'money' },
   { id: 'wo', label: 'Maintenance', Icon: IcWrench, View: WorkOrders, cat: 'operations', primary: true },
   { id: 'maint', label: 'Schedule', Icon: IcClip, View: Maintenance, cat: 'operations' },
+  { id: 'inspections', label: 'Inspections', Icon: IcClip, View: Inspections, cat: 'operations' },
   { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, cat: 'operations' },
   { id: 'vendors', label: 'Vendors', Icon: IcTag, View: Vendors, cat: 'operations' },
   { id: 'coi', label: 'Insurance', Icon: IcShield, View: COI, cat: 'operations' },

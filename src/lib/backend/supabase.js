@@ -1259,6 +1259,40 @@ export async function saveHandbook(orgId, building, sections) {
   return handbookFromDb(data);
 }
 
+// ---- Inspections ----
+const inspFromDb = (r) => ({ id: r.id, building: r.building, unit: r.unit, title: r.title, kind: r.kind, status: r.status, items: r.items || [], inspector: r.inspector, date: r.date, notes: r.notes });
+const inspToDb = (i) => {
+  const o = {};
+  if (i.building !== undefined) o.building = i.building;
+  if (i.unit !== undefined) o.unit = i.unit;
+  if (i.title !== undefined) o.title = i.title;
+  if (i.kind !== undefined) o.kind = i.kind;
+  if (i.status !== undefined) o.status = i.status;
+  if (i.items !== undefined) o.items = i.items;
+  if (i.inspector !== undefined) o.inspector = i.inspector;
+  if (i.date !== undefined) o.date = i.date || null;
+  if (i.notes !== undefined) o.notes = i.notes;
+  return o;
+};
+export async function listInspections(orgId) {
+  const { data, error } = await supabase.from('inspections').select('*').eq('org_id', orgId).order('date', { ascending: false });
+  if (error) return [];
+  return (data || []).map(inspFromDb);
+}
+export async function addInspection(orgId, i) {
+  const { data, error } = await supabase.from('inspections').insert({ org_id: orgId, ...inspToDb(i) }).select('*').single();
+  if (error) throw error;
+  return inspFromDb(data);
+}
+export async function updateInspection(id, patch) {
+  const { error } = await supabase.from('inspections').update(inspToDb(patch)).eq('id', id);
+  if (error) throw error;
+}
+export async function deleteInspection(id) {
+  const { error } = await supabase.from('inspections').delete().eq('id', id);
+  if (error) throw error;
+}
+
 // ---- Amenities + reservations ----
 const amenityFromDb = (r) => ({ id: r.id, building: r.building, name: r.name, description: r.description, capacity: r.capacity, hours: r.hours, requiresApproval: !!r.requires_approval, active: r.active !== false });
 const amenityToDb = (a) => {
