@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  submitMaintenanceRequest, getOrgBranding, listMyRequests, listAnnouncements, signOut,
+  submitMaintenanceRequest, getOrgBranding, listMyRequests, listAnnouncements, getHandbook, signOut,
 } from '../lib/backend/supabase.js';
 import { Mark } from '../components/ui.jsx';
+import { normalizeSections, hasContent } from '../lib/handbook.js';
 import OrgLogo from '../components/OrgLogo.jsx';
 
 const inp = {
@@ -48,6 +49,8 @@ export default function ResidentHome({ resident, embedded = false }) {
   const [brand, setBrand] = useState(null);
   const [requests, setRequests] = useState(null);   // null = loading
   const [anns, setAnns] = useState([]);
+  const [hb, setHb] = useState([]);            // building handbook sections
+  const [hbOpen, setHbOpen] = useState(false);
   const [showReport, setShowReport] = useState(false);
 
   // report form
@@ -63,6 +66,7 @@ export default function ResidentHome({ resident, embedded = false }) {
   const refresh = useCallback(() => {
     listMyRequests().then(setRequests).catch(() => setRequests([]));
     listAnnouncements(resident.orgId).then(setAnns).catch(() => {});
+    getHandbook(resident.orgId, resident.propLabel).then((h) => setHb(normalizeSections(h?.sections || []))).catch(() => {});
   }, [resident.orgId]);
   useEffect(() => {
     getOrgBranding(resident.orgId).then(setBrand).catch(() => {});
@@ -212,6 +216,28 @@ export default function ResidentHome({ resident, embedded = false }) {
                 <div className="s" style={{ color: 'var(--text-faint)', marginTop: 2 }}>{fmtWhen(a.createdAt)}</div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* building handbook — read-only, collapsible */}
+        {hasContent(hb) && (
+          <div className="card" style={{ marginBottom: 14 }}>
+            <button onClick={() => setHbOpen((o) => !o)} style={{ width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'var(--font)', color: 'var(--text)' }}>
+              <span className="field-label" style={{ margin: 0 }}>📖 Building handbook</span>
+              <span style={{ color: 'var(--text-faint)', fontSize: 13 }}>{hbOpen ? 'Hide' : `${hb.length} sections`}</span>
+            </button>
+            {hbOpen && (
+              <div style={{ marginTop: 10 }}>
+                {hb.map((s) => (
+                  <div key={s.id} style={{ padding: '10px 0', borderTop: '1px solid var(--line)' }}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{s.icon ? `${s.icon} ` : ''}{s.title}</div>
+                    {s.body.split('\n').filter(Boolean).map((line, k) => (
+                      <div key={k} className="s" style={{ marginTop: 3, color: 'var(--text-dim)', lineHeight: 1.5 }}>{line}</div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

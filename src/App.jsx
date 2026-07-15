@@ -30,6 +30,7 @@ import Compliance from './views/Compliance.jsx';
 import Economics from './views/Economics.jsx';
 import CAM from './views/CAM.jsx';
 import COI from './views/COI.jsx';
+import Handbook from './views/Handbook.jsx';
 import PLStatement from './views/PLStatement.jsx';
 import Forecast from './views/Forecast.jsx';
 import Timesheet from './views/Timesheet.jsx';
@@ -78,6 +79,7 @@ const TABS = [
   { id: 'props', label: 'Properties', Icon: IcBuilding, View: Properties, roles: ['admin', 'manager', 'viewer'], cat: 'portfolio' },
   { id: 'vendors', label: 'Vendors', Icon: IcTag, View: Vendors, roles: ['admin', 'manager', 'tech', 'viewer'], cat: 'portfolio' },
   { id: 'coi', label: 'Insurance', Icon: IcShield, View: COI, roles: ['admin', 'manager'], cat: 'portfolio' },
+  { id: 'handbook', label: 'Handbook', Icon: IcDoc, View: Handbook, roles: ['admin', 'manager'], cat: 'portfolio' },
   { id: 'team', label: 'Team', Icon: IcUsers, View: Team, roles: ['admin', 'manager'], cat: 'people' },
   { id: 'residents', label: 'Residents', Icon: IcUsers, View: Residents, roles: ['admin', 'manager'], cat: 'people' },
   { id: 'access', label: 'Access', Icon: IcUsers, View: Access, roles: ['admin', 'manager'], cat: 'people' },
@@ -104,6 +106,7 @@ const OWNER_TABS = [
   { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, cat: 'operations' },
   { id: 'vendors', label: 'Vendors', Icon: IcTag, View: Vendors, cat: 'operations' },
   { id: 'coi', label: 'Insurance', Icon: IcShield, View: COI, cat: 'operations' },
+  { id: 'handbook', label: 'Handbook', Icon: IcDoc, View: Handbook, cat: 'operations' },
   { id: 'docs', label: 'Docs', Icon: IcDoc, View: Documents, cat: 'files' },
   { id: 'settings', label: 'Settings', Icon: IcGear, View: Settings, cat: 'account' },
 ];

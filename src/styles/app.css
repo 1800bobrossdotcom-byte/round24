@@ -1068,6 +1068,18 @@ button.clk-card{font:inherit;color:inherit;width:100%;text-align:left;display:bl
 .cam-stmt-foot { color: var(--text-dim); font-size: 11.5px; line-height: 1.55; margin: 16px 0 0; }
 .cam-stmt-sign { margin: 14px 0 0; font-weight: 700; font-size: 13px; }
 
+/* Building handbook — reader */
+.hb-reader { max-width: 720px; }
+.hb-cover { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); padding: 22px 24px; margin: 0 0 16px; }
+.hb-cover-t { font-weight: 800; font-size: 22px; letter-spacing: -0.02em; margin-top: 14px; }
+.hb-cover-s { font-family: var(--mono); font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-faint); margin-top: 3px; }
+.hb-sec { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 18px 20px; margin: 0 0 12px; break-inside: avoid; }
+.hb-sec h2 { font-size: 16px; font-weight: 800; margin: 0 0 8px; display: flex; align-items: center; gap: 9px; }
+.hb-ic { font-size: 20px; line-height: 1; }
+.hb-sec p { color: var(--text-dim); font-size: 14px; line-height: 1.55; margin: 0 0 6px; }
+.hb-sec p:last-child { margin-bottom: 0; }
+@media print { .hb-sec, .hb-cover { border: none !important; box-shadow: none !important; padding: 6px 0 !important; } }
+
 .lp { background: var(--bg); color: var(--text); overflow-x: hidden; }
 .lp-wrap { max-width: 1060px; margin: 0 auto; padding: 0 22px; }
 .lp-head { position: sticky; top: 0; z-index: 30; backdrop-filter: blur(10px); background: color-mix(in srgb, var(--bg) 84%, transparent); border-bottom: 1px solid var(--line); }

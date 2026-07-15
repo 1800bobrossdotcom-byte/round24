@@ -5,6 +5,7 @@ import { DEMO_PROPERTIES, buildDemoTimers, DEMO_WORK_ORDERS, DEMO_PURCHASES } fr
 import { DEMO_LEASING, DEMO_PORTFOLIO, BUILDING_GEO, DEMO_PORTFOLIO_LABOR, DEMO_PL_CONFIG } from '../data/leaseDemo.js';
 import { DEMO_VENDORS, DEMO_VENDOR_PRODUCTS } from '../data/vendorDemo.js';
 import { DEMO_COIS } from '../data/coiDemo.js';
+import { DEMO_HANDBOOKS } from '../data/handbookDemo.js';
 import {
   isConfigured, listWorkOrders, insertWorkOrder, updateWorkOrderStatus,
   updateWorkOrderPriority, updateWorkOrderAssignee, updateWorkOrderBilling, subscribeWorkOrders,
@@ -15,6 +16,7 @@ import {
   listLeasing, updateLeaseRow, updateUnitRow, importLeaseBuildings, addUnitWithLease, deleteUnit, clearLeasing as clearLeasingDb,
   listVendors, addVendor, updateVendor, deleteVendor,
   listCois, addCoi, updateCoi, deleteCoi,
+  listHandbooks, saveHandbook as saveHandbookDb,
   listVendorProducts, addVendorProduct, updateVendorProduct, deleteVendorProduct, subscribeVendors,
   upsertChatMember, listChatMembers, listChatChannels, insertChatChannel,
   listPropertyCards, insertPropertyCard, deletePropertyCard,
@@ -1420,6 +1422,20 @@ export function useStore() {
     if (isConfigured() && orgId && !demoMode && !String(id).startsWith('nc_')) { try { await deleteCoi(id); audit('delete_coi', id); } catch { /* gone */ } }
   }, [orgId, demoMode, audit]);
 
+  // ---- building handbooks: staff author, residents/tenants read ----
+  const [handbooks, setHandbooks] = useState(() => (demoMode ? DEMO_HANDBOOKS : []));
+  useEffect(() => {
+    if (demoMode || !isConfigured() || !orgId) return undefined;
+    let alive = true;
+    setHandbooks([]);
+    listHandbooks(orgId).then((r) => { if (alive) setHandbooks(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, [orgId, demoMode]);
+  const saveHandbook = useCallback(async (building, sections) => {
+    setHandbooks((l) => { const rest = l.filter((h) => h.building !== building); return [...rest, { building, sections }]; });
+    if (isConfigured() && orgId && !demoMode) { try { await saveHandbookDb(orgId, building, sections); audit('save_handbook', building); } catch { /* keep local */ } }
+  }, [orgId, demoMode, audit]);
+
   const saveProduct = useCallback(async (p) => {
     if (p.id && !String(p.id).startsWith('np_')) {
       setVendorProducts((l) => l.map((x) => (x.id === p.id ? { ...x, ...p } : x)));
@@ -1749,6 +1765,7 @@ export function useStore() {
     setBuildingLocation,
     vendors, vendorProducts, canEditVendors, canAddVendors, saveVendor, removeVendor, setVendorField,
     cois, saveCoi, removeCoi,
+    handbooks, saveHandbook,
     saveProduct, removeProduct, setProductField,
     // live presence + availability + audit
     liveTimers, syncLivePresence, fieldSync, fieldStates,

@@ -1238,6 +1238,27 @@ export async function deleteCoi(id) {
   if (error) throw error;
 }
 
+// ---- Building Handbook ----
+const handbookFromDb = (r) => ({ id: r.id, building: r.building, sections: r.sections || [], updatedAt: r.updated_at });
+export async function listHandbooks(orgId) {
+  // resilient if the migration isn't applied yet
+  const { data, error } = await supabase.from('building_handbooks').select('*').eq('org_id', orgId);
+  if (error) return [];
+  return (data || []).map(handbookFromDb);
+}
+export async function getHandbook(orgId, building) {
+  const { data, error } = await supabase.from('building_handbooks').select('*').eq('org_id', orgId).eq('building', building).maybeSingle();
+  if (error || !data) return null;
+  return handbookFromDb(data);
+}
+export async function saveHandbook(orgId, building, sections) {
+  const { data, error } = await supabase.from('building_handbooks')
+    .upsert({ org_id: orgId, building, sections, updated_at: new Date().toISOString() }, { onConflict: 'org_id,building' })
+    .select('*').single();
+  if (error) throw error;
+  return handbookFromDb(data);
+}
+
 export async function listVendorProducts(orgId) {
   const { data, error } = await supabase.from('vendor_products').select('*').eq('org_id', orgId).order('created_at', { ascending: false });
   if (error) throw error;
