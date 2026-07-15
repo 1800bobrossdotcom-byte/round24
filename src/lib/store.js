@@ -4,6 +4,7 @@ import { useAuth } from '../components/AuthGate.jsx';
 import { DEMO_PROPERTIES, buildDemoTimers, DEMO_WORK_ORDERS, DEMO_PURCHASES } from './demoData.js';
 import { DEMO_LEASING, DEMO_PORTFOLIO, BUILDING_GEO, DEMO_PORTFOLIO_LABOR, DEMO_PL_CONFIG } from '../data/leaseDemo.js';
 import { DEMO_VENDORS, DEMO_VENDOR_PRODUCTS } from '../data/vendorDemo.js';
+import { DEMO_COIS } from '../data/coiDemo.js';
 import {
   isConfigured, listWorkOrders, insertWorkOrder, updateWorkOrderStatus,
   updateWorkOrderPriority, updateWorkOrderAssignee, updateWorkOrderBilling, subscribeWorkOrders,
@@ -13,6 +14,7 @@ import {
   uploadAttachment, updateWorkOrderPhotos, updateWorkOrderFiles,
   listLeasing, updateLeaseRow, updateUnitRow, importLeaseBuildings, addUnitWithLease, deleteUnit, clearLeasing as clearLeasingDb,
   listVendors, addVendor, updateVendor, deleteVendor,
+  listCois, addCoi, updateCoi, deleteCoi,
   listVendorProducts, addVendorProduct, updateVendorProduct, deleteVendorProduct, subscribeVendors,
   upsertChatMember, listChatMembers, listChatChannels, insertChatChannel,
   listPropertyCards, insertPropertyCard, deletePropertyCard,
@@ -1391,6 +1393,33 @@ export function useStore() {
     if (isConfigured() && orgId && !demoMode && !String(id).startsWith('nv_')) { try { await updateVendor(id, merged); } catch { /* keep */ } }
   }, [orgId, demoMode]);
 
+  // ---- Certificates of Insurance (COI) — staff-managed risk register ----
+  const [cois, setCois] = useState(() => (demoMode ? DEMO_COIS : []));
+  const coisRef = useRef(cois);
+  useEffect(() => { coisRef.current = cois; }, [cois]);
+  useEffect(() => {
+    if (demoMode || !isConfigured() || !orgId) return undefined;
+    let alive = true;
+    setCois([]); // drop prior org's certs on switch
+    listCois(orgId).then((r) => { if (alive) setCois(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, [orgId, demoMode]);
+  const saveCoi = useCallback(async (c) => {
+    if (c.id && !String(c.id).startsWith('nc_')) {
+      setCois((l) => l.map((x) => (x.id === c.id ? { ...x, ...c } : x)));
+      if (isConfigured() && orgId && !demoMode) { try { await updateCoi(c.id, c); } catch { /* keep local */ } }
+      return c.id;
+    }
+    const draft = { id: 'nc_' + Math.random().toString(36).slice(2, 9), holderType: 'vendor', coverage: {}, additionalInsured: false, ...c };
+    if (!isConfigured() || !orgId || demoMode) { setCois((l) => [...l, draft]); return draft.id; }
+    try { const saved = await addCoi(orgId, draft); setCois((l) => [...l, saved]); audit('add_coi', saved.holderName); return saved.id; }
+    catch { setCois((l) => [...l, draft]); return draft.id; }
+  }, [orgId, demoMode, audit]);
+  const removeCoi = useCallback(async (id) => {
+    setCois((l) => l.filter((x) => x.id !== id));
+    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('nc_')) { try { await deleteCoi(id); audit('delete_coi', id); } catch { /* gone */ } }
+  }, [orgId, demoMode, audit]);
+
   const saveProduct = useCallback(async (p) => {
     if (p.id && !String(p.id).startsWith('np_')) {
       setVendorProducts((l) => l.map((x) => (x.id === p.id ? { ...x, ...p } : x)));
@@ -1719,6 +1748,7 @@ export function useStore() {
     leasing, setLeaseField, importLeases, clearLeasing, loadLeasing, canSeeLeasing, addUnit, removeUnit,
     setBuildingLocation,
     vendors, vendorProducts, canEditVendors, canAddVendors, saveVendor, removeVendor, setVendorField,
+    cois, saveCoi, removeCoi,
     saveProduct, removeProduct, setProductField,
     // live presence + availability + audit
     liveTimers, syncLivePresence, fieldSync, fieldStates,

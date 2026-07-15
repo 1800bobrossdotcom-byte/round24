@@ -1194,6 +1194,50 @@ export async function deleteVendor(id) {
   const { error } = await supabase.from('vendors').delete().eq('id', id);
   if (error) throw error;
 }
+// ---- Certificate of Insurance (COI) ----
+const coiFromDb = (r) => ({
+  id: r.id, holderType: r.holder_type, holderRef: r.holder_ref, holderName: r.holder_name,
+  building: r.building, unit: r.unit, carrier: r.carrier, policyNumber: r.policy_number,
+  coverage: r.coverage || {}, effective: r.effective, expires: r.expires,
+  additionalInsured: !!r.additional_insured, docUrl: r.doc_url, notes: r.notes,
+});
+const coiToDb = (c) => {
+  const o = {};
+  if (c.holderType !== undefined) o.holder_type = c.holderType;
+  if (c.holderRef !== undefined) o.holder_ref = c.holderRef;
+  if (c.holderName !== undefined) o.holder_name = c.holderName;
+  if (c.building !== undefined) o.building = c.building;
+  if (c.unit !== undefined) o.unit = c.unit;
+  if (c.carrier !== undefined) o.carrier = c.carrier;
+  if (c.policyNumber !== undefined) o.policy_number = c.policyNumber;
+  if (c.coverage !== undefined) o.coverage = c.coverage;
+  if (c.effective !== undefined) o.effective = c.effective || null;
+  if (c.expires !== undefined) o.expires = c.expires || null;
+  if (c.additionalInsured !== undefined) o.additional_insured = !!c.additionalInsured;
+  if (c.docUrl !== undefined) o.doc_url = c.docUrl;
+  if (c.notes !== undefined) o.notes = c.notes;
+  return o;
+};
+export async function listCois(orgId) {
+  // resilient: if the migration isn't applied yet, don't crash the app — just show none
+  const { data, error } = await supabase.from('insurance_certificates').select('*').eq('org_id', orgId).order('expires', { ascending: true });
+  if (error) return [];
+  return (data || []).map(coiFromDb);
+}
+export async function addCoi(orgId, c) {
+  const { data, error } = await supabase.from('insurance_certificates').insert({ org_id: orgId, ...coiToDb(c) }).select('*').single();
+  if (error) throw error;
+  return coiFromDb(data);
+}
+export async function updateCoi(id, patch) {
+  const { error } = await supabase.from('insurance_certificates').update(coiToDb(patch)).eq('id', id);
+  if (error) throw error;
+}
+export async function deleteCoi(id) {
+  const { error } = await supabase.from('insurance_certificates').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export async function listVendorProducts(orgId) {
   const { data, error } = await supabase.from('vendor_products').select('*').eq('org_id', orgId).order('created_at', { ascending: false });
   if (error) throw error;
