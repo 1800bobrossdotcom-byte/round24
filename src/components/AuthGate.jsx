@@ -476,6 +476,15 @@ function Login({ invite }) {
   if (!product) {
     return (
       <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
+        {/* Layer 1 discoverability link — fixed so it needs no positioned
+            ancestor and no changes to the card layout below */}
+        <a href="#developer" className="mono" style={{
+          position: 'fixed', top: 16, right: 16, fontSize: 11,
+          color: 'var(--text-faint)', display: 'flex', alignItems: 'center', gap: 4,
+          textDecoration: 'none',
+        }}>
+          <IcShield width={14} height={14} /> Developer
+        </a>
         <div style={{ width: '100%', maxWidth: 720 }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}><BrandLockup /></div>
           <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 26 }}>Labor, measured true. Which Caliper is yours?</p>

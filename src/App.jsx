@@ -35,6 +35,7 @@ import Timesheet from './views/Timesheet.jsx';
 import Vendors from './views/Vendors.jsx';
 import Settings from './views/Settings.jsx';
 import Platform from './views/Platform.jsx';
+import DeveloperShell from './layer1-developer/DeveloperShell.jsx';
 
 // which roles see which tools: the Crew portal (tech) gets field work —
 // orders, timer, receipts, shared docs. The Office portal (admin/manager)
@@ -370,6 +371,14 @@ function SplashIntro({ onDone, community = false }) {
 
 export default function App() {
   const [intro, setIntro] = useState(true);
+  // Layer 1 (#developer) — hooks live above the early returns below so hook
+  // order stays stable; the return itself is after the public-form routes.
+  const [devMode, setDevMode] = useState(() => window.location.hash.startsWith('#developer'));
+  useEffect(() => {
+    const onHash = () => setDevMode(window.location.hash.startsWith('#developer'));
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
   // public resident request form: caliper.solutions/?request=<orgId>[&b=<building>]
   // renders unauthenticated, before the login gate — residents have no account.
   const params = new URLSearchParams(window.location.search);
@@ -379,6 +388,10 @@ export default function App() {
   // unit claim. Manages its own auth; the office verifies every claim.
   const joinOrg = params.get('join');
   if (joinOrg) return <ResidentJoin orgId={joinOrg} building={params.get('b') || ''} />;
+  // Layer 1 Developer console — intercepts before AuthGate/Shell and their
+  // hashTab routing ('developer' is not in KNOWN_TAB_IDS, so nothing else
+  // ever claims this hash).
+  if (devMode) return <DeveloperShell onExit={() => { window.location.hash = ''; }} />;
   // Community splash: heading to #myhome, or a device that last ran as a
   // standalone resident, gets "welcome home" instead of the ops tagline.
   const communitySplash = (() => {

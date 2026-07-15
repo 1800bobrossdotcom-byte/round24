@@ -1,0 +1,103 @@
+/* src/layer1-developer/theme.css
+   Layer 1 — Developer console theme.
+
+   Not a new palette. These are the exact dark values from
+   src/styles/tokens.css's :root block, copied 1:1 and re-declared on
+   .layer1-root so Layer 1 stays black regardless of whichever org's
+   data-theme="light" preference is active on <html> at the time — :root
+   selectors target the document root specifically, so a per-org light-mode
+   toggle can't be locally overridden except by re-declaring the variables
+   on a wrapper class further down the tree, which is what this file does.
+
+   If tokens.css's dark values ever change, resync this file by hand —
+   it intentionally does not import tokens.css, so the two can't collide
+   or fight over specificity.
+*/
+
+.layer1-root {
+  --bg: #08080a;
+  --surface: #101014;
+  --surface-2: #16161c;
+  --surface-3: #1d1d25;
+  --line: #26262f;
+  --line-soft: #1c1c23;
+
+  --text: #f4f4f6;
+  --text-dim: #a0a0ad;
+  --text-faint: #63636f;
+
+  --accent: #ff7a18;
+  --accent-2: #ff3d81;
+  --grad: linear-gradient(100deg,#ff3d3d 0%,#ff7a18 22%,#ffd21a 42%,#4ade80 62%,#38bdf8 80%,#a855f7 100%);
+  --grad-soft: linear-gradient(100deg,#ff7a1833,#a855f733);
+
+  --money: #4ade80;
+  --money-dim: #4ade8022;
+  --warn: #ffb020;
+  --danger: #ff5a5a;
+  --info: #38bdf8;
+
+  /* --font / --mono / --r-* / --gap / --pad / --ease are identical in both
+     tokens.css modes, so they're not redeclared — Layer 1 inherits them
+     from :root as-is. Same fonts, same radii, same motion curve as Pro/
+     Enterprise/Community. Only the surface/text/semantic colors are pinned. */
+
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* the VHS scanline is a dark-mode signature (tokens.css turns it off in
+   light mode) — force it back on inside Layer 1 even if the signed-in
+   admin's own org happens to be in light mode right now. */
+.layer1-root::after {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px);
+  mix-blend-mode: overlay;
+  opacity: .5;
+}
+/* tokens.css already renders the global body::after scanline whenever the
+   theme is NOT light — hide the Layer-1 copy there so exactly one shows in
+   either theme instead of two stacked overlays doubling the intensity. */
+:root:not([data-theme="light"]) .layer1-root::after { display: none; }
+
+/* the one Layer-1-only flourish: a thin rainbow strip marking "root console",
+   echoing the A2 rainbow-Developer-button idea from the old patch spec
+   without needing the button itself to live on the shared AuthGate splash. */
+.layer1-strip {
+  height: 3px;
+  background: var(--grad);
+}
+
+/* section switcher — reuses the app's existing `seg`/`pick` pattern
+   (see CLAUDE-CODE-PROMPT-Layer1.md precedent) so it feels native, just dark-locked. */
+.layer1-seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  width: fit-content;
+}
+.layer1-seg button {
+  font-family: var(--font);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background .15s var(--ease), color .15s var(--ease);
+}
+.layer1-seg button[aria-selected="true"] {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.layer1-seg button:hover { color: var(--text); }
