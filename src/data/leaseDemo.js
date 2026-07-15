@@ -8,7 +8,9 @@
 //   DEMO_LEASING    flat normalized rows (matches backend listLeasing) for demo mode
 //   DEMO_PORTFOLIO  { name, city, units:[…] } for importLeaseBuildings() cloud seeding
 
-// unit: [number, beds, type, status, tenant, phone, rent, fees, start, end, renewal]
+// unit: [number, beds, type, status, tenant, phone, rent, fees, start, end, renewal, sqft?]
+// sqft (12th, optional) is the rentable area — commercial suites set it so CAM
+// can allocate pro-rata by floor area; residential units leave it off.
 const PORTFOLIO = [
   {
     name: 'Parkview Lofts', city: 'Rochester', type: 'Mixed-use', yearBuilt: 1998,
@@ -72,6 +74,23 @@ const PORTFOLIO = [
     ],
   },
   {
+    // a small mixed-commercial building — the Caliper Enterprise / CAM demo.
+    // Commercial suites carry rentable SF (12th tuple slot) + a monthly CAM fee;
+    // the reconciliation allocates the building's MEASURED operating cost
+    // (see DEMO_PORTFOLIO_LABOR below) pro-rata by SF against what each was billed.
+    name: 'Halsey Commons', city: 'Rochester', type: 'Commercial', yearBuilt: 1991,
+    address: '48 Halsey St, Rochester, NY 14607',
+    note: 'Two-story mixed-commercial building — ground-floor retail over professional office suites. Tenants on triple-net leases with CAM.',
+    units: [
+      // number, beds, type, status, tenant, phone, rent, fees, start, end, renewal, sqft
+      ['101', null, 'commercial', 'leased', 'Basin & Co Coffee', '(585) 555-0311', 3900, { cam: 220 }, '2023-04-01', '2028-03-31', null, 3200],
+      ['102', null, 'commercial', 'leased', 'Northline Design Co', '(585) 555-0327', 3100, { cam: 195 }, '2024-01-01', '2027-12-31', 'renewed', 2400],
+      ['201', null, 'commercial', 'leased', 'Verdant Health PT', '(585) 555-0344', 2450, { cam: 110 }, '2025-02-01', '2028-01-31', null, 1800],
+      ['202', null, 'commercial', 'leased', 'Copperfield Legal', '(585) 555-0358', 1750, { cam: 95 }, '2024-07-01', '2027-06-30', 'pending', 1200],
+      ['203', null, 'commercial', 'vacant', '', '', 1900, { cam: 105 }, null, null, null, 1400],
+    ],
+  },
+  {
     name: 'Ridge Road Parcel', city: 'Canandaigua', type: 'Undeveloped land', yearBuilt: null,
     size: 6.2, zoning: 'R-1-20 residential',
     address: 'Ridge Rd (parcel 084.-1-12.100), Canandaigua, NY 14424',
@@ -95,9 +114,10 @@ export const BUILDING_INFO = Object.fromEntries(
 
 // flat normalized rows (demo mode) — same shape as backend listLeasing()
 export const DEMO_LEASING = PORTFOLIO.flatMap((b, bi) =>
-  b.units.map(([number, beds, type, status, tenant, phone, rent, fees, start, end, renewal], ui) => ({
+  b.units.map(([number, beds, type, status, tenant, phone, rent, fees, start, end, renewal, sqft], ui) => ({
     id: `d${bi}_${ui}`, leaseId: `dl_${bi}_${ui}`, building: b.name, number, beds,
     type, furnished: false, sort: ui, acres: type === 'land' ? (b.size || null) : null,
+    sqft: sqft ?? null,
     status, tenant: status === 'leased' ? tenant : '', phone: status === 'leased' ? phone : '',
     rent, fees, total: feesTotal(rent, fees),
     deposit: status === 'leased' ? rent : 0,
@@ -108,8 +128,8 @@ export const DEMO_LEASING = PORTFOLIO.flatMap((b, bi) =>
 // importLeaseBuildings() shape — persists to units + leases in a real workspace
 export const DEMO_PORTFOLIO = PORTFOLIO.map((b) => ({
   name: b.name, city: b.city,
-  units: b.units.map(([number, beds, type, status, tenant, phone, rent, fees, start, end, renewal]) => ({
-    number, beds, type, furnished: false, status,
+  units: b.units.map(([number, beds, type, status, tenant, phone, rent, fees, start, end, renewal, sqft]) => ({
+    number, beds, type, furnished: false, status, sqft: sqft ?? null,
     tenant: status === 'leased' ? tenant : '', phone: status === 'leased' ? phone : '',
     rent, fees, total: feesTotal(rent, fees),
     deposit: status === 'leased' ? rent : 0,
@@ -131,6 +151,7 @@ export const BUILDING_GEO = {
   '210 Water Street': { lat: 42.8690, lng: -76.9780, geofence: 150 },
   '88 Maple Row': { lat: 42.8872, lng: -77.2820, geofence: 150 },
   '12 Lakeview Drive': { lat: 42.8820, lng: -77.2900, geofence: 150 },
+  'Halsey Commons': { lat: 43.1548, lng: -77.5990, geofence: 150 },
 };
 
 // a little verified crew labor logged against the portfolio, so the per-door
@@ -158,4 +179,12 @@ export const DEMO_PORTFOLIO_LABOR = [
   L('Highland Court', 'D', 'plumbing', 2.5, 38, true, 5),
   L('210 Water Street', '3', 'hvac', 4.0, 45, true, 6),
   L('88 Maple Row', 'Left', 'general', 1.5, 32, false, 7), // one off-site punch
+  // Halsey Commons — common-area maintenance (the CAM-recoverable pool). Logged
+  // to the building, not a suite, because it's shared area — exactly what CAM
+  // recovers. This measured labor is what the reconciliation allocates pro-rata.
+  L('Halsey Commons', 'Common', 'hvac', 60, 45, true, 9),        // rooftop RTU overhaul
+  L('Halsey Commons', 'Common', 'cleaning', 80, 28, true, 12),   // lobby + common deep clean
+  L('Halsey Commons', 'Common', 'landscaping', 50, 30, true, 15),// grounds / season
+  L('Halsey Commons', 'Common', 'general', 48, 32, true, 18),    // parking lot + exterior
+  L('Halsey Commons', 'Common', 'electrical', 22, 38, true, 21), // common-area lighting
 ];

@@ -28,6 +28,7 @@ import Integrations from './views/Integrations.jsx';
 import Access from './views/Access.jsx';
 import Compliance from './views/Compliance.jsx';
 import Economics from './views/Economics.jsx';
+import CAM from './views/CAM.jsx';
 import PLStatement from './views/PLStatement.jsx';
 import Forecast from './views/Forecast.jsx';
 import Timesheet from './views/Timesheet.jsx';
@@ -68,6 +69,7 @@ const TABS = [
   { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, roles: ['admin', 'manager', 'viewer'], cat: 'work' },
   { id: 'pur', label: 'Purchases', Icon: IcReceipt, View: Purchases, roles: ['admin', 'manager', 'tech'], cat: 'money', primary: true },
   { id: 'pnl', label: 'Per-door P&L', Icon: IcChart, View: Economics, roles: ['admin', 'manager', 'viewer'], cat: 'money' },
+  { id: 'cam', label: 'CAM', Icon: IcChart, View: CAM, roles: ['admin', 'manager', 'viewer'], cat: 'money' },
   { id: 'statement', label: 'P&L statement', Icon: IcDoc, View: PLStatement, roles: ['admin', 'manager', 'viewer'], cat: 'money' },
   { id: 'forecast', label: 'Forecast', Icon: IcTrend, View: Forecast, roles: ['admin', 'manager', 'viewer'], cat: 'money' },
   { id: 'leasing', label: 'Rent Roll', Icon: IcBuilding, View: Leasing, roles: ['admin', 'manager', 'viewer'], cat: 'portfolio' },
@@ -90,6 +92,7 @@ const OWNER_TABS = [
   { id: 'leasing', label: 'Portfolio', Icon: IcBuilding, View: Leasing, cat: 'portfolio', primary: true },
   { id: 'props', label: 'Buildings', Icon: IcBuilding, View: Properties, cat: 'portfolio', primary: true },
   { id: 'pnl', label: 'P&L', Icon: IcChart, View: Economics, cat: 'money', primary: true },
+  { id: 'cam', label: 'CAM', Icon: IcChart, View: CAM, cat: 'money' },
   { id: 'statement', label: 'P&L statement', Icon: IcDoc, View: PLStatement, cat: 'money' },
   { id: 'pur', label: 'Expenses', Icon: IcReceipt, View: Purchases, cat: 'money' },
   { id: 'forecast', label: 'Forecast', Icon: IcTrend, View: Forecast, cat: 'money' },

@@ -1038,6 +1038,15 @@ button.clk-card{font:inherit;color:inherit;width:100%;text-align:left;display:bl
 }
 
 /* ===== Landing funnel — the fresh-visitor marketing page ==================== */
+/* Print — used by CAM's "Print statement" (and any future printable view):
+   drop the app chrome and no-print controls, reveal the print-only title. */
+@media print {
+  .tabbar, .topbar, .no-print { display: none !important; }
+  .content { padding: 0 !important; }
+  .print-title { display: block !important; font-weight: 800; font-size: 18px; margin: 0 0 14px; }
+  .card { break-inside: avoid; }
+}
+
 .lp { background: var(--bg); color: var(--text); overflow-x: hidden; }
 .lp-wrap { max-width: 1060px; margin: 0 auto; padding: 0 22px; }
 .lp-head { position: sticky; top: 0; z-index: 30; backdrop-filter: blur(10px); background: color-mix(in srgb, var(--bg) 84%, transparent); border-bottom: 1px solid var(--line); }
