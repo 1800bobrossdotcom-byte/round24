@@ -31,6 +31,7 @@ import Economics from './views/Economics.jsx';
 import CAM from './views/CAM.jsx';
 import COI from './views/COI.jsx';
 import Handbook from './views/Handbook.jsx';
+import Amenities from './views/Amenities.jsx';
 import PLStatement from './views/PLStatement.jsx';
 import Forecast from './views/Forecast.jsx';
 import Timesheet from './views/Timesheet.jsx';
@@ -72,7 +73,7 @@ const TABS = [
   { id: 'cal', label: 'Calendar', Icon: IcCal, View: Calendar, roles: ['admin', 'manager', 'viewer'], cat: 'work' },
   { id: 'pur', label: 'Purchases', Icon: IcReceipt, View: Purchases, roles: ['admin', 'manager', 'tech'], cat: 'money', primary: true },
   { id: 'pnl', label: 'Per-door P&L', Icon: IcChart, View: Economics, roles: ['admin', 'manager', 'viewer'], cat: 'money' },
-  { id: 'cam', label: 'CAM', Icon: IcChart, View: CAM, roles: ['admin', 'manager', 'viewer'], cat: 'money' },
+  // CAM is commercial-owner reconciliation → Enterprise (OWNER_TABS) only, not the maintenance Office.
   { id: 'statement', label: 'P&L statement', Icon: IcDoc, View: PLStatement, roles: ['admin', 'manager', 'viewer'], cat: 'money' },
   { id: 'forecast', label: 'Forecast', Icon: IcTrend, View: Forecast, roles: ['admin', 'manager', 'viewer'], cat: 'money' },
   { id: 'leasing', label: 'Rent Roll', Icon: IcBuilding, View: Leasing, roles: ['admin', 'manager', 'viewer'], cat: 'portfolio' },
@@ -80,6 +81,7 @@ const TABS = [
   { id: 'vendors', label: 'Vendors', Icon: IcTag, View: Vendors, roles: ['admin', 'manager', 'tech', 'viewer'], cat: 'portfolio' },
   { id: 'coi', label: 'Insurance', Icon: IcShield, View: COI, roles: ['admin', 'manager'], cat: 'portfolio' },
   { id: 'handbook', label: 'Handbook', Icon: IcDoc, View: Handbook, roles: ['admin', 'manager'], cat: 'portfolio' },
+  { id: 'amenities', label: 'Amenities', Icon: IcCal, View: Amenities, roles: ['admin', 'manager'], cat: 'portfolio' },
   { id: 'team', label: 'Team', Icon: IcUsers, View: Team, roles: ['admin', 'manager'], cat: 'people' },
   { id: 'residents', label: 'Residents', Icon: IcUsers, View: Residents, roles: ['admin', 'manager'], cat: 'people' },
   { id: 'access', label: 'Access', Icon: IcUsers, View: Access, roles: ['admin', 'manager'], cat: 'people' },
@@ -107,6 +109,7 @@ const OWNER_TABS = [
   { id: 'vendors', label: 'Vendors', Icon: IcTag, View: Vendors, cat: 'operations' },
   { id: 'coi', label: 'Insurance', Icon: IcShield, View: COI, cat: 'operations' },
   { id: 'handbook', label: 'Handbook', Icon: IcDoc, View: Handbook, cat: 'operations' },
+  { id: 'amenities', label: 'Amenities', Icon: IcCal, View: Amenities, cat: 'operations' },
   { id: 'docs', label: 'Docs', Icon: IcDoc, View: Documents, cat: 'files' },
   { id: 'settings', label: 'Settings', Icon: IcGear, View: Settings, cat: 'account' },
 ];

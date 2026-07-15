@@ -1259,6 +1259,67 @@ export async function saveHandbook(orgId, building, sections) {
   return handbookFromDb(data);
 }
 
+// ---- Amenities + reservations ----
+const amenityFromDb = (r) => ({ id: r.id, building: r.building, name: r.name, description: r.description, capacity: r.capacity, hours: r.hours, requiresApproval: !!r.requires_approval, active: r.active !== false });
+const amenityToDb = (a) => {
+  const o = {};
+  if (a.building !== undefined) o.building = a.building;
+  if (a.name !== undefined) o.name = a.name;
+  if (a.description !== undefined) o.description = a.description;
+  if (a.capacity !== undefined) o.capacity = a.capacity === '' ? null : a.capacity;
+  if (a.hours !== undefined) o.hours = a.hours;
+  if (a.requiresApproval !== undefined) o.requires_approval = !!a.requiresApproval;
+  if (a.active !== undefined) o.active = !!a.active;
+  return o;
+};
+const bookingFromDb = (r) => ({ id: r.id, amenityId: r.amenity_id, residentId: r.resident_id, bookedBy: r.booked_by, building: r.building, unit: r.unit, date: r.date, startTime: r.start_time, endTime: r.end_time, status: r.status, notes: r.notes });
+const bookingToDb = (b) => {
+  const o = {};
+  if (b.amenityId !== undefined) o.amenity_id = b.amenityId;
+  if (b.residentId !== undefined) o.resident_id = b.residentId;
+  if (b.bookedBy !== undefined) o.booked_by = b.bookedBy;
+  if (b.building !== undefined) o.building = b.building;
+  if (b.unit !== undefined) o.unit = b.unit;
+  if (b.date !== undefined) o.date = b.date;
+  if (b.startTime !== undefined) o.start_time = b.startTime || null;
+  if (b.endTime !== undefined) o.end_time = b.endTime || null;
+  if (b.status !== undefined) o.status = b.status;
+  if (b.notes !== undefined) o.notes = b.notes;
+  return o;
+};
+export async function listAmenities(orgId) {
+  const { data, error } = await supabase.from('amenities').select('*').eq('org_id', orgId).order('name', { ascending: true });
+  if (error) return [];
+  return (data || []).map(amenityFromDb);
+}
+export async function addAmenity(orgId, a) {
+  const { data, error } = await supabase.from('amenities').insert({ org_id: orgId, ...amenityToDb(a) }).select('*').single();
+  if (error) throw error;
+  return amenityFromDb(data);
+}
+export async function updateAmenity(id, patch) {
+  const { error } = await supabase.from('amenities').update(amenityToDb(patch)).eq('id', id);
+  if (error) throw error;
+}
+export async function deleteAmenity(id) {
+  const { error } = await supabase.from('amenities').delete().eq('id', id);
+  if (error) throw error;
+}
+export async function listBookings(orgId) {
+  const { data, error } = await supabase.from('amenity_bookings').select('*').eq('org_id', orgId).order('date', { ascending: true });
+  if (error) return [];
+  return (data || []).map(bookingFromDb);
+}
+export async function addBooking(orgId, b) {
+  const { data, error } = await supabase.from('amenity_bookings').insert({ org_id: orgId, ...bookingToDb(b) }).select('*').single();
+  if (error) throw error;
+  return bookingFromDb(data);
+}
+export async function setBookingStatus(id, status) {
+  const { error } = await supabase.from('amenity_bookings').update({ status }).eq('id', id);
+  if (error) throw error;
+}
+
 export async function listVendorProducts(orgId) {
   const { data, error } = await supabase.from('vendor_products').select('*').eq('org_id', orgId).order('created_at', { ascending: false });
   if (error) throw error;

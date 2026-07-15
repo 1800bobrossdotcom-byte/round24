@@ -6,6 +6,7 @@ import { DEMO_LEASING, DEMO_PORTFOLIO, BUILDING_GEO, DEMO_PORTFOLIO_LABOR, DEMO_
 import { DEMO_VENDORS, DEMO_VENDOR_PRODUCTS } from '../data/vendorDemo.js';
 import { DEMO_COIS } from '../data/coiDemo.js';
 import { DEMO_HANDBOOKS } from '../data/handbookDemo.js';
+import { DEMO_AMENITIES, DEMO_BOOKINGS } from '../data/amenityDemo.js';
 import {
   isConfigured, listWorkOrders, insertWorkOrder, updateWorkOrderStatus,
   updateWorkOrderPriority, updateWorkOrderAssignee, updateWorkOrderBilling, subscribeWorkOrders,
@@ -17,6 +18,7 @@ import {
   listVendors, addVendor, updateVendor, deleteVendor,
   listCois, addCoi, updateCoi, deleteCoi,
   listHandbooks, saveHandbook as saveHandbookDb,
+  listAmenities, addAmenity, updateAmenity, deleteAmenity, listBookings, addBooking, setBookingStatus,
   listVendorProducts, addVendorProduct, updateVendorProduct, deleteVendorProduct, subscribeVendors,
   upsertChatMember, listChatMembers, listChatChannels, insertChatChannel,
   listPropertyCards, insertPropertyCard, deletePropertyCard,
@@ -1436,6 +1438,43 @@ export function useStore() {
     if (isConfigured() && orgId && !demoMode) { try { await saveHandbookDb(orgId, building, sections); audit('save_handbook', building); } catch { /* keep local */ } }
   }, [orgId, demoMode, audit]);
 
+  // ---- amenities + reservations ----
+  const [amenities, setAmenities] = useState(() => (demoMode ? DEMO_AMENITIES : []));
+  const [bookings, setBookings] = useState(() => (demoMode ? DEMO_BOOKINGS : []));
+  useEffect(() => {
+    if (demoMode || !isConfigured() || !orgId) return undefined;
+    let alive = true;
+    setAmenities([]); setBookings([]);
+    listAmenities(orgId).then((r) => { if (alive) setAmenities(r); }).catch(() => {});
+    listBookings(orgId).then((r) => { if (alive) setBookings(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, [orgId, demoMode]);
+  const saveAmenity = useCallback(async (a) => {
+    if (a.id && !String(a.id).startsWith('na_')) {
+      setAmenities((l) => l.map((x) => (x.id === a.id ? { ...x, ...a } : x)));
+      if (isConfigured() && orgId && !demoMode) { try { await updateAmenity(a.id, a); } catch { /* keep */ } }
+      return a.id;
+    }
+    const draft = { id: 'na_' + Math.random().toString(36).slice(2, 9), requiresApproval: true, active: true, ...a };
+    if (!isConfigured() || !orgId || demoMode) { setAmenities((l) => [...l, draft]); return draft.id; }
+    try { const saved = await addAmenity(orgId, draft); setAmenities((l) => [...l, saved]); audit('add_amenity', saved.name); return saved.id; }
+    catch { setAmenities((l) => [...l, draft]); return draft.id; }
+  }, [orgId, demoMode, audit]);
+  const removeAmenity = useCallback(async (id) => {
+    setAmenities((l) => l.filter((x) => x.id !== id));
+    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('na_')) { try { await deleteAmenity(id); } catch { /* gone */ } }
+  }, [orgId, demoMode]);
+  const bookAmenity = useCallback(async (b) => {
+    const draft = { id: 'nb_' + Math.random().toString(36).slice(2, 9), status: 'pending', ...b };
+    setBookings((l) => [...l, draft]);
+    if (isConfigured() && orgId && !demoMode) { try { const saved = await addBooking(orgId, draft); setBookings((l) => l.map((x) => (x.id === draft.id ? saved : x))); return saved.id; } catch { /* keep local */ } }
+    return draft.id;
+  }, [orgId, demoMode]);
+  const setBooking = useCallback(async (id, status) => {
+    setBookings((l) => l.map((x) => (x.id === id ? { ...x, status } : x)));
+    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('nb_')) { try { await setBookingStatus(id, status); audit('set_booking', `${id}:${status}`); } catch { /* keep */ } }
+  }, [orgId, demoMode, audit]);
+
   const saveProduct = useCallback(async (p) => {
     if (p.id && !String(p.id).startsWith('np_')) {
       setVendorProducts((l) => l.map((x) => (x.id === p.id ? { ...x, ...p } : x)));
@@ -1766,6 +1805,7 @@ export function useStore() {
     vendors, vendorProducts, canEditVendors, canAddVendors, saveVendor, removeVendor, setVendorField,
     cois, saveCoi, removeCoi,
     handbooks, saveHandbook,
+    amenities, bookings, saveAmenity, removeAmenity, bookAmenity, setBooking,
     saveProduct, removeProduct, setProductField,
     // live presence + availability + audit
     liveTimers, syncLivePresence, fieldSync, fieldStates,

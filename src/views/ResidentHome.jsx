@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  submitMaintenanceRequest, getOrgBranding, listMyRequests, listAnnouncements, getHandbook, signOut,
+  submitMaintenanceRequest, getOrgBranding, listMyRequests, listAnnouncements, getHandbook,
+  listAmenities, listBookings, addBooking, signOut,
 } from '../lib/backend/supabase.js';
 import { Mark } from '../components/ui.jsx';
 import { normalizeSections, hasContent } from '../lib/handbook.js';
@@ -51,6 +52,9 @@ export default function ResidentHome({ resident, embedded = false }) {
   const [anns, setAnns] = useState([]);
   const [hb, setHb] = useState([]);            // building handbook sections
   const [hbOpen, setHbOpen] = useState(false);
+  const [amens, setAmens] = useState([]);      // bookable amenities for this building
+  const [myBks, setMyBks] = useState([]);      // my reservation requests
+  const [bkForm, setBkForm] = useState(null);  // { amenityId, date, start, end } | null
   const [showReport, setShowReport] = useState(false);
 
   // report form
@@ -67,6 +71,9 @@ export default function ResidentHome({ resident, embedded = false }) {
     listMyRequests().then(setRequests).catch(() => setRequests([]));
     listAnnouncements(resident.orgId).then(setAnns).catch(() => {});
     getHandbook(resident.orgId, resident.propLabel).then((h) => setHb(normalizeSections(h?.sections || []))).catch(() => {});
+    const forMe = (a) => !a.building || a.building === resident.propLabel;
+    listAmenities(resident.orgId).then((a) => setAmens(a.filter((x) => x.active && forMe(x)))).catch(() => {});
+    listBookings(resident.orgId).then(setMyBks).catch(() => {});
   }, [resident.orgId]);
   useEffect(() => {
     getOrgBranding(resident.orgId).then(setBrand).catch(() => {});
@@ -216,6 +223,50 @@ export default function ResidentHome({ resident, embedded = false }) {
                 <div className="s" style={{ color: 'var(--text-faint)', marginTop: 2 }}>{fmtWhen(a.createdAt)}</div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* amenities — reserve a shared space */}
+        {amens.length > 0 && (
+          <div className="card" style={{ marginBottom: 14 }}>
+            <span className="field-label" style={{ display: 'block', marginBottom: 8 }}>🗓️ Reserve an amenity</span>
+            {amens.map((a) => (
+              <div key={a.id} style={{ padding: '8px 0', borderTop: '1px solid var(--line)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{a.name}</div>
+                    <div className="s" style={{ color: 'var(--text-faint)' }}>{a.capacity ? `Seats ${a.capacity} · ` : ''}{a.hours || ''}{a.requiresApproval ? ' · office confirms' : ''}</div>
+                  </div>
+                  <button className="btn ghost sm" style={{ width: 'auto', whiteSpace: 'nowrap' }}
+                    onClick={() => setBkForm(bkForm?.amenityId === a.id ? null : { amenityId: a.id, date: '', start: '', end: '' })}>
+                    {bkForm?.amenityId === a.id ? 'Close' : 'Request'}
+                  </button>
+                </div>
+                {bkForm?.amenityId === a.id && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8, alignItems: 'flex-end' }}>
+                    <label style={{ flex: '1 1 130px' }}><span className="s">Date</span><input type="date" value={bkForm.date} onChange={(e) => setBkForm((f) => ({ ...f, date: e.target.value }))} style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 8, borderRadius: 8 }} /></label>
+                    <label style={{ flex: '1 1 90px' }}><span className="s">From</span><input type="time" value={bkForm.start} onChange={(e) => setBkForm((f) => ({ ...f, start: e.target.value }))} style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 8, borderRadius: 8 }} /></label>
+                    <label style={{ flex: '1 1 90px' }}><span className="s">To</span><input type="time" value={bkForm.end} onChange={(e) => setBkForm((f) => ({ ...f, end: e.target.value }))} style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 8, borderRadius: 8 }} /></label>
+                    <button className="btn grad sm" style={{ width: 'auto' }} disabled={!bkForm.date}
+                      onClick={async () => {
+                        const b = { amenityId: a.id, residentId: resident.id, bookedBy: resident.name, building: resident.propLabel, unit: resident.unit, date: bkForm.date, startTime: bkForm.start || null, endTime: bkForm.end || null, status: 'pending' };
+                        const saved = await addBooking(resident.orgId, b).catch(() => null);
+                        if (saved) { setMyBks((l) => [...l, saved]); setBkForm(null); setFlash('Request sent — the office will confirm.'); }
+                      }}>Request</button>
+                  </div>
+                )}
+              </div>
+            ))}
+            {myBks.filter((b) => b.status !== 'cancelled' && b.status !== 'declined').length > 0 && (
+              <div style={{ marginTop: 10, borderTop: '1px solid var(--line)', paddingTop: 8 }}>
+                <span className="s" style={{ color: 'var(--text-faint)' }}>Your requests</span>
+                {myBks.filter((b) => b.status !== 'cancelled' && b.status !== 'declined').map((b) => (
+                  <div key={b.id} className="s" style={{ marginTop: 4 }}>
+                    {(amens.find((a) => a.id === b.amenityId)?.name) || 'Amenity'} · {b.date} — <span style={{ color: b.status === 'confirmed' ? 'var(--money)' : 'var(--warn)' }}>{b.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
