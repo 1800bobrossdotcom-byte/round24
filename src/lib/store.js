@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import seed from '../data/seed.json';
+import { laborSig, mergeLabor, costEligible } from './laborMerge.js';
 import { useAuth } from '../components/AuthGate.jsx';
 import { DEMO_PROPERTIES, buildDemoTimers, DEMO_WORK_ORDERS, DEMO_PURCHASES } from './demoData.js';
 import { DEMO_LEASING, DEMO_PORTFOLIO, BUILDING_GEO, DEMO_PORTFOLIO_LABOR, DEMO_PL_CONFIG } from '../data/leaseDemo.js';
@@ -85,17 +86,6 @@ function queueMatchIdx(q, entry) {
     && (t.note ?? t.issue ?? null) === note);
 }
 
-// A content signature for a labor entry — used to drop an import-spine row that
-// is really the SAME hours as a timers-table row, so the office doesn't count
-// them twice. Keyed on the operator's FIRST name (so a pay-log "Gianni" matches
-// the seat "Gianni Arone"), the building, the date, and the hours. Two distinct
-// operators sharing a first name + exact building/date/hours is vanishingly rare
-// and far preferable to the double-count.
-function laborSig(t, techById, propById) {
-  const nm = ((techById?.[t.techId]?.name || t.techId || '') + '').toLowerCase().trim().split(/\s+/)[0];
-  const bld = ((t.propLabel || propById?.[t.propId]?.name || '') + '').toLowerCase().trim();
-  return `${nm}|${bld}|${t.date}|${Math.round((Number(t.durationHrs) || 0) * 100)}`;
-}
 // Cache write that can't crash an effect. Demo/local mode stashes inline data URLs
 // (photos, voice notes) that can blow past the ~5MB quota — a QuotaExceededError here
 // must degrade to "not cached", never throw out of the render/effect.
@@ -431,26 +421,11 @@ export function useStore() {
   // rows win). Demo has no cloud table, so it's spine-only. Without this merge the
   // office views would show $0 while the crew's Timesheet showed the same hours.
   const allTimers = useMemo(() => {
-    const base = demoMode
-      ? spineTimers
-      : (() => {
-          const live = tsTable.map(tsRowToTimer);
-          const seenId = new Set(live.map((t) => t.dbId || t.id));
-          // the SAME hours can exist in both stores (imported to the spine AND
-          // ingested to the timers table) with different ids — drop the spine copy
-          // by content signature too, or the office double-counts the labor.
-          const seenSig = new Set(live.map((t) => laborSig(t, techById, propById)));
-          return [...live, ...spineTimers.filter((t) => !seenId.has(t.dbId || t.id) && !seenSig.has(laborSig(t, techById, propById)))];
-        })();
-    // Cost-accounting gate: pivot-work hours logged against a work order that's
-    // still PENDING office approval (or was DISMISSED/cancelled) don't roll into
-    // the P&L or cost dashboards. They stay in the crew/office Timesheet (pay) via
-    // the `timesheet` memo — the worker is always paid; only the building-cost
-    // attribution waits for approval. Approving the WO makes the hours count.
-    return base.filter((t) => {
-      const st = t.workOrderId ? woStatusById[t.workOrderId] : undefined;
-      return !(st === 'pending' || st === 'cancelled');
-    });
+    // demo has no cloud table (spine-only); cloud merges live table rows over the
+    // spine (table wins, dedup by id + content signature). Then the WO-status gate
+    // keeps unapproved-WO hours out of building cost (they still pay via `timesheet`).
+    const base = demoMode ? spineTimers : mergeLabor(tsTable.map(tsRowToTimer), spineTimers, techById, propById);
+    return costEligible(base, woStatusById);
   }, [demoMode, tsTable, spineTimers, tsRowToTimer, woStatusById, techById, propById]);
 
   // resolve building labels → ids, creating a native property for any label
