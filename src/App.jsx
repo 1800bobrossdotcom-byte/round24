@@ -1,45 +1,59 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { AuthGate, SignOutButton, AccountButton, useAuth } from './components/AuthGate.jsx';
 import TopStrip from './components/TopStrip.jsx';
 import { useStore } from './lib/store.js';
 import OrgLogo from './components/OrgLogo.jsx';
 import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip, IcShield, IcTag, IcChart, IcTable, IcChevron, IcTrend, IcSync } from './components/ui.jsx';
 import { isPlatformAdmin, isConfigured } from './lib/backend/supabase.js';
-import Dashboard from './views/Dashboard.jsx';
-import DayOverview from './views/DayOverview.jsx';
-import Chat from './views/Chat.jsx';
-import Field from './views/Field.jsx';
-import Properties from './views/Properties.jsx';
-import Leasing from './views/Leasing.jsx';
-import Team from './views/Team.jsx';
-import Import from './views/Import.jsx';
-import WorkOrders from './views/WorkOrders.jsx';
-import Maintenance from './views/Maintenance.jsx';
-import Turns from './views/Turns.jsx';
-import Requests from './views/Requests.jsx';
+// Direct-render views (special routes / My Home takeover) stay eager — they're
+// small and on critical paths. Every tab view is lazy-loaded so a cold start
+// (mobile-first users) ships only the shell + the first view, and the heavy
+// libs each view pulls (recharts→Dashboard, xlsx→Import/Leasing/Timesheet,
+// qrcode→Requests/Residents) load on demand, not up front.
 import ResidentRequest from './views/ResidentRequest.jsx';
 import ResidentJoin from './views/ResidentJoin.jsx';
 import ResidentHome from './views/ResidentHome.jsx';
-import Residents from './views/Residents.jsx';
-import Calendar from './views/Calendar.jsx';
-import Purchases from './views/Purchases.jsx';
-import Documents from './views/Documents.jsx';
-import Integrations from './views/Integrations.jsx';
-import Access from './views/Access.jsx';
-import Compliance from './views/Compliance.jsx';
-import Economics from './views/Economics.jsx';
-import CAM from './views/CAM.jsx';
-import COI from './views/COI.jsx';
-import Handbook from './views/Handbook.jsx';
-import Amenities from './views/Amenities.jsx';
-import Inspections from './views/Inspections.jsx';
-import PLStatement from './views/PLStatement.jsx';
-import Forecast from './views/Forecast.jsx';
-import Timesheet from './views/Timesheet.jsx';
-import Vendors from './views/Vendors.jsx';
-import Settings from './views/Settings.jsx';
-import Platform from './views/Platform.jsx';
-import DeveloperShell from './layer1-developer/DeveloperShell.jsx';
+const Dashboard = lazy(() => import('./views/Dashboard.jsx'));
+const DayOverview = lazy(() => import('./views/DayOverview.jsx'));
+const Chat = lazy(() => import('./views/Chat.jsx'));
+const Field = lazy(() => import('./views/Field.jsx'));
+const Properties = lazy(() => import('./views/Properties.jsx'));
+const Leasing = lazy(() => import('./views/Leasing.jsx'));
+const Team = lazy(() => import('./views/Team.jsx'));
+const Import = lazy(() => import('./views/Import.jsx'));
+const WorkOrders = lazy(() => import('./views/WorkOrders.jsx'));
+const Maintenance = lazy(() => import('./views/Maintenance.jsx'));
+const Turns = lazy(() => import('./views/Turns.jsx'));
+const Requests = lazy(() => import('./views/Requests.jsx'));
+const Residents = lazy(() => import('./views/Residents.jsx'));
+const Calendar = lazy(() => import('./views/Calendar.jsx'));
+const Purchases = lazy(() => import('./views/Purchases.jsx'));
+const Documents = lazy(() => import('./views/Documents.jsx'));
+const Integrations = lazy(() => import('./views/Integrations.jsx'));
+const Access = lazy(() => import('./views/Access.jsx'));
+const Compliance = lazy(() => import('./views/Compliance.jsx'));
+const Economics = lazy(() => import('./views/Economics.jsx'));
+const CAM = lazy(() => import('./views/CAM.jsx'));
+const COI = lazy(() => import('./views/COI.jsx'));
+const Handbook = lazy(() => import('./views/Handbook.jsx'));
+const Amenities = lazy(() => import('./views/Amenities.jsx'));
+const Inspections = lazy(() => import('./views/Inspections.jsx'));
+const PLStatement = lazy(() => import('./views/PLStatement.jsx'));
+const Forecast = lazy(() => import('./views/Forecast.jsx'));
+const Timesheet = lazy(() => import('./views/Timesheet.jsx'));
+const Vendors = lazy(() => import('./views/Vendors.jsx'));
+const Settings = lazy(() => import('./views/Settings.jsx'));
+const Platform = lazy(() => import('./views/Platform.jsx'));
+const DeveloperShell = lazy(() => import('./layer1-developer/DeveloperShell.jsx'));
+
+// shown for the ~1 frame a lazy view chunk is fetched on first open
+function ViewFallback() {
+  return (
+    <div style={{ minHeight: '50vh', display: 'grid', placeItems: 'center', color: 'var(--text-faint)', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700 }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Mark /> loading…</span>
+    </div>
+  );
+}
 
 // which roles see which tools: the Crew portal (tech) gets field work —
 // orders, timer, receipts, shared docs. The Office portal (admin/manager)
@@ -304,7 +318,7 @@ function Shell() {
           <AccountButton onOpen={() => navigate('settings')} />
           <SignOutButton />
         </header>
-        <main className="content"><Active store={store} navigate={navigate} focus={focus} /></main>
+        <main className="content"><Suspense fallback={<ViewFallback />}><Active store={store} navigate={navigate} focus={focus} /></Suspense></main>
       </div>
 
       {/* mobile bottom bar — primary tabs + More */}
@@ -403,7 +417,7 @@ export default function App() {
   // Layer 1 Developer console — intercepts before AuthGate/Shell and their
   // hashTab routing ('developer' is not in KNOWN_TAB_IDS, so nothing else
   // ever claims this hash).
-  if (devMode) return <DeveloperShell onExit={() => { window.location.hash = ''; }} />;
+  if (devMode) return <Suspense fallback={<ViewFallback />}><DeveloperShell onExit={() => { window.location.hash = ''; }} /></Suspense>;
   // Community splash: heading to #myhome, or a device that last ran as a
   // standalone resident, gets "welcome home" instead of the ops tagline.
   const communitySplash = (() => {
