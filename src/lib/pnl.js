@@ -56,6 +56,14 @@ export function portfolioPnl({ leasing = [], timers = [], purchases = [], propBy
   // rent roll didn't count) so portfolio opex/NOI aren't silently understated.
   const all = [...map.values()].map(decorate);
   const rows = all.filter((b) => b.units > 0).sort((a, b) => b.noi - a.noi);
+  // buildings that carry labor/materials but matched NO rent-roll unit — almost
+  // always a name drift ("Halsey" logged vs "Halsey Commons" on the roll). Their
+  // cost is real (it's in the totals) but invisible per-door, so the office can't
+  // see cost-per-door for that building. Surface them as a data-quality warning.
+  const unmatched = all
+    .filter((b) => b.units === 0 && (b.labor > 0 || b.materials > 0))
+    .map((b) => ({ name: b.name, labor: b.labor, materials: b.materials, opex: b.labor + b.materials }))
+    .sort((a, b) => b.opex - a.opex);
 
   const tot = all.reduce((a, b) => ({
     units: a.units + b.units, occ: a.occ + b.occ,
@@ -71,7 +79,7 @@ export function portfolioPnl({ leasing = [], timers = [], purchases = [], propBy
   tot.judgedHrs = judgedHrs;
   tot.verifiedPct = judgedHrs ? Math.round((verifiedHrs / judgedHrs) * 100) : null;
 
-  return { rows, tot };
+  return { rows, tot, unmatched };
 }
 
 // one building's per-door economics (for the Properties detail drawer)

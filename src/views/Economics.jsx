@@ -10,7 +10,7 @@ export default function Economics({ store, navigate }) {
   const go = navigate || (() => {});
   const [sort, setSort] = useState('noiPerDoor'); // noiPerDoor | costPerDoor | rentBilled | labor
 
-  const { rows, tot } = useMemo(
+  const { rows, tot, unmatched = [] } = useMemo(
     () => portfolioPnl({ leasing, timers: allTimers, purchases, propById }),
     [leasing, allTimers, purchases, propById],
   );
@@ -56,6 +56,19 @@ export default function Economics({ store, navigate }) {
       </div>
 
       <p className="note" style={{ margin: '2px 2px 14px' }}>Rent is monthly; labor + materials are the maintenance spend captured to date. Net is illustrative — it shows how measured labor flows to per-door economics.</p>
+
+      {unmatched.length > 0 && (
+        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'color-mix(in srgb, var(--warn) 45%, var(--line))' }}>
+          <span className="field-label" style={{ color: 'var(--warn)', display: 'block' }}>⚠ Labor logged to buildings not on the rent roll</span>
+          <p className="note" style={{ margin: '4px 0 8px' }}>These names carry {money0(unmatched.reduce((a, u) => a + u.opex, 0))} of measured cost that’s in your totals but has <b>no per-door P&amp;L</b> — usually a spelling drift between the timer/receipt and the rent roll. Rename to match a building on the roll to reconcile it.</p>
+          {unmatched.map((u) => (
+            <div key={u.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}>
+              <span style={{ color: 'var(--text-dim)' }}>{u.name}</span>
+              <span className="mono">{money0(u.opex)}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* per-building */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>

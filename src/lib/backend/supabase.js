@@ -33,11 +33,15 @@ function orgKey() {
 // readable until they're re-saved. Fail-SAFE: no key → store/return as-is.
 const ENC_PREFIX = 'enc1:';
 export const isEncrypted = (v) => typeof v === 'string' && v.startsWith(ENC_PREFIX);
+// fail-CLOSED: if the org key can't be fetched (KMS/getdek outage) we must NOT
+// write sensitive data as plaintext. Throw so the caller's optimistic-write
+// catch keeps the edit local and skips the DB write until encryption recovers.
+const SECURE_UNAVAILABLE = 'secure-storage-unavailable';
 async function encStr(v) {
   if (v == null || v === '') return v;
   if (isEncrypted(v)) return v; // already encrypted
   try { return ENC_PREFIX + await encryptField(await orgKey(), String(v)); }
-  catch { return v; } // KMS unavailable → leave plaintext rather than block the write
+  catch { throw new Error(SECURE_UNAVAILABLE); }
 }
 const DEC_MASK = '•••'; // shown when a field can't be decrypted (KMS down) — must never be saved back over ciphertext
 async function decStr(v) {
@@ -63,8 +67,9 @@ const ENC_LEASE_FIELDS = ['tenant_name', 'tenant_phone'];
 // pay rates on every row). Dual-mode + fail-safe: no key → store the raw value.
 async function encBlob(v) {
   if (v == null) return v;
+  // fail-CLOSED (see encStr): never persist the labor spine's pay data plaintext.
   try { return ENC_PREFIX + await encryptField(await orgKey(), JSON.stringify(v)); }
-  catch { return v; }
+  catch { throw new Error(SECURE_UNAVAILABLE); }
 }
 async function decBlob(v) {
   if (!isEncrypted(v)) return v; // legacy array/object passes through
@@ -89,7 +94,7 @@ async function encryptSettings(data) {
       }
     }
     return out;
-  } catch { return data; } // KMS unavailable → store as-is, never block the save
+  } catch { throw new Error(SECURE_UNAVAILABLE); } // fail-CLOSED: never store PII plaintext
 }
 async function decryptSettings(data) {
   if (!data) return {};
@@ -1170,6 +1175,26 @@ const vendorToDb = (v) => ({
   rating: v.rating ?? null, approved: v.approved !== false, favorite: !!v.favorite,
   notes: v.notes || null,
 });
+// PATCH semantics for updates — emit only the columns present in the patch, so a
+// single-field edit (e.g. toggling favorite) can't revert a concurrent edit to
+// another field (audit #16). Full-record form saves still pass every key.
+const vendorPatchToDb = (p) => {
+  const o = {};
+  if (p.name !== undefined) o.name = p.name;
+  if (p.kind !== undefined) o.kind = p.kind || 'contractor';
+  if (p.trade !== undefined) o.trade = p.trade || null;
+  if (p.contactName !== undefined) o.contact_name = p.contactName || null;
+  if (p.phone !== undefined) o.phone = p.phone || null;
+  if (p.email !== undefined) o.email = p.email || null;
+  if (p.website !== undefined) o.website = p.website || null;
+  if (p.address !== undefined) o.address = p.address || null;
+  if (p.license !== undefined) o.license = p.license || null;
+  if (p.rating !== undefined) o.rating = p.rating ?? null;
+  if (p.approved !== undefined) o.approved = p.approved !== false;
+  if (p.favorite !== undefined) o.favorite = !!p.favorite;
+  if (p.notes !== undefined) o.notes = p.notes || null;
+  return o;
+};
 const productFromDb = (r) => ({
   id: r.id, vendorId: r.vendor_id || null, name: r.name, category: r.category || '',
   sku: r.sku || '', price: r.price ?? null, url: r.url || '', favorite: r.favorite !== false,
@@ -1192,7 +1217,7 @@ export async function addVendor(orgId, v) {
   return vendorFromDb(data);
 }
 export async function updateVendor(id, patch) {
-  const { error } = await supabase.from('vendors').update(vendorToDb(patch)).eq('id', id);
+  const { error } = await supabase.from('vendors').update(vendorPatchToDb(patch)).eq('id', id);
   if (error) throw error;
 }
 export async function deleteVendor(id) {

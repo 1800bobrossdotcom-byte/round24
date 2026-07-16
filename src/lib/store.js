@@ -1400,12 +1400,11 @@ export function useStore() {
     if (isConfigured() && orgId && !demoMode && !String(id).startsWith('nv_')) { try { await deleteVendor(id); audit('delete_vendor', id); } catch { /* gone */ } }
   }, [orgId, demoMode, audit]);
   const setVendorField = useCallback(async (id, patch) => {
-    // updateVendor writes every column, so send the full merged record. Build it
-    // from the ref (always current) — NOT from a setState side-effect, which only
-    // runs on React's eager path and is undefined mid-reload → would blank the row.
+    // updateVendor now has PATCH semantics (audit #16), so send ONLY the changed
+    // field — a favorite/approved toggle can't revert someone else's concurrent
+    // edit to another column the way a full-record write would.
     setVendors((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
-    const merged = { ...vendorsRef.current.find((x) => x.id === id), ...patch };
-    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('nv_')) { try { await updateVendor(id, merged); } catch { /* keep */ } }
+    if (isConfigured() && orgId && !demoMode && !String(id).startsWith('nv_')) { try { await updateVendor(id, patch); } catch { /* keep */ } }
   }, [orgId, demoMode]);
 
   // ---- Certificates of Insurance (COI) — staff-managed risk register ----
