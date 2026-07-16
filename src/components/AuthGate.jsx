@@ -478,10 +478,15 @@ function Login({ invite }) {
       <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
         {/* Layer 1 discoverability link — fixed so it needs no positioned
             ancestor and no changes to the card layout below */}
-        <a href="#developer" className="mono" style={{
-          position: 'fixed', top: 16, right: 16, fontSize: 11,
-          color: 'var(--text-faint)', display: 'flex', alignItems: 'center', gap: 4,
-          textDecoration: 'none',
+        <a href="#developer" style={{
+          position: 'fixed', top: 16, right: 16, zIndex: 10,
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '7px 14px', borderRadius: 999,
+          background: 'linear-gradient(var(--surface-2), var(--surface-2)) padding-box, var(--grad) border-box',
+          border: '1.5px solid transparent',
+          fontFamily: 'var(--font)', fontWeight: 700, fontSize: 12.5, color: 'var(--text)',
+          textDecoration: 'none', cursor: 'pointer',
+          boxShadow: '0 2px 10px -2px rgba(0,0,0,.15)',
         }}>
           <IcShield width={14} height={14} /> Developer
         </a>
