@@ -17,10 +17,15 @@
 const num = (v) => { const n = Number(String(v ?? '').replace(/[^0-9.\-]/g, '')); return Number.isFinite(n) ? n : 0; };
 const isDate = (v) => v instanceof Date && !isNaN(v);
 const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-// a building-name cell: has letters, isn't a pure number, isn't a header/label word
-const isName = (v) => typeof v === 'string' && /[a-z]/i.test(v)
+// a building-name cell: has letters, isn't a pure number, isn't a header/label word.
+// Label words are matched as a prefix; MONTH names are anchored to the whole cell
+// (optionally a trailing year) so a real building like "May Street" or "March Lane"
+// is NOT mistaken for a month header and dropped from the allocation.
+const LABEL_RE = /^\s*(total|paid|owed|overpay|deduction|monthly|quarterly)\b/i;
+const MONTH_RE = /^\s*(january|february|march|april|may|june|july|august|september|october|november|december)(\s+\d{2,4})?\s*$/i;
+export const isName = (v) => typeof v === 'string' && /[a-z]/i.test(v)
   && !/^-?[\d.,$\s]+$/.test(v)
-  && !/^\s*(total|paid|owed|overpay|deduction|monthly|quarterly|january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(v);
+  && !LABEL_RE.test(v) && !MONTH_RE.test(v);
 
 // Does this sheet carry a dollar-allocation grid? (≥1 name row over cols 4–7 with
 // a dollar row beneath). Cheap gate so columnar/other pay logs skip this path.
