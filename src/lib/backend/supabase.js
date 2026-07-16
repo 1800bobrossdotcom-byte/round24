@@ -68,8 +68,13 @@ async function encBlob(v) {
 }
 async function decBlob(v) {
   if (!isEncrypted(v)) return v; // legacy array/object passes through
-  try { return JSON.parse(await decryptField(await orgKey(), v.slice(ENC_PREFIX.length))); }
-  catch { return v; }
+  // fail-CLOSED: a value that IS encrypted but can't be decrypted (KMS/getdek
+  // outage) must NOT be returned as ciphertext — getLaborState's caller would
+  // coerce the unshaped string to empty and the 900ms write-through would then
+  // overwrite the org's real labor spine with nothing. Let this throw so
+  // getLaborState throws and hydration's .catch keeps laborBackend='local'
+  // (no clear, no write). Only used by getLaborState, so throwing is contained.
+  return JSON.parse(await decryptField(await orgKey(), v.slice(ENC_PREFIX.length)));
 }
 async function encryptSettings(data) {
   const needs = ENC_SETTINGS_FIELDS.some((f) => data[f] != null);

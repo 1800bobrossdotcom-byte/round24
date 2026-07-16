@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { coiSummary, coiStatus, daysToExpiry } from '../lib/coi.js';
+import { todayISO } from '../lib/dates.js';
 import { useAuth } from '../components/AuthGate.jsx';
 import { IcShield, IcCheck } from '../components/ui.jsx';
 
@@ -25,7 +26,7 @@ export default function COI({ store }) {
   const { cois = [], vendors = [], leasing = [], saveCoi, removeCoi } = store;
   const { role } = useAuth();
   const canEdit = role === 'admin' || role === 'manager';
-  const [today] = useState(() => new Date().toISOString().slice(0, 10)); // stable per mount
+  const [today] = useState(todayISO); // local-time, stable per mount
   const [filter, setFilter] = useState('all'); // all | vendor | tenant | attention
   const [edit, setEdit] = useState(null); // null | draft
 

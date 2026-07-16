@@ -6,7 +6,9 @@ import { IcBuilding, IcWrench, IcClock, IcCal } from '../components/ui.jsx';
 // labor — day / week / month panels shown together as modular data-viz.
 const DOW = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const WEEK_START = 6; // Saturday, to match the pay period
-const iso = (d) => d.toISOString().slice(0, 10);
+// LOCAL-time ISO (day cells are built in local time; toISOString() is UTC and
+// would shift "today"/windows/buckets by a day each evening in US time zones).
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 const KIND = {
   lease_end: { label: 'Lease ends', color: 'var(--warn)', Icon: IcCal },

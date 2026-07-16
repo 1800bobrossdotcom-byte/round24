@@ -4,7 +4,7 @@ import { categoryForText, tagSegments } from '../lib/taskTags.js';
 
 const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'painting', 'turn', 'general', 'inspection'];
 // cadence presets → interval in days
-const FREQ = [['7', 'Weekly'], ['14', 'Every 2 weeks'], ['30', 'Monthly'], ['60', 'Every 2 months'], ['91', 'Quarterly'], ['182', 'Every 6 months'], ['365', 'Annual']];
+const FREQ = [['1', 'Daily'], ['7', 'Weekly'], ['14', 'Every 2 weeks'], ['30', 'Monthly'], ['60', 'Every 2 months'], ['91', 'Quarterly'], ['182', 'Every 6 months'], ['365', 'Annual']];
 const freqLabel = (days) => (FREQ.find(([d]) => Number(d) === Number(days)) || [])[1] || `Every ${days} days`;
 
 function todayISO() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }

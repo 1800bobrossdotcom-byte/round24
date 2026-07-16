@@ -1004,14 +1004,21 @@ export function useStore() {
     if (!queue.length) return;
     flushingRef.current = true;
     try {
+      // only flush punches captured for the CURRENT org. Entries tagged for a
+      // different org (a shared device that switched accounts) stay queued so
+      // they never insert under the wrong tenant. Untagged legacy entries
+      // predate this fix and go to the current org.
+      const mine = [], others = [];
+      for (const t of queue) ((t._org == null || t._org === orgId) ? mine : others).push(t);
       const remaining = [];
-      for (const t of queue) {
-        try { await insertTimer(orgId, opId, t); }
+      for (const t of mine) {
+        const { _org, ...entry } = t; // eslint-disable-line no-unused-vars
+        try { await insertTimer(orgId, opId, entry); }
         catch { remaining.push(t); }
       }
       // entries enqueued while this flush was draining sit past the snapshot — keep them
       const appendedDuring = loadLS(TQ_KEY, []).slice(queue.length);
-      localStorage.setItem(TQ_KEY, JSON.stringify([...remaining, ...appendedDuring]));
+      localStorage.setItem(TQ_KEY, JSON.stringify([...remaining, ...others, ...appendedDuring]));
     } finally { flushingRef.current = false; }
   }, [orgId]);
 
@@ -1028,7 +1035,9 @@ export function useStore() {
     }
     try { const id = await insertTimer(orgId, operatorId, t); flushTimerQueue(operatorId); return { status: 'synced', id }; }
     catch {
-      localStorage.setItem(TQ_KEY, JSON.stringify([...loadLS(TQ_KEY, []), t]));
+      // tag with the capture org so a shared device that later switches accounts
+      // never flushes these punches into a different tenant (audit High #3)
+      localStorage.setItem(TQ_KEY, JSON.stringify([...loadLS(TQ_KEY, []), { ...t, _org: orgId }]));
       return { status: 'queued', id: null };
     }
   }, [orgId, operatorId, flushTimerQueue]);

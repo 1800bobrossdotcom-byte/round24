@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { TEMPLATES, itemsFromTemplate, scoreItems, inspectionSummary } from '../lib/inspection.js';
+import { todayISO } from '../lib/dates.js';
 import { useAuth } from '../components/AuthGate.jsx';
 import { IcClip, IcCheck, IcX } from '../components/ui.jsx';
 
@@ -12,7 +13,7 @@ export default function Inspections({ store }) {
   const { inspections = [], saveInspection, removeInspection, leasing = [] } = store;
   const { role } = useAuth();
   const canEdit = role === 'admin' || role === 'manager';
-  const [today] = useState(() => new Date().toISOString().slice(0, 10));
+  const [today] = useState(todayISO); // local-time
   const [sel, setSel] = useState(null);     // active inspection id
   const [draft, setDraft] = useState(null); // working copy of the active inspection
   const [creating, setCreating] = useState(null); // new-inspection form

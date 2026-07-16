@@ -22,7 +22,7 @@ export default function Requests({ store, navigate }) {
   const qrLink = bld.trim() ? `${link}&b=${encodeURIComponent(bld.trim())}` : link;
   const [qrImg, setQrImg] = useState('');
   const [posterBusy, setPosterBusy] = useState(false);
-  useEffect(() => { try { setQrImg(qrDataUrl(qrLink, { size: 320, margin: 3 })); } catch { setQrImg(''); } }, [qrLink]);
+  useEffect(() => { try { setQrImg(qrDataUrl(qrLink, { size: 480, margin: 3 })); } catch { setQrImg(''); } }, [qrLink]);
   const slug = (bld.trim() || 'evolution24').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const dlQr = () => downloadDataUrl(qrDataUrl(qrLink, { size: 1024, margin: 4 }), `caliper-request-qr-${slug}.png`);
   const dlPoster = async () => {
@@ -108,7 +108,7 @@ export default function Requests({ store, navigate }) {
 
         {/* QR: download a printable code / poster to drop into notices, lease packets, doors */}
         <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)', flexWrap: 'wrap' }}>
-          {qrImg && <img src={qrImg} alt="Resident request QR code" style={{ width: 108, height: 108, borderRadius: 10, border: '1px solid var(--line)', background: '#fff', flex: 'none' }} />}
+          {qrImg && <img src={qrImg} alt="Resident request QR code" style={{ width: 200, height: 200, borderRadius: 10, border: '1px solid var(--line)', background: '#fff', padding: 6, flex: 'none' }} />}
           <div style={{ flex: 1, minWidth: 220 }}>
             <span className="field-label" style={{ display: 'block', marginBottom: 4 }}>Printable QR code</span>
             <p className="note" style={{ margin: '0 0 8px' }}>Residents scan with their phone camera — straight to the request form. Drop it in notices, lease packets, or on each door.</p>
