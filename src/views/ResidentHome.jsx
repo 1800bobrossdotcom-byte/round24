@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  submitMaintenanceRequest, getOrgBranding, listMyRequests, listAnnouncements, getHandbook,
+  submitMaintenanceRequest, getOrgBranding, listMyRequests, listAnnouncements, listHandbooks,
   listAmenities, listBookings, addBooking, signOut,
 } from '../lib/backend/supabase.js';
 import { Mark } from '../components/ui.jsx';
 import { normalizeSections, hasContent } from '../lib/handbook.js';
+import { normBuilding } from '../lib/text.js';
 import OrgLogo from '../components/OrgLogo.jsx';
 
 const inp = {
@@ -70,9 +71,14 @@ export default function ResidentHome({ resident, embedded = false }) {
   const refresh = useCallback(() => {
     listMyRequests().then(setRequests).catch(() => setRequests([]));
     listAnnouncements(resident.orgId).then(setAnns).catch(() => {});
-    getHandbook(resident.orgId, resident.propLabel).then((h) => setHb(normalizeSections(h?.sections || []))).catch(() => {});
-    const forMe = (a) => !a.building || a.building === resident.propLabel;
-    listAmenities(resident.orgId).then((a) => setAmens(a.filter((x) => x.active && forMe(x)))).catch(() => {});
+    // match building by NORMALIZED name, so a case/punctuation drift between the
+    // resident's property label and the authored building doesn't hide content
+    const mineB = (b) => !b || normBuilding(b) === normBuilding(resident.propLabel);
+    listHandbooks(resident.orgId).then((hbs) => {
+      const mine = hbs.find((h) => normBuilding(h.building) === normBuilding(resident.propLabel));
+      setHb(normalizeSections(mine?.sections || []));
+    }).catch(() => {});
+    listAmenities(resident.orgId).then((a) => setAmens(a.filter((x) => x.active && mineB(x.building)))).catch(() => {});
     listBookings(resident.orgId).then(setMyBks).catch(() => {});
   }, [resident.orgId]);
   useEffect(() => {

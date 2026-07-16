@@ -59,5 +59,9 @@ export function vendorCoiOk(certs = [], vendorName, today) {
   if (mine.length === 0) return { ok: false, reason: 'no COI on file' };
   const bad = mine.find((c) => coiStatus(c, today) === 'expired');
   if (bad) return { ok: false, reason: 'COI expired' };
+  // a cert with no expiration on file can't be vouched for — require at least
+  // one currently-valid (active/expiring) cert, matching coiSummary's compliance
+  const anyCurrent = mine.some((c) => { const s = coiStatus(c, today); return s === 'active' || s === 'expiring'; });
+  if (!anyCurrent) return { ok: false, reason: 'COI has no expiration on file' };
   return { ok: true };
 }

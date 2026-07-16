@@ -24,7 +24,10 @@ export default function Amenities({ store }) {
   const upcoming = useMemo(() => sortBookings(bookings.filter((b) => b.status === 'confirmed' && (b.date || '') >= today)), [bookings, today]);
   const buildings = useMemo(() => [...new Set(leasing.filter((u) => !isLand(u) && u.building).map((u) => u.building))].sort(), [leasing]);
 
-  const startAdd = () => setEdit({ name: '', building: buildings[0] || '', description: '', capacity: '', hours: '', requiresApproval: true, active: true });
+  // default to building-wide ('') so scoping DOWN to one building is a deliberate
+  // choice — otherwise a shared space silently binds to the first building and
+  // hides from every other building's residents (audit #19)
+  const startAdd = () => setEdit({ name: '', building: '', description: '', capacity: '', hours: '', requiresApproval: true, active: true });
   const dset = (k, v) => setEdit((e) => ({ ...e, [k]: v }));
   const save = () => { saveAmenity({ ...edit, name: edit.name.trim(), capacity: edit.capacity === '' ? null : Number(edit.capacity) }); setEdit(null); };
 

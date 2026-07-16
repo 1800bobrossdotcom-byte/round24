@@ -132,6 +132,9 @@ export default function CAM({ store }) {
       {r.basis === 'equal' && (
         <p className="note" style={{ color: 'var(--warn)', margin: '2px 2px 12px' }}>No rentable SF on these suites yet — shares are split evenly. Add each suite's square footage to the rent roll for exact, area-based CAM shares.</p>
       )}
+      {r.basis === 'mixed' && (
+        <p className="note" style={{ color: 'var(--warn)', margin: '2px 2px 12px' }}>Some suites are missing square footage ({r.needsSqft.join(', ')}), so shares are split <b>evenly</b> for now rather than by area — add SF to those suites in the rent roll for an exact, area-based split.</p>
+      )}
 
       {/* per-tenant reconciliation */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>

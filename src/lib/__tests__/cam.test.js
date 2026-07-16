@@ -70,6 +70,27 @@ describe('camReconcile — SF fallback', () => {
   });
 });
 
+describe('camReconcile — mixed SF (some suites missing) falls back to equal, never silently mis-bills', () => {
+  it('one suite missing SF → basis "mixed", equal split, no free-ride 0-share', () => {
+    const mixed = leasing.map((u) => (u.building === 'Tower' && u.number === '2' ? { ...u, sqft: null } : u));
+    const r = camReconcile({ ...args, leasing: mixed });
+    expect(r.basis).toBe('mixed');
+    expect(r.needsSqft).toContain('2');
+    // 3 rentable suites, equal split → each 1/3; two occupied → 2/3 of 6000 pool
+    const acme = r.tenants.find((t) => t.tenant === 'Acme');
+    const beta = r.tenants.find((t) => t.tenant === 'Beta');
+    expect(acme.sharePct).toBeCloseTo(33.33, 1);
+    expect(beta.sharePct).toBeCloseTo(33.33, 1); // NOT 0 — the bug was Beta getting a free credit
+    expect(r.allocatedToTenants).toBeCloseTo(4000);
+    expect(r.landlordAbsorbed).toBeCloseTo(2000);
+  });
+  it('full SF present → still bills by area (basis "sqft", no needsSqft)', () => {
+    const r = camReconcile(args);
+    expect(r.basis).toBe('sqft');
+    expect(r.needsSqft).toEqual([]);
+  });
+});
+
 describe('camBuildings — only commercial / CAM-bearing buildings', () => {
   it('lists the commercial building, not the residential one', () => {
     const list = camBuildings(leasing);

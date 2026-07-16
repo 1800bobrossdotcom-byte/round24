@@ -131,9 +131,11 @@ export default function Calendar({ store, focus, navigate }) {
               const kinds = [...new Set(evs.map((e) => e.kind))];
               const isToday = c.date === todayISO;
               return (
-                <button key={c.date}
+                <button key={c.date} type="button"
                   className={'cal-cell2' + (selDay === c.date ? ' sel' : '') + (isToday ? ' today' : '')}
                   style={lab ? { '--heat': Math.max(0.1, lab.hrs / maxHrs) } : undefined}
+                  aria-pressed={selDay === c.date}
+                  aria-label={`${prettyDay(c.date)}${isToday ? ', today' : ''}${evs.length ? `, ${evs.length} event${evs.length > 1 ? 's' : ''}` : ''}${lab ? `, ${lab.hrs}h logged` : ''}`}
                   onClick={() => setSelDay(c.date)}>
                   <span className="d">{c.day}</span>
                   {evs.length > 0 && (
@@ -162,14 +164,15 @@ export default function Calendar({ store, focus, navigate }) {
           {dayEvents.map((e, i) => {
             const K = KIND[e.kind];
             return (
-              <div className="row cal-evrow" key={i} onClick={() => openEvent(e)} style={{ cursor: 'pointer' }}>
+              <button type="button" className="row cal-evrow" key={i} onClick={() => openEvent(e)}
+                style={{ cursor: 'pointer', width: '100%', textAlign: 'left', background: 'none', border: 'none', font: 'inherit', color: 'inherit' }}>
                 <span className="cal-evbar" style={{ background: K.color }} />
                 <div className="lead">
                   <div className="t">{e.title}</div>
                   <div className="s">{K.label}{e.sub ? ` · ${e.sub}` : ''}</div>
                 </div>
                 <K.Icon width={15} height={15} style={{ color: K.color, flex: 'none' }} />
-              </div>
+              </button>
             );
           })}
           {dayLabor && (

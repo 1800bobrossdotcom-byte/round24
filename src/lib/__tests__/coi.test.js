@@ -65,4 +65,8 @@ describe('vendorCoiOk — dispatch gate', () => {
   it('blocks a vendor with nothing on file', () => {
     expect(vendorCoiOk(certs, 'Nobody', today)).toEqual({ ok: false, reason: 'no COI on file' });
   });
+  it('blocks a vendor whose only cert has no expiration date', () => {
+    const undated = [{ holderType: 'vendor', holderName: 'Mystery LLC', expires: null }];
+    expect(vendorCoiOk(undated, 'Mystery LLC', today)).toEqual({ ok: false, reason: 'COI has no expiration on file' });
+  });
 });

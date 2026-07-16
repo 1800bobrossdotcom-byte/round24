@@ -37,10 +37,17 @@ export function camReconcile({ building, leasing = [], timers = [], purchases = 
   // rentable units in this building (land parcels aren't rentable area)
   const units = leasing.filter((u) => key(u.building) === key(building) && !isLand(u));
 
-  // pro-rata basis: rentable SF when we have it, else an equal split across
-  // suites — flagged, so a statement is never silently wrong when SF is missing.
+  // pro-rata basis: rentable SF when EVERY suite has it, else an equal split.
+  // Mixing SF and non-SF suites can't produce an honest pro-rata share (a suite
+  // with no SF would get share 0 — a free ride — while the rest are over-billed
+  // against a too-small denominator), so if any rentable suite is missing SF we
+  // equal-split the whole building and flag it 'mixed', surfacing the suites
+  // that need SF entered. Only when SF is complete do we bill by area.
   const anySqft = units.some((u) => Number(u.sqft) > 0);
-  const basisOf = (u) => (anySqft ? (Number(u.sqft) || 0) : 1);
+  const needsSqft = anySqft ? units.filter((u) => !(Number(u.sqft) > 0)).map((u) => u.number) : [];
+  const useSqft = anySqft && needsSqft.length === 0;
+  const basis = !anySqft ? 'equal' : (needsSqft.length ? 'mixed' : 'sqft');
+  const basisOf = (u) => (useSqft ? (Number(u.sqft) || 0) : 1);
   const totalBasis = units.reduce((a, u) => a + basisOf(u), 0);
   const totalSqft = units.reduce((a, u) => a + (Number(u.sqft) || 0), 0);
 
@@ -74,7 +81,7 @@ export function camReconcile({ building, leasing = [], timers = [], purchases = 
   return {
     building, months,
     pool: { labor, materials, total: pool },
-    basis: anySqft ? 'sqft' : 'equal',
+    basis, needsSqft,
     totalSqft, unitCount: units.length,
     tenants, vacant,
     allocatedToTenants, landlordAbsorbed,

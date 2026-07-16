@@ -934,12 +934,21 @@ button.kpi-c{font:inherit}
   display:flex;align-items:flex-start;padding:5px 6px;cursor:pointer;color:var(--text);transition:border-color .1s}
 .cal-cell2:hover{border-color:var(--line)}
 .cal-cell2 .d{font-size:12px;font-weight:700;font-family:var(--mono)}
+/* selection = the accent ring; today = a filled accent chip behind the day
+   number, so after selecting another day the two stay distinguishable */
 .cal-cell2.sel{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-.cal-cell2.today{border-color:var(--accent)}
-.cal-cell2.today .d{color:var(--accent)}
+.cal-cell2.today .d{background:var(--accent);color:#fff;border-radius:6px;padding:1px 6px;margin-left:-2px}
 .cal-dots{position:absolute;top:6px;right:6px;display:flex;gap:2px}
 .cal-dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex:none}
 .cal-cnt{position:absolute;bottom:4px;right:6px;font-size:10px;color:var(--text-dim);font-weight:600}
+@media (max-width:560px){
+  .cal-cell2{min-height:36px;padding:3px 4px;border-radius:7px}
+  .cal-cell2 .d{font-size:11px}
+  .cal-cell2.today .d{padding:1px 4px}
+  .cal-dots{top:3px;right:3px;gap:1px}
+  .cal-dot{width:5px;height:5px}
+  .cal-cnt{bottom:2px;right:4px;font-size:9px}
+}
 .cal-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:11px;color:var(--text-dim);align-items:center}
 .cal-legend .cal-dot{vertical-align:0;margin-right:5px}
 .cal-heatnote{color:var(--text-faint)}
