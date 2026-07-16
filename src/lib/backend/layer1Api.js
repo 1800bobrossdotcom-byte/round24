@@ -12,11 +12,16 @@
 // below supersedes it.) Don't duplicate their definitions — extend
 // supabase.js's originals only if their shape needs to change, and if so,
 // do it there, not by shadowing them here.
+//
+// task02c: signIn/signOut added to this re-export list so DeveloperShell's
+// new no-session sign-in form has one import to worry about too.
 
 import { supabase } from './supabase.js';
 export {
   isPlatformAdmin,
   getSession,
+  signIn,
+  signOut,
   adminCreateWorkspace,
   listWorkspaceRequests,
   decideWorkspaceRequest,
