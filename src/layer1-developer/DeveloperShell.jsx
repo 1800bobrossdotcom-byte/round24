@@ -11,10 +11,18 @@
 // NOT wired through AuthGate's product/portal picker state or its AuthCtx
 // value — that's exactly where the last patch collided with Gianni's resident
 // work. This is a parallel entry point that doesn't touch those lines at all.
+//
+// task02c: the no-session branch used to be a dead end ("go back and sign in
+// as usual"). It's now a real sign-in form, right here, so a platform admin
+// can authenticate directly at #developer. Signing in with a non-admin
+// account is allowed at the auth layer (Supabase can't pre-screen emails at
+// sign-in) but is immediately signed back out the moment isPlatformAdmin()
+// comes back false — no non-admin session is ever left standing at this
+// route, which is what actually keeps this to Gianni + you in practice.
 
 import { useEffect, useState } from 'react';
 import './theme.css';
-import { isPlatformAdmin, getSession, layer1SweepSupport } from '../lib/backend/layer1Api.js';
+import { isPlatformAdmin, getSession, signIn, signOut, layer1SweepSupport } from '../lib/backend/layer1Api.js';
 import { Mark } from '../components/ui.jsx';
 
 import Overview from './sections/Overview.jsx';
@@ -33,10 +41,80 @@ const SECTIONS = [
   { id: 'audit', label: 'Audit', Component: Audit },
 ];
 
+function DevSignIn({ onSignedIn }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr(null);
+    setBusy(true);
+    try {
+      await signIn(email.trim(), password);
+      const ok = await isPlatformAdmin();
+      if (!ok) {
+        await signOut();
+        setErr("Signed in, but this account isn't on the developer allowlist.");
+        setPassword('');
+        return;
+      }
+      onSignedIn();
+    } catch (e2) {
+      setErr(e2.message || 'Sign-in failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 10, width: 260, marginTop: 20 }}>
+      <input
+        type="email"
+        autoComplete="username"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="you@example.com"
+        required
+        style={{
+          fontFamily: 'var(--font)', fontSize: 13, color: 'var(--text)',
+          background: 'var(--surface-2)', border: '1px solid var(--line)',
+          borderRadius: 'var(--r-sm)', padding: '9px 12px',
+        }}
+      />
+      <input
+        type="password"
+        autoComplete="current-password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="Password"
+        required
+        style={{
+          fontFamily: 'var(--font)', fontSize: 13, color: 'var(--text)',
+          background: 'var(--surface-2)', border: '1px solid var(--line)',
+          borderRadius: 'var(--r-sm)', padding: '9px 12px',
+        }}
+      />
+      <button type="submit" className="btn grad sm" disabled={busy || !email.trim() || !password}>
+        {busy ? 'Signing in…' : 'Sign in'}
+      </button>
+      {err && <p style={{ fontFamily: 'var(--font)', fontSize: 12, color: 'var(--danger)', margin: 0 }}>{err}</p>}
+    </form>
+  );
+}
+
 export default function DeveloperShell({ onExit }) {
   const [allowed, setAllowed] = useState(null); // null = still checking
   const [signedIn, setSignedIn] = useState(null); // null = still checking
   const [section, setSection] = useState('overview');
+
+  const recheck = () => {
+    setAllowed(null);
+    setSignedIn(null);
+    getSession().then((s) => setSignedIn(!!s)).catch(() => setSignedIn(false));
+    isPlatformAdmin().then(setAllowed);
+  };
 
   useEffect(() => {
     let on = true;
@@ -51,19 +129,18 @@ export default function DeveloperShell({ onExit }) {
   if (allowed === null || signedIn === null) return <div className="layer1-root" />;
 
   if (!allowed) {
-    // is_platform_admin() is always false for a signed-out client, so tell
-    // that audience to sign in rather than to chase an allowlist seat.
     return (
       <div className="layer1-root" style={{ display: 'grid', placeItems: 'center', padding: 40 }}>
-        <div style={{ textAlign: 'center', maxWidth: 360 }}>
+        <div style={{ textAlign: 'center', maxWidth: 360, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <p style={{ fontFamily: 'var(--font)', color: 'var(--text)', fontWeight: 600, margin: 0 }}>
-            {signedIn ? 'Not authorized' : 'Sign in first'}
+            {signedIn ? 'Not authorized' : 'Developer sign-in'}
           </p>
           <p style={{ fontFamily: 'var(--font)', color: 'var(--text-dim)', fontSize: 13, marginTop: 8 }}>
             {signedIn
               ? "This console is restricted to platform admins. If that's wrong, ask an existing admin to add you from the Developers tab."
-              : 'The developer console needs a signed-in Caliper session. Go back, sign in as usual, then return here via the Developer link or #developer.'}
+              : 'Restricted to platform admins.'}
           </p>
+          {!signedIn && <DevSignIn onSignedIn={recheck} />}
           <button className="btn ghost sm" style={{ marginTop: 16 }} onClick={onExit}>Back to Caliper</button>
         </div>
       </div>
