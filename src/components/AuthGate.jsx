@@ -318,14 +318,11 @@ function Landing({ onEnter, onBeta }) {
   ];
   return (
     <div className="lp">
-      {/* sticky header — CTAs always in reach */}
+      {/* sticky header — logo only; the hero carries the Sign in / Request beta
+          CTAs, so header buttons would just double them up (and wrap on mobile) */}
       <header className="lp-head">
         <div className="lp-head-in">
           <BrandLockup />
-          <div className="lp-head-cta">
-            <button className="lp-link" onClick={onEnter}>Sign in</button>
-            <button className="btn grad lp-sm" onClick={onBeta}>Request beta →</button>
-          </div>
         </div>
       </header>
 
