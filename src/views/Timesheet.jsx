@@ -247,6 +247,7 @@ export default function Timesheet({ store }) {
   const [busy, setBusy] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
   const [opFilter, setOpFilter] = useState('all');   // office only: 'all' (roster) | techId key
+  const editorRef = useRef(null);                    // the open new-entry editor, for scroll-into-view
 
   // office reads as "Timesheets" — an index of every operator, with a master tally,
   // and you drill into one person's sheet. Crew sees only their own (level 2).
@@ -428,6 +429,16 @@ export default function Timesheet({ store }) {
   };
   const del = async (id) => { setConfirmDel(null); await store.deleteTimesheet(id); if (editId === id) cancel(); };
 
+  // The new-entry editor renders full-width at the top of the section, above the
+  // week grid. On a phone (single-column week) the "+ log" button for a day can be
+  // scrolled far below it, so opening the form does nothing visible near the tap —
+  // it reads as "the button doesn't work." Pull the form into view when it opens.
+  useEffect(() => {
+    if (editId === '__new__' && editorRef.current) {
+      editorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [editId, view]);
+
   const editorEl = draft && <TsEditor draft={draft} setDraft={setDraft} propNames={propNames} onSave={save} onCancel={cancel} busy={busy} />;
 
   const CAP = 250;
@@ -581,12 +592,12 @@ export default function Timesheet({ store }) {
 
       {/* new-entry editor (shared) — shown at top when adding from the list toolbar */}
       {editId === '__new__' && view === 'list' && (
-        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'var(--accent)' }}>{editorEl}</div>
+        <div ref={editorRef} className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'var(--accent)' }}>{editorEl}</div>
       )}
 
       {/* week view keeps the editor full-width above the grid — a 1/7 column is too cramped for it */}
       {view === 'week' && draft && (
-        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'var(--accent)' }}>
+        <div ref={editorRef} className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'var(--accent)' }}>
           <span className="field-label" style={{ marginBottom: 8, display: 'block' }}>{editId === '__new__' ? 'Log hours' : 'Edit entry'} · {fmtDate(draft.date)}</span>
           {editorEl}
           {editId !== '__new__' && (
