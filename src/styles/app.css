@@ -249,9 +249,30 @@
   padding: 9px 13px; font-size: 14px; line-height: 1.4; overflow-wrap: break-word; word-break: break-word;
 }
 .msg.mine .bubble { background: linear-gradient(135deg, #ff7a1822, #a855f722); border-color: #ff7a1833; }
+.msg.mine .bubble { position: relative; }
 .bubble.office { border-left: 2px solid var(--accent); }
 .msg-body { white-space: pre-wrap; }
 .msg-time { font-size: 10px; color: var(--text-faint); margin: 3px 10px 0; }
+
+/* unsend — a subtle corner control on your own messages (kept tappable on touch,
+   where there's no hover) that expands into a two-tap confirm */
+.msg-unsend {
+  position: absolute; top: -9px; right: -7px;
+  width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--surface);
+  color: var(--text-faint); cursor: pointer; opacity: .5; transition: opacity .15s, color .15s, border-color .15s;
+}
+.msg-unsend:hover { opacity: 1; color: var(--danger); border-color: var(--danger); }
+.msg-unsend.confirm {
+  position: static; width: auto; height: auto; border-radius: 10px; opacity: 1;
+  margin-top: 8px; padding: 4px 8px; gap: 10px; font-size: 12px; color: var(--text-dim);
+  border-color: var(--line); background: var(--surface);
+}
+.msg-unsend.confirm button {
+  background: none; border: none; cursor: pointer; font-family: var(--font); font-size: 12px; font-weight: 700; padding: 2px;
+}
+.msg-unsend.confirm button:first-of-type { color: var(--danger); }
+.msg-unsend.confirm button:last-of-type { color: var(--text-dim); }
 .composer { display: flex; align-items: center; gap: 8px; padding-top: 4px; }
 .composer .icon-btn { width: 44px; height: 44px; border-radius: 12px; flex: none; padding: 0; }
 audio { filter: invert(0.9) hue-rotate(180deg); }

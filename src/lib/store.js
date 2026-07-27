@@ -14,7 +14,7 @@ import {
   updateWorkOrderPriority, updateWorkOrderAssignee, updateWorkOrderBilling, subscribeWorkOrders,
   listPurchases, insertPurchase, setPurchaseStatus as dbSetPurchaseStatus, uploadReceipt,
   listDocuments, uploadDocument,
-  listMessages, insertMessage, subscribeMessages, uploadVoiceNote, summarizeThread,
+  listMessages, insertMessage, deleteMessage as deleteMessageDb, subscribeMessages, uploadVoiceNote, summarizeThread,
   uploadAttachment, updateWorkOrderPhotos, updateWorkOrderFiles,
   listLeasing, updateLeaseRow, updateUnitRow, importLeaseBuildings, addUnitWithLease, deleteUnit, clearLeasing as clearLeasingDb,
   listVendors, addVendor, updateVendor, deleteVendor,
@@ -1546,6 +1546,8 @@ export function useStore() {
   // ---- team comms: Slack-style messages + voice notes ----
   const [messages, setMessages] = useState(() => (isConfigured() ? [] : loadLS(MSG_KEY, [])));
   const [msgBackend, setMsgBackend] = useState('local'); // 'db' | 'local'
+  const messagesRef = useRef(messages);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => { if (msgBackend === 'local') saveLS(MSG_KEY, messages.slice(-300)); }, [messages, msgBackend]);
 
   useEffect(() => {
@@ -1571,7 +1573,7 @@ export function useStore() {
         if (pi >= 0) { const copy = [...l]; copy[pi] = m; return copy; }
         return [...l, m];
       });
-    });
+    }, (deletedId) => setMessages((l) => l.filter((x) => x.id !== deletedId)));
   }, [orgId, msgBackend]);
 
   // post a message: typed body and/or a recorded voice note (Blob).
@@ -1611,6 +1613,19 @@ export function useStore() {
       return saved;
     } catch { return local; }
   }, [orgId, msgBackend, myId, myName, myCommsRole]);
+
+  // unsend a message (a double-post, a typo). Optimistically drop it; on a cloud
+  // failure put it back so it's never silently gone on this device while it lives
+  // in the DB. Local/demo mode just drops it from state.
+  const deleteMessage = useCallback(async (id) => {
+    const prev = messagesRef.current;
+    const row = prev.find((x) => x.id === id);
+    setMessages((l) => l.filter((x) => x.id !== id));
+    if (!isConfigured() || !orgId || msgBackend !== 'db') return { ok: true };
+    if (String(id).startsWith('msg_')) return { ok: true }; // optimistic row, never hit the DB
+    try { await deleteMessageDb(id); return { ok: true }; }
+    catch { if (row) setMessages((l) => (l.some((x) => x.id === id) ? l : [...l, row].sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')))); return { ok: false }; }
+  }, [orgId, msgBackend]);
 
   // AI: turn a thread into a work-order summary/update (server-side Claude)
   const summarizeMessages = useCallback(async (msgs, workOrder) => {
@@ -1830,7 +1845,7 @@ export function useStore() {
     // documents
     documents, addDocument, docBackend,
     // team comms
-    messages, addMessage, msgBackend, summarizeMessages, myName, myId,
+    messages, addMessage, deleteMessage, msgBackend, summarizeMessages, myName, myId,
     roster, privateChannels, addChannel,
     // nav notification badges
     badges, markSeen,

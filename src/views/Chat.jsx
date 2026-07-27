@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { isConfigured, signedFileUrl } from '../lib/backend/supabase.js';
-import { IcMic, IcSend, IcX, IcSparkle, IcCheck, IcClip } from '../components/ui.jsx';
+import { IcMic, IcSend, IcX, IcSparkle, IcCheck, IcClip, IcTrash } from '../components/ui.jsx';
 import StoredImage from '../components/StoredImage.jsx';
 import Lightbox from '../components/Lightbox.jsx';
 import { FileChip } from '../components/FileChip.jsx';
@@ -17,9 +17,10 @@ const fmtTime = (iso) => { try { return new Date(iso).toLocaleTimeString('en-US'
 const fmtSecs = (s) => (s ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : '');
 
 export default function Chat({ store }) {
-  const { messages, addMessage, msgBackend, workOrders, summarizeMessages, myId, myName, role,
+  const { messages, addMessage, deleteMessage, msgBackend, workOrders, summarizeMessages, myId, myName, role,
     roster, privateChannels, addChannel } = store;
   const isOffice = role === 'admin' || role === 'manager';
+  const [delId, setDelId] = useState(null);   // message pending unsend confirm
 
   const channels = useMemo(() => {
     const wos = workOrders.filter((w) => w.status === 'open' || w.status === 'in_progress');
@@ -150,6 +151,15 @@ export default function Chat({ store }) {
                   onOpen={() => setLb({ bucket: 'attachments', ...(m.imageData ? { data: m.imageData } : { path: m.imagePath }), name: 'Photo' })} />}
                 {(m.filePath || m.fileData) && <div style={{ marginTop: m.body ? 6 : 0 }}><FileChip path={m.fileData ? null : m.filePath} data={m.fileData || null} name={m.fileName || 'file'} /></div>}
                 {(m.voicePath || m.voiceData) && <VoiceNote msg={m} />}
+                {mine && (delId === m.id ? (
+                  <div className="msg-unsend confirm">
+                    <span>Unsend?</span>
+                    <button onClick={() => { deleteMessage(m.id); setDelId(null); }}>Unsend</button>
+                    <button onClick={() => setDelId(null)}>Keep</button>
+                  </div>
+                ) : (
+                  <button className="msg-unsend" onClick={() => setDelId(m.id)} aria-label="Unsend message"><IcTrash width={12} height={12} /></button>
+                ))}
               </div>
               <div className="msg-time">{fmtTime(m.createdAt)}</div>
             </div>

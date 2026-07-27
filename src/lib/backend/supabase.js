@@ -858,11 +858,23 @@ export async function insertMessage(orgId, m) {
   return msgFromDb(data);
 }
 
-export function subscribeMessages(orgId, cb) {
+// unsend: remove a message row. RLS (msg_delete) lets the sender delete their
+// own and org staff moderate any; a blocked delete surfaces as an error.
+export async function deleteMessage(id) {
+  const { error } = await supabase.from('messages').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export function subscribeMessages(orgId, onInsert, onDelete) {
   const ch = supabase.channel('msg-live-' + orgId)
     .on('postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'messages', filter: `org_id=eq.${orgId}` },
-      (payload) => cb(msgFromDb(payload.new)))
+      (payload) => onInsert(msgFromDb(payload.new)))
+    // a DELETE payload carries only the primary key (replica identity default),
+    // which is all we need to drop it from every open thread live.
+    .on('postgres_changes',
+      { event: 'DELETE', schema: 'public', table: 'messages' },
+      (payload) => onDelete && payload.old?.id && onDelete(payload.old.id))
     .subscribe();
   return () => supabase.removeChannel(ch);
 }
