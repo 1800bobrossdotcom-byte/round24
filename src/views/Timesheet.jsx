@@ -429,12 +429,15 @@ export default function Timesheet({ store }) {
   };
   const del = async (id) => { setConfirmDel(null); await store.deleteTimesheet(id); if (editId === id) cancel(); };
 
-  // The new-entry editor renders full-width at the top of the section, above the
-  // week grid. On a phone (single-column week) the "+ log" button for a day can be
-  // scrolled far below it, so opening the form does nothing visible near the tap —
-  // it reads as "the button doesn't work." Pull the form into view when it opens.
+  // The entry editor renders full-width at the top of the section, above the week
+  // grid. On a phone (single-column week) the "+ log" button — or a day's chip you
+  // tap to fix/move an entry — can be scrolled far below it, so opening the form
+  // does nothing visible near the tap: it reads as "nothing happens." Pull the form
+  // into view whenever it opens, for both a new entry and an edit (e.g. correcting
+  // the Date to move an entry logged on the wrong day). List-view edits render
+  // inline in the row (no ref), so the guard makes this a no-op there.
   useEffect(() => {
-    if (editId === '__new__' && editorRef.current) {
+    if (editId && editorRef.current) {
       editorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [editId, view]);
