@@ -1,11 +1,12 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { buildStatement } from '../lib/pnlStatement.js';
 import { IcChart, IcChevron } from '../components/ui.jsx';
+import { todayISO } from '../lib/dates.js';
 
 const nk = (s) => (s || '').toLowerCase().trim();
 const money = (v) => (v == null ? '—' : (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString());
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const thisMonth = () => new Date().toISOString().slice(0, 7);
+const thisMonth = () => todayISO().slice(0, 7);
 const stepMonth = (m, d) => {
   const [y, mo] = (m || thisMonth()).split('-').map(Number);
   if (!Number.isFinite(y) || !Number.isFinite(mo)) return thisMonth();

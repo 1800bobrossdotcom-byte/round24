@@ -23,13 +23,50 @@ import { buildingPnl } from './pnl.js';
 const key = (s) => (s || '').toLowerCase().trim();
 const isLand = (u) => u.type === 'land' || u.status === 'held';
 
-// One building's CAM reconciliation for a period (default a 12-month year).
-export function camReconcile({ building, leasing = [], timers = [], purchases = [], propById = {}, months = 12 } = {}) {
+// ---- the reconciliation period ------------------------------------------------
+// The pool must cover the SAME span the tenants were billed for: billed is
+// `monthlyCam × months`, so the pool is the labor + materials dated inside the
+// trailing `months` months ending `asOf` (today unless given). Without this,
+// switching Annual → Quarter divided the billed side by four while the pool
+// stayed the whole history — every statement showed a phantom balance due.
+const pad2 = (n) => String(n).padStart(2, '0');
+const localISO = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const todayISO = () => localISO(new Date());
+const addDays = (iso, n) => { const [y, m, d] = iso.split('-').map(Number); return localISO(new Date(y, m - 1, d + n)); };
+// shift a YYYY-MM-DD by whole months (local), clamping to the target month's
+// end so Mar 31 − 1 month is Feb 28/29 — never "Feb 31" rolling into March.
+function shiftMonths(iso, n) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const first = new Date(y, m - 1 + n, 1);
+  const last = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+  return localISO(new Date(first.getFullYear(), first.getMonth(), Math.min(d, last)));
+}
+// inclusive [from, to] window for a `months`-long period ending `asOf`
+export function camWindow(months = 12, asOf = null) {
+  const to = asOf || todayISO();
+  return { from: addDays(shiftMonths(to, -months), 1), to };
+}
+// an entry's calendar day, or null when it carries none
+const dayOf = (v) => (typeof v === 'string' && v.length >= 10 ? v.slice(0, 10) : null);
+// undated entries are KEPT: a cost the office logged must never silently vanish
+// from a statement because it lacks a date (timers always carry work_date;
+// receipts fall back to created_at — this is a belt-and-suspenders default).
+const inWindow = (day, w) => day == null || (day >= w.from && day <= w.to);
+
+// One building's CAM reconciliation for a period (default a 12-month year
+// ending today). `asOf` pins the period end (YYYY-MM-DD) — used by tests and
+// by statements re-run for a past period.
+export function camReconcile({ building, leasing = [], timers = [], purchases = [], propById = {}, months = 12, asOf = null } = {}) {
   if (!building) return null;
 
-  // recoverable pool = the building's MEASURED operating cost. Reuse the P&L so
-  // the CAM number is literally the same labor + materials the P&L shows.
-  const pnl = buildingPnl(building, { leasing, timers, purchases, propById });
+  const window = camWindow(months, asOf);
+  const periodTimers = timers.filter((t) => inWindow(dayOf(t.date), window));
+  const periodPurchases = purchases.filter((p) => inWindow(dayOf(p.date || p.createdAt), window));
+
+  // recoverable pool = the building's MEASURED operating cost for the period.
+  // Reuse the P&L so the CAM number is literally the same labor + materials
+  // the P&L shows for those entries.
+  const pnl = buildingPnl(building, { leasing, timers: periodTimers, purchases: periodPurchases, propById });
   const labor = pnl?.labor || 0;
   const materials = pnl?.materials || 0;
   const pool = labor + materials;
@@ -79,7 +116,7 @@ export function camReconcile({ building, leasing = [], timers = [], purchases = 
   const totalDelta = allocatedToTenants - totalBilled;
 
   return {
-    building, months,
+    building, months, window,
     pool: { labor, materials, total: pool },
     basis, needsSqft,
     totalSqft, unitCount: units.length,

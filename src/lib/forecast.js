@@ -54,7 +54,8 @@ function groupSum(list, keyFn) {
 }
 const median = (xs) => { if (!xs.length) return 0; const s = [...xs].sort((a, b) => a - b); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 const addMonths = (t, m) => { const d = new Date(t); d.setMonth(d.getMonth() + m); return d.getTime(); };
-const isoDay = (t) => new Date(t).toISOString().slice(0, 10);
+// LOCAL calendar day of an instant — toISOString() would shift evening dates a day forward in US time zones
+const isoDay = (t) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
 // recurring buys: same vendor + category showing up on a cadence
 function detectRecurring(dated, asOf) {

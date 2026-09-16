@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { fmtHrs } from '../lib/rollups.js';
 import { WO_PRIORITIES, byPriority } from './WorkOrders.jsx';
 import { Avatar, IcWrench, IcClock } from '../components/ui.jsx';
+import { localISO } from '../lib/dates.js';
 
 // live elapsed since an ISO start, as H:MM:SS
 function elapsedStr(startedAt, now) {
@@ -30,7 +31,7 @@ export default function DayOverview({ store, navigate }) {
   const crew = (activeTechs || techs).filter((t) => t.role !== 'viewer');
   const techIdByName = useMemo(() => Object.fromEntries(techs.map((t) => [t.name, t.id])), [techs]);
   const now = new Date();
-  const todayISO = now.toISOString().slice(0, 10);
+  const todayISO = localISO(now); // local, so the evening doesn't roll "today" to tomorrow
   const dateLabel = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   const activeWos = useMemo(() => workOrders.filter((w) => w.status === 'in_progress').sort(byPriority), [workOrders]);

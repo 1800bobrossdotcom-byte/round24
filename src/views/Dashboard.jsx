@@ -15,8 +15,10 @@ export default function Dashboard({ store, navigate }) {
   const go = navigate || (() => {}); // drill-down navigation (no-op if absent)
   const lease = store.leasing || [];
   const port = useMemo(() => {
-    const occ = lease.filter((u) => u.status === 'leased');
-    return { units: lease.length, occ: occ.length, occPct: lease.length ? Math.round((occ.length / lease.length) * 100) : 0, billed: occ.reduce((a, u) => a + (u.rent || 0), 0) };
+    // land parcels aren't rentable doors — same exclusion the rent roll and per-door P&L apply
+    const rentable = lease.filter((u) => !(u.type === 'land' || u.status === 'held'));
+    const occ = rentable.filter((u) => u.status === 'leased');
+    return { units: rentable.length, occ: occ.length, occPct: rentable.length ? Math.round((occ.length / rentable.length) * 100) : 0, billed: occ.reduce((a, u) => a + (u.rent || 0), 0) };
   }, [lease]);
 
   const seed = async () => {

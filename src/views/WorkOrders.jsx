@@ -5,6 +5,7 @@ import { IcMic, IcX, IcPlay, IcReceipt, IcCamera, IcDoc, IcClip, IcSparkle, IcCh
 import StoredImage from '../components/StoredImage.jsx';
 import Lightbox from '../components/Lightbox.jsx';
 import { FileChip } from '../components/FileChip.jsx';
+import { todayISO, localISO } from '../lib/dates.js';
 
 // ---- voice → structured work order ----------------------------------
 // "create work order unit 4B leaking faucet for Gianni tomorrow at 301 Central"
@@ -51,7 +52,7 @@ export function parseVoice(text, properties, techs) {
     }
   }
   const day = 86400000, today = new Date();
-  const iso = (d) => d.toISOString().slice(0, 10);
+  const iso = localISO; // local calendar day — "tomorrow" said at 9pm is still tomorrow, not the day after
   const wd = WEEKDAYS.findIndex((w) => t.includes(w));
   if (/\btomorrow\b/.test(t)) out.due = iso(new Date(today.getTime() + day));
   else if (/\btoday\b/.test(t)) out.due = iso(today);
@@ -204,7 +205,7 @@ export default function WorkOrders({ store, focus }) {
       if (draft.logWork && Number(draft.hours) > 0 && addTimesheet) {
         try {
           const res = await addTimesheet({
-            date: new Date().toISOString().slice(0, 10),
+            date: todayISO(),
             propLabel: draft.propLabel || 'Unassigned', unit: draft.unit || '',
             category: draft.category || 'general', note: draft.task || '',
             durationHrs: Number(draft.hours), workOrderId: wo?.id || null,

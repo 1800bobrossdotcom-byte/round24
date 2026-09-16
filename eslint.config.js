@@ -45,4 +45,11 @@ export default [
     files: ['src/**/__tests__/**', '**/*.test.js'],
     languageOptions: { globals: { ...globals.node } },
   },
+  {
+    // node CLIs (bulk import, deck rendering) — not part of `npm run lint`'s
+    // src gate, but lintable on demand with the right globals
+    files: ['scripts/**/*.mjs'],
+    languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: { ...globals.node } },
+    rules: { 'no-useless-escape': 'warn' }, // same stance as the src block
+  },
 ];

@@ -4,6 +4,7 @@ import { categoryMedian } from '../lib/rollups.js';
 import { categoryForText, tagSegments } from '../lib/taskTags.js';
 import { WO_PRIORITIES, byPriority } from './WorkOrders.jsx';
 import { getPosition, geofenceCheck, fmtDistance } from '../lib/geo.js';
+import { todayISO, localISO } from '../lib/dates.js';
 import { useVoiceCommands, speak } from '../lib/voice.js';
 import VoiceCommandGuide from '../components/VoiceCommandGuide.jsx';
 import { IcCoffee, IcUtensils, IcActivity, IcCheck, IcPlay, IcMapPin, IcMic, IcTrash } from '../components/ui.jsx';
@@ -289,7 +290,7 @@ export default function Field({ store }) {
     // The verified punch rides along so the office/owner P&L sees on-site labor.
     const res = await store.addTimerEntry({
       propLabel: pName, unit: running.unit === '—' ? null : running.unit,
-      date: new Date().toISOString().slice(0, 10), category: running.category,
+      date: todayISO(), category: running.category,
       durationHrs: hrs, note: running.woTask || null, workOrderId: running.woId || null,
       issue: running.woTask || null,
       gpsLat: punchAtStop?.lat ?? null, gpsLng: punchAtStop?.lng ?? null,
@@ -387,7 +388,7 @@ export default function Field({ store }) {
     const unit = e.unit.trim() || '—';
     const entry = log.find((x) => x.id === e.id);
     const res = await store.updateTimerEntry(entry, {
-      propLabel: pName, unit, date: new Date(entry.at || Date.now()).toISOString().slice(0, 10),
+      propLabel: pName, unit, date: localISO(new Date(entry.at || Date.now())),
       category: e.category, durationHrs: hrs, note: e.note.trim() || null,
     });
     setLog((l) => l.map((x) => (x.id === e.id

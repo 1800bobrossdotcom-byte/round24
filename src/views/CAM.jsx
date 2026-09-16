@@ -9,6 +9,8 @@ const money2 = (n) => (n == null ? '—' : (n < 0 ? '-$' : '$') + Math.abs(n).to
 const pct1 = (n) => (n == null ? '—' : n.toFixed(1) + '%');
 const sf = (n) => (n ? Number(n).toLocaleString() + ' sf' : '—');
 const periodLabel = (m) => (m === 12 ? 'Annual' : m === 6 ? 'Half-year' : m === 3 ? 'Quarter' : `${m}-month`);
+const fmtDay = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+const periodDates = (w) => (w ? `${fmtDay(w.from)} – ${fmtDay(w.to)}` : '');
 
 // Caliper Enterprise — CAM reconciliation. Allocates a building's MEASURED
 // operating cost (labor + materials) pro-rata by rentable SF across its
@@ -83,7 +85,7 @@ export default function CAM({ store }) {
                   fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Mark className="mark" /><span style={{ fontWeight: 800, fontSize: 18 }}>Caliper</span></span>} />
                 <div className="cam-stmt-meta">
                   <div className="t">CAM Reconciliation Statement</div>
-                  <div className="s">{periodLabel(months)} period · {active}</div>
+                  <div className="s">{periodLabel(months)} period · {periodDates(r.window)} · {active}</div>
                 </div>
               </header>
 
@@ -95,7 +97,7 @@ export default function CAM({ store }) {
 
               <table className="cam-stmt-tbl">
                 <tbody>
-                  <tr className="grp"><td colSpan={2}>Building operating cost — measured, {periodLabel(months).toLowerCase()} period</td></tr>
+                  <tr className="grp"><td colSpan={2}>Building operating cost — measured, {periodDates(r.window)}</td></tr>
                   <tr><td>Maintenance labor <span className="src">verified timers</span></td><td className="num">{money2(r.pool.labor)}</td></tr>
                   <tr><td>Materials <span className="src">approved receipts</span></td><td className="num">{money2(r.pool.materials)}</td></tr>
                   <tr className="sub"><td>Total recoverable operating cost</td><td className="num">{money2(r.pool.total)}</td></tr>
@@ -120,7 +122,7 @@ export default function CAM({ store }) {
         </div>
       ) : (<>
       {/* the recoverable pool — measured, = the building's P&L opex */}
-      <div className="print-title" style={{ display: 'none' }}>CAM reconciliation — {active} · {months}-month period</div>
+      <div className="print-title" style={{ display: 'none' }}>CAM reconciliation — {active} · {periodDates(r.window)}</div>
       <div className="rr-kpis">
         <div className="kpi-c"><span className="v mono">{money0(r.pool.total)}</span><span className="k">recoverable pool</span></div>
         <div className="kpi-c"><span className="v mono">{money0(r.pool.labor)}</span><span className="k">measured labor</span></div>
@@ -189,7 +191,7 @@ export default function CAM({ store }) {
         </div>
       </div>
 
-      <p className="note">Shares are pro-rata by rentable square footage. The pool is the building's <b>measured</b> operating cost — the same labor and materials the per-door P&amp;L reconciles — so the number is auditable to the timer and the receipt. Vacant space is absorbed by the owner, not pushed onto tenants.</p>
+      <p className="note">Period: <b>{periodDates(r.window)}</b>. Shares are pro-rata by rentable square footage. The pool is the building's <b>measured</b> operating cost for that period — the same labor and materials the per-door P&amp;L reconciles — so the number is auditable to the timer and the receipt. Vacant space is absorbed by the owner, not pushed onto tenants.</p>
       </>)}
     </div>
   );

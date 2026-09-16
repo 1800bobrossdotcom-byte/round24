@@ -12,7 +12,8 @@ const RENEWAL = [['undecided', 'Undecided'], ['renewed', 'Renewed'], ['not_renew
 const statusMeta = (s) => (s === 'held' ? HELD_META : UNIT_STATUS.find((x) => x[0] === s) || UNIT_STATUS[0]);
 const isLand = (u) => u.type === 'land' || u.status === 'held';
 const feeSum = (f) => Object.values(f || {}).reduce((a, b) => a + (b || 0), 0);
-const daysTo = (d) => (d ? Math.ceil((new Date(d) - Date.now()) / 86400000) : null);
+// a bare YYYY-MM-DD parses as UTC midnight — anchor it to local midnight so the day count doesn't drift
+const daysTo = (d) => (d ? Math.ceil((new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T00:00:00` : d) - Date.now()) / 86400000) : null);
 const money0 = (n) => (n == null ? '—' : '$' + Math.round(n).toLocaleString());
 
 // natural sort for mixed unit labels: 2, 2-F, 4B, 101, 206IL

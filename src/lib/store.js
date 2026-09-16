@@ -630,7 +630,8 @@ export function useStore() {
       due: sched.nextDue, source: 'schedule', status: 'open',
     });
     const today = isoAhead(0);
-    let nd = sched.nextDue;
+    // a malformed/missing next-due would walk addDaysISO into "NaN-NaN-NaN" and stick there — anchor to today
+    let nd = /^\d{4}-\d{2}-\d{2}$/.test(sched.nextDue || '') ? sched.nextDue : today;
     do { nd = addDaysISO(nd, Number(sched.intervalDays) || 30); } while (nd <= today);
     setMaintSchedules((l) => l.map((x) => (x.id === sched.id ? { ...x, nextDue: nd, lastGenerated: new Date().toISOString() } : x)));
     if (isConfigured() && orgId && !demoMode && !String(sched.id).startsWith('ms_')) {

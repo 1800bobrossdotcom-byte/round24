@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { todayISO } from '../lib/dates.js';
 import { sortBookings, bookingSummary } from '../lib/amenity.js';
 import { useAuth } from '../components/AuthGate.jsx';
 import { IcBuilding, IcCheck, IcX } from '../components/ui.jsx';
@@ -15,7 +16,7 @@ export default function Amenities({ store }) {
   const { amenities = [], bookings = [], saveAmenity, removeAmenity, setBooking, leasing = [] } = store;
   const { role } = useAuth();
   const canEdit = role === 'admin' || role === 'manager';
-  const [today] = useState(() => new Date().toISOString().slice(0, 10));
+  const [today] = useState(() => todayISO());
   const [edit, setEdit] = useState(null);
 
   const nameOf = useMemo(() => Object.fromEntries(amenities.map((a) => [a.id, a])), [amenities]);

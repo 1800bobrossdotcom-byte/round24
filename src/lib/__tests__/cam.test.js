@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { camReconcile, camBuildings } from '../cam.js';
+import { camReconcile, camBuildings, camWindow } from '../cam.js';
 
 // A tiny commercial building: three suites (two leased, one vacant) with SF and
 // monthly CAM fees, plus measured labor logged to the building's common area.
@@ -96,5 +96,55 @@ describe('camBuildings — only commercial / CAM-bearing buildings', () => {
     const list = camBuildings(leasing);
     expect(list).toContain('Tower');
     expect(list).not.toContain('House');
+  });
+});
+
+describe('camReconcile — the pool covers the SAME period the tenants were billed for', () => {
+  const asOf = '2026-09-16';
+  const dated = [
+    { propLabel: 'Tower', durationHrs: 10, rate: 50, date: '2026-06-16' }, // day before a quarter window opens
+    { propLabel: 'Tower', durationHrs: 10, rate: 50, date: '2026-06-17' }, // first day in
+    { propLabel: 'Tower', durationHrs: 10, rate: 50, date: '2026-09-16' }, // last day in (asOf itself)
+    { propLabel: 'Tower', durationHrs: 10, rate: 50, date: '2026-09-17' }, // after asOf
+    { propLabel: 'Tower', durationHrs: 10, rate: 50, date: '2025-01-05' }, // long ago
+  ];
+
+  it('quarter: only labor dated inside the trailing 3 months feeds the pool', () => {
+    const r = camReconcile({ ...args, timers: dated, purchases: [], months: 3, asOf });
+    expect(r.window).toEqual({ from: '2026-06-17', to: '2026-09-16' });
+    expect(r.pool.labor).toBe(1000); // 2 entries × 10h × $50
+  });
+
+  it('annual: the same entries widen to everything in the trailing 12 months', () => {
+    const r = camReconcile({ ...args, timers: dated, purchases: [], months: 12, asOf });
+    expect(r.window).toEqual({ from: '2025-09-17', to: '2026-09-16' });
+    expect(r.pool.labor).toBe(1500); // 06-16, 06-17, 09-16
+  });
+
+  it('billed and pool now move together when the period changes', () => {
+    const annual = camReconcile({ ...args, timers: dated, purchases: [], months: 12, asOf });
+    const quarter = camReconcile({ ...args, timers: dated, purchases: [], months: 3, asOf });
+    const acmeA = annual.tenants.find((t) => t.tenant === 'Acme');
+    const acmeQ = quarter.tenants.find((t) => t.tenant === 'Acme');
+    expect(acmeA.billed).toBe(1200);  // $100 × 12
+    expect(acmeQ.billed).toBe(300);   // $100 × 3
+    expect(acmeA.allocated).toBeCloseTo(750); // 50% of 1500
+    expect(acmeQ.allocated).toBeCloseTo(500); // 50% of 1000 — not 50% of all history
+  });
+
+  it('materials use the receipt date, fall back to createdAt, and keep undated receipts', () => {
+    const purchases = [
+      { propLabel: 'Tower', amount: 100, status: 'approved', date: '2026-08-01' },                 // in
+      { propLabel: 'Tower', amount: 200, status: 'approved', createdAt: '2026-01-05T12:00:00Z' }, // out of the quarter
+      { propLabel: 'Tower', amount: 400, status: 'approved' },                                      // undated → never dropped
+    ];
+    const r = camReconcile({ ...args, timers: [], purchases, months: 3, asOf });
+    expect(r.pool.materials).toBe(500);
+  });
+
+  it('camWindow clamps month-end anchors instead of overflowing into the next month', () => {
+    expect(camWindow(1, '2026-03-31')).toEqual({ from: '2026-03-01', to: '2026-03-31' });   // Feb 28 + 1 day
+    expect(camWindow(12, '2028-02-29')).toEqual({ from: '2027-03-01', to: '2028-02-29' });  // Feb 28 2027 + 1 day
+    expect(camWindow(6, '2026-09-16')).toEqual({ from: '2026-03-17', to: '2026-09-16' });
   });
 });

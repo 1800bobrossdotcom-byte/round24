@@ -3,7 +3,9 @@
 // ET it rolls to "tomorrow" — shifting today-rings, day windows, expiry flags,
 // and date stamps by a day. Calendar/COI/Inspections all hit that bug; this is
 // the single local-time source they share.
-export function todayISO() {
-  const d = new Date();
+export function localISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+export function todayISO() {
+  return localISO(new Date());
 }
