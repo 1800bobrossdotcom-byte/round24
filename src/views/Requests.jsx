@@ -23,7 +23,7 @@ export default function Requests({ store, navigate }) {
   const [qrImg, setQrImg] = useState('');
   const [posterBusy, setPosterBusy] = useState(false);
   useEffect(() => { try { setQrImg(qrDataUrl(qrLink, { size: 480, margin: 3 })); } catch { setQrImg(''); } }, [qrLink]);
-  const slug = (bld.trim() || 'evolution24').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const slug = (bld.trim() || 'caliper').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const dlQr = () => downloadDataUrl(qrDataUrl(qrLink, { size: 1024, margin: 4 }), `caliper-request-qr-${slug}.png`);
   const dlPoster = async () => {
     setPosterBusy(true);

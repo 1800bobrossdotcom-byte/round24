@@ -379,7 +379,7 @@ function WorkspaceBranding({ store, orgName, flash }) {
 
       <div className="field-label">Workspace name</div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <input style={{ ...inputStyle, flex: 1 }} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Evolution24 Properties" />
+        <input style={{ ...inputStyle, flex: 1 }} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Northgate Property Co." />
         <button className="btn ghost sm" style={{ width: 'auto' }} onClick={saveName} disabled={busy || !name.trim() || name.trim() === orgName}>Save</button>
       </div>
 

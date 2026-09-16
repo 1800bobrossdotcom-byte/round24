@@ -1,9 +1,8 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
-import seed from '../data/seed.json';
 import { laborSig, mergeLabor, costEligible } from './laborMerge.js';
 import { useAuth } from '../components/AuthGate.jsx';
-import { DEMO_PROPERTIES, buildDemoTimers, DEMO_WORK_ORDERS, DEMO_PURCHASES } from './demoData.js';
-import { DEMO_LEASING, DEMO_PORTFOLIO, BUILDING_GEO, DEMO_PORTFOLIO_LABOR, DEMO_PL_CONFIG } from '../data/leaseDemo.js';
+import { DEMO_PROPERTIES, buildDemoTimers, buildDemoSpine, DEMO_ORG, DEMO_WORK_ORDERS, DEMO_PURCHASES } from './demoData.js';
+import { DEMO_LEASING, DEMO_PORTFOLIO, BUILDING_GEO, DEMO_PL_CONFIG } from '../data/leaseDemo.js';
 import { DEMO_VENDORS, DEMO_VENDOR_PRODUCTS } from '../data/vendorDemo.js';
 import { DEMO_COIS } from '../data/coiDemo.js';
 import { DEMO_HANDBOOKS } from '../data/handbookDemo.js';
@@ -60,7 +59,9 @@ function isoAhead(days = 0) {
   const d = new Date(); d.setDate(d.getDate() + days);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-const DEFAULT_RANGE = () => ({ from: '2026-05-11', to: isoAhead(14) });
+// default labor window: the trailing 8 weeks (the demo spine's span) through two
+// weeks out — relative, so it never goes stale. Imports and saved cloud state override it.
+const DEFAULT_RANGE = () => ({ from: isoAhead(-(8 * 7 - 1)), to: isoAhead(14) });
 
 // add N days to a YYYY-MM-DD string, staying in local time (no UTC drift).
 function addDaysISO(iso, n) {
@@ -94,11 +95,18 @@ function saveLS(key, value) {
   catch { return false; }
 }
 
+// demo-mode first run: the orders and purchases the sample crew would have open
+// today, in the local (non-cloud) shapes. Only used when the cache is ABSENT —
+// a demo user who deletes everything keeps an empty list.
+const demoStamp = (daysAgo, hour = 9) => { const d = new Date(); d.setDate(d.getDate() - daysAgo); d.setHours(hour, 0, 0, 0); return d.toISOString(); };
+const seedDemoWorkOrders = () => DEMO_WORK_ORDERS.map((wo, i) => ({ ...wo, id: `wo_demo_${i + 1}`, status: wo.status || 'open', createdAt: demoStamp(i, 8 + i) }));
+const seedDemoPurchases = () => DEMO_PURCHASES.map((p, i) => ({ ...p, id: `pur_demo_${i + 1}`, status: i < 2 ? 'approved' : 'pending', date: isoAhead(-i), createdAt: demoStamp(i, 14) }));
+
 // One-time purge of pre-fix imported caches. Older builds appended every
 // upload, so browsers carry compounded test data that a code deploy can't
 // reach. Bump SCHEMA_VERSION to force every client to start clean on load.
 const SCHEMA_KEY = 'caliper_import_schema';
-const SCHEMA_VERSION = '4';   // bump: purge shared org-data caches that bled across tenants on one browser
+const SCHEMA_VERSION = '5';   // bump: demo moved to the single fictional sample universe — drop stale seed-era caches
 try {
   if (typeof localStorage !== 'undefined' && localStorage.getItem(SCHEMA_KEY) !== SCHEMA_VERSION) {
     // clear every non-org-scoped cache of org data — on a shared browser these leaked
@@ -153,18 +161,19 @@ export function useStore() {
     setSeen((s) => ({ ...s, [tab]: Date.now() }));
   }, []);
 
-  // seed.json is SAMPLE data for the unconfigured demo experience only. A
+  // the demo spine is SAMPLE data for the unconfigured demo experience only — a
+  // deterministic, date-relative generation over the fictional portfolio. A
   // real, logged-in org must never see it mixed into its charts — it sees
   // only its own imported/real data.
   const demoMode = !isConfigured();
-  const techsRaw = useMemo(() => [...(demoMode ? seed.techs : []), ...imported.techs], [imported.techs, demoMode]);
-  // spineTimers = the imported/historical labor spine. In demo mode we also fold in
-  // a little verified portfolio labor so the owner's P&L and the "% verified on-site"
-  // stat populate out of the box. This is history only — live-logged work lands in
-  // the timers table (tsTable) and is merged into `allTimers` below.
+  const demoSpine = useMemo(() => (demoMode ? buildDemoSpine() : null), [demoMode]);
+  const techsRaw = useMemo(() => [...(demoSpine ? demoSpine.techs : []), ...imported.techs], [imported.techs, demoSpine]);
+  // spineTimers = the imported/historical labor spine (plus the generated demo
+  // labor in demo mode). This is history only — live-logged work lands in the
+  // timers table (tsTable) and is merged into `allTimers` below.
   const spineTimers = useMemo(
-    () => [...(demoMode ? [...seed.timers, ...DEMO_PORTFOLIO_LABOR] : []), ...imported.timers],
-    [imported.timers, demoMode],
+    () => [...(demoSpine ? demoSpine.timers : []), ...imported.timers],
+    [imported.timers, demoSpine],
   );
   // tsTable = the editable, cloud-backed timers-table rows (CRUD target, loaded by
   // the effect further down). Declared up here so the staff-facing `allTimers`
@@ -175,7 +184,7 @@ export function useStore() {
   // work orders (declared up top so the office labor merge can gate hours by their
   // WO's approval status). A configured deployment is cloud-authoritative — don't
   // seed from the shared localStorage cache (it could hold another org's rows).
-  const [workOrders, setWorkOrders] = useState(() => (isConfigured() ? [] : loadLS(WO_KEY, [])));
+  const [workOrders, setWorkOrders] = useState(() => (isConfigured() ? [] : (loadLS(WO_KEY, null) ?? seedDemoWorkOrders())));
   // WO id → status, so labor logged against a still-pending (or dismissed) work
   // order can be held out of the cost accounting until the office approves it.
   const woStatusById = useMemo(() => Object.fromEntries(workOrders.map((w) => [w.id, w.status])), [workOrders]);
@@ -359,8 +368,8 @@ export function useStore() {
   // authoritative building list — rent-roll/labor spine only. Drives the office
   // Buildings + per-door P&L views, so it must stay clean (no properties-table dupes).
   const properties = useMemo(
-    () => [...(demoMode ? seed.properties : []), ...impProps].map(decorateGeo),
-    [impProps, demoMode, decorateGeo],
+    () => [...(demoSpine ? demoSpine.properties : []), ...impProps].map(decorateGeo),
+    [impProps, demoSpine, decorateGeo],
   );
   // list the Field timer + timesheet dropdowns pick from: the authoritative list
   // when we have one, else the properties table so crew (no impProps) still get
@@ -436,7 +445,7 @@ export function useStore() {
     // re-import reuses existing building rows instead of stacking duplicates.
     // cloudProps first so seed/impProps ids win on a name collision (those are the
     // ids the office views resolve against via pickProperties/propById).
-    const current = [...cloudProps, ...(demoMode ? seed.properties : []), ...impPropsRef.current];
+    const current = [...cloudProps, ...(demoSpine ? demoSpine.properties : []), ...impPropsRef.current];
     const byName = new Map(current.map((p) => [normName(p.name), p.id]));
     const created = [];
     const map = {};
@@ -457,7 +466,7 @@ export function useStore() {
       if (isConfigured() && orgId) insertProperties(orgId, created).catch(() => {});
     }
     return map;
-  }, [orgId, cloudProps]);
+  }, [orgId, cloudProps, demoSpine]);
 
   const timers = useMemo(
     () => allTimers.filter((t) => t.date >= range.from && t.date <= range.to),
@@ -490,7 +499,7 @@ export function useStore() {
         // only reuse seed operators in demo mode; a real org's imported
         // operators must be self-contained (seed techs are hidden for it,
         // so referencing a seed id would dangle and blank the Team view)
-        let tech = (demoMode ? seed.techs.find((t) => t.name.toLowerCase() === nm.toLowerCase()) : null)
+        let tech = (demoSpine ? demoSpine.techs.find((t) => t.name.toLowerCase() === nm.toLowerCase()) : null)
           || byName.get(nm.toLowerCase());
         if (!tech) {
           const op = resolveOp(nm);   // blend into a live operator seat when we can
@@ -520,7 +529,7 @@ export function useStore() {
       setRange((r) => replace ? { from: min, to }
         : { from: min < r.from ? min : r.from, to: to > r.to ? to : r.to });
     }
-  }, [demoMode, operators]);
+  }, [demoSpine, operators]);
 
   // assign unallocated imported entries to a building (+ optional category/unit/
   // note) so they move into the true-cost pipeline. Resolves the building label
@@ -908,7 +917,7 @@ export function useStore() {
   }, [orgId, woBackend]);
 
   // ---- purchases: DB-backed when connected, localStorage otherwise ----
-  const [purchases, setPurchases] = useState(() => (isConfigured() ? [] : loadLS(PUR_KEY, [])));
+  const [purchases, setPurchases] = useState(() => (isConfigured() ? [] : (loadLS(PUR_KEY, null) ?? seedDemoPurchases())));
   const [purBackend, setPurBackend] = useState('local');
   useEffect(() => { if (purBackend !== 'db') saveLS(PUR_KEY, purchases); }, [purchases, purBackend]);
   const purchasesRef = useRef(purchases);
@@ -1723,10 +1732,14 @@ export function useStore() {
       }
     } else {
       // Company persona: full operation — properties + labor spine + orders + purchases.
-      const map = ensureProperties(DEMO_PROPERTIES.map((p) => p.label));
-      const rows = buildDemoTimers().map((r) => ({ ...r, propId: r.propLabel ? map[r.propLabel] : null }));
-      addImported(rows, { replace: true });
-      timerCount = rows.length;
+      // Demo mode already carries the generated labor spine; only a connected
+      // (empty) org imports it, so re-tapping in demo never stacks a second copy.
+      if (!demoMode) {
+        const map = ensureProperties(DEMO_PROPERTIES.map((p) => p.label));
+        const rows = buildDemoTimers().map((r) => ({ ...r, propId: r.propLabel ? map[r.propLabel] : null }));
+        addImported(rows, { replace: true });
+        timerCount = rows.length;
+      }
 
       if (woRef.current.length === 0) for (const wo of DEMO_WORK_ORDERS) await addWorkOrder(wo);
       if (purchases.length === 0) {
@@ -1791,7 +1804,7 @@ export function useStore() {
   }, [orgId, patchOrg, audit]);
 
   return {
-    meta: { ...seed.meta, org: (isConfigured() && orgName) ? orgName : seed.meta.org },
+    meta: { org: (isConfigured() && orgName) ? orgName : DEMO_ORG, payPeriod: 'weekly', weekStart: 'saturday' },
     orgId, orgLogo, setOrgBranding,
     properties,
     pickProperties,

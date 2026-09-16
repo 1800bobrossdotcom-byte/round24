@@ -25,7 +25,7 @@ export default function Residents({ store }) {
   const [draft, setDraft] = useState(null); // announcement { title, body, urgent }
 
   const refresh = useCallback(() => {
-    if (!orgId) return;
+    if (!orgId) { setResidents([]); return; }   // demo: nothing to load, never "Loading…"
     listResidents(orgId).then(setResidents).catch(() => setResidents([]));
     listAnnouncements(orgId).then(setAnns).catch(() => {});
   }, [orgId]);
@@ -35,7 +35,7 @@ export default function Residents({ store }) {
     return <div><div className="view-head"><h1>Residents</h1></div><div className="card"><p className="note">Resident verification is handled by the office.</p></div></div>;
   }
 
-  const link = `${window.location.origin}/?join=${orgId}`;
+  const link = orgId ? `${window.location.origin}/?join=${orgId}` : null; // demo has no org to join
   const copyLink = async () => { try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* */ } };
   const dlPoster = async () => {
     setPosterBusy(true);
@@ -79,10 +79,10 @@ export default function Residents({ store }) {
         <span className="field-label" style={{ display: 'block', marginBottom: 4 }}>Resident join link</span>
         <p className="note" style={{ margin: '0 0 10px' }}>Residents create a free account, claim their unit, and land in your verify queue. Verification against the lease is the gate — the link only lets them ask.</p>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input readOnly value={link} onFocus={(e) => e.target.select()} className="mono"
+          <input readOnly value={link || 'Available once your workspace is connected'} disabled={!link} onFocus={(e) => e.target.select()} className="mono"
             style={{ flex: 1, minWidth: 220, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 13, padding: 10, borderRadius: 9 }} />
-          <button className="btn ghost sm" onClick={copyLink}>{copied ? 'Copied ✓' : 'Copy link'}</button>
-          <button className="btn grad sm" onClick={dlPoster} disabled={posterBusy}>{posterBusy ? 'Building…' : 'Download poster'}</button>
+          <button className="btn ghost sm" onClick={copyLink} disabled={!link}>{copied ? 'Copied ✓' : 'Copy link'}</button>
+          <button className="btn grad sm" onClick={dlPoster} disabled={posterBusy || !link}>{posterBusy ? 'Building…' : 'Download poster'}</button>
         </div>
       </div>
 

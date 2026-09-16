@@ -61,7 +61,7 @@ export default function Dashboard({ store, navigate }) {
             {seeding ? 'Filling…' : 'Load sample data'}
           </button>
           <p className="note" style={{ margin: '10px auto 0', maxWidth: 380 }}>
-            Populates the whole app with a realistic Evolution24 portfolio — labor, team, orders and purchases — so you can explore it live. Clear it anytime from the Import tab.
+            Populates the whole app with a realistic sample portfolio — labor, team, orders and purchases — so you can explore it live. Clear it anytime from the Import tab.
           </p>
         </div>
       </div>

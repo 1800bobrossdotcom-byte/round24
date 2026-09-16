@@ -120,7 +120,7 @@ export default function Chat({ store }) {
         <p>Office and crew, one thread — type or send a voice note</p>
       </div>
 
-      {msgBackend === 'local' && (
+      {msgBackend === 'local' && isConfigured() && (
         <div className="offline">◐ On this device — syncs live to the whole crew once the messages migration is applied.</div>
       )}
 

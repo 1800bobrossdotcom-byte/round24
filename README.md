@@ -4,8 +4,11 @@ Labor, measured true. Mobile-first field timer + desktop analytics portal for
 property maintenance — every hour allocated to a property and unit, reconciled
 automatically. Built with Vite + React + vanilla CSS.
 
-Seeded with a realistic model of the Evolution24 operation (real properties,
-crew, weekly Saturday pay period).
+Demo mode (no Supabase configured) runs on a fictional sample portfolio —
+Northgate Property Co. — generated in `src/lib/demoData.js` on top of the same
+buildings the rent roll, CAM and inspections use, dated relative to today. No
+real customer data ships in the bundle; real portfolios live only in each
+tenant's RLS-protected account. Pay period: weekly, Saturday start.
 
 ## Run locally
 ```bash
@@ -36,7 +39,7 @@ npm run preview
 - `src/lib/rollups.js` — the query spine. Every view (tech / property / unit /
   period at day–year grain) is one reduce over the same timer set. Allocation
   provably reconciles: sum(by-property) === grand total.
-- `src/lib/store.js` — data + range filtering (swap seed.json for a real API).
+- `src/lib/store.js` — data + range filtering (demo spine from `demoData.js`; cloud via `lib/backend`).
 - `src/views/` — Dashboard, Field (live timer, offline-safe), Properties
   (drill to unit), Team (per-operator, pay-period grain).
 

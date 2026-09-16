@@ -79,17 +79,30 @@ export function AuthGate({ children }) {
     return () => { on = false; };
   }, [session]);
 
+  // demo-only role (office = admin, crew = tech); remembered per device
+  const [demoRole, setDemoRoleState] = useState(() => {
+    try { return localStorage.getItem('caliper_demo_role') === 'tech' ? 'tech' : 'admin'; } catch { return 'admin'; }
+  });
+  const setDemoRole = (r) => { setDemoRoleState(r); try { localStorage.setItem('caliper_demo_role', r); } catch { /* no storage */ } };
+
   if (!ready) return null;
 
-  // demo mode — backend not wired yet, app runs on seed data with full suite
+  // demo mode — backend not wired yet, app runs on seed data with full suite.
+  // The banner carries an office/crew switch so a demo can show the field
+  // tools (Field timer, crew timesheet) without a backend or a real seat.
   if (!isConfigured()) {
     return (
-      <AuthCtx.Provider value={{ session: null, role: 'admin', orgId: null }}>
-        <div style={{ background: '#38bdf812', borderBottom: '1px solid #38bdf833', color: 'var(--info)',
-          fontSize: 12, fontWeight: 700, textAlign: 'center', padding: '7px 12px', fontFamily: 'var(--font)' }}>
-          ◑ Demo mode · sample data · connect Supabase to enable secure login &amp; real data
+      <AuthCtx.Provider value={{ session: null, role: demoRole, orgId: null }}>
+        <div className="demo-wrap">
+          <div className="demo-banner">
+            <span>◑ Demo<span className="long"> mode · sample data · connect Supabase for secure login &amp; real data</span></span>
+            <span className="demo-role" role="group" aria-label="Demo role">
+              <button type="button" className={demoRole === 'admin' ? 'on' : ''} onClick={() => setDemoRole('admin')}>Office</button>
+              <button type="button" className={demoRole === 'tech' ? 'on' : ''} onClick={() => setDemoRole('tech')}>Crew</button>
+            </span>
+          </div>
+          {children}
         </div>
-        {children}
       </AuthCtx.Provider>
     );
   }

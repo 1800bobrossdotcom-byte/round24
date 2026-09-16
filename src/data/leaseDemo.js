@@ -154,15 +154,6 @@ export const BUILDING_GEO = {
   'Halsey Commons': { lat: 43.1548, lng: -77.5990, geofence: 150 },
 };
 
-// a little verified crew labor logged against the portfolio, so the per-door
-// P&L and the "% verified on-site" stat populate in demo. Same shape as the
-// labor spine; verified=true means the punch landed inside the building fence.
-const L = (propLabel, unit, category, hrs, rate, verified, day) => ({
-  id: `dl_${propLabel}_${unit}_${day}`.replace(/\W+/g, '_'),
-  techId: 't_demo_crew', techName: 'Marco Rossi', propId: null, propLabel, unit,
-  date: `2026-07-${String(day).padStart(2, '0')}`, category, issue: `${category} work`,
-  durationHrs: hrs, rate, verified,
-});
 // per-building fixed P&L inputs (debt service, utilities, insurance, taxes) so
 // the statement generator produces a complete NOI/DSCR out of the box. Rent,
 // labor, and repairs fill in automatically from the connected data.
@@ -171,20 +162,3 @@ export const DEMO_PL_CONFIG = {
   'Elm Street Apartments': { debtService: 1680, insurance: 210, taxes: 520, internet: 57, trash: 70, electricGas: 380, waterSewer: 120, mgmtPct: 9 },
   'Highland Court': { debtService: 1720, insurance: 240, taxes: 560, trash: 80, electricGas: 410, waterSewer: 130, mgmtPct: 9 },
 };
-
-export const DEMO_PORTFOLIO_LABOR = [
-  L('Parkview Lofts', '2A', 'painting', 6.5, 32, true, 2),
-  L('Parkview Lofts', '2A', 'general', 3.0, 32, true, 3),
-  L('Elm Street Apartments', '5', 'turn', 5.5, 32, true, 4),
-  L('Highland Court', 'D', 'plumbing', 2.5, 38, true, 5),
-  L('210 Water Street', '3', 'hvac', 4.0, 45, true, 6),
-  L('88 Maple Row', 'Left', 'general', 1.5, 32, false, 7), // one off-site punch
-  // Halsey Commons — common-area maintenance (the CAM-recoverable pool). Logged
-  // to the building, not a suite, because it's shared area — exactly what CAM
-  // recovers. This measured labor is what the reconciliation allocates pro-rata.
-  L('Halsey Commons', 'Common', 'hvac', 60, 45, true, 9),        // rooftop RTU overhaul
-  L('Halsey Commons', 'Common', 'cleaning', 80, 28, true, 12),   // lobby + common deep clean
-  L('Halsey Commons', 'Common', 'landscaping', 50, 30, true, 15),// grounds / season
-  L('Halsey Commons', 'Common', 'general', 48, 32, true, 18),    // parking lot + exterior
-  L('Halsey Commons', 'Common', 'electrical', 22, 38, true, 21), // common-area lighting
-];

@@ -113,7 +113,7 @@ export default function Purchases({ store }) {
         <p>{isStaff ? 'Material spend, receipt-backed — approve to add it to job cost' : 'Bought materials? Snap the receipt, get reimbursed'}</p>
       </div>
 
-      {purBackend === 'local' && (
+      {purBackend === 'local' && isConfigured() && (
         <div className="offline">◐ Stored on this device — syncs to the cloud once the purchases migration is applied.</div>
       )}
 

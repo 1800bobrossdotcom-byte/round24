@@ -2,6 +2,7 @@ import { useState, useRef, useMemo } from 'react';
 import { toTimers } from '../lib/importParser.js';
 import { interpretWorkbook } from '../lib/excelInterpret.js';
 import { fmtMoney, fmtHrs } from '../lib/rollups.js';
+import { isConfigured } from '../lib/backend/supabase.js';
 import { IcCheck, IcImport } from '../components/ui.jsx';
 
 const STEPS = ['Upload', 'Select sheets', 'Review & assign', 'Done'];
@@ -192,11 +193,11 @@ export default function Import({ store }) {
               )}
             </div>
           )}
-          {!store.hasImported && (
+          {!store.hasImported && isConfigured() && (
             <div className="card" style={{ marginBottom: 'var(--gap)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 160 }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>Just exploring?</div>
-                <div className="note" style={{ margin: 0 }}>Fill the app with a sample Evolution24 portfolio — labor, team, orders and purchases.</div>
+                <div className="note" style={{ margin: 0 }}>Fill the app with a sample portfolio — labor, team, orders and purchases.</div>
               </div>
               <button className="btn ghost sm" onClick={seed} disabled={seeding}>{seeding ? 'Filling…' : 'Load sample data'}</button>
             </div>

@@ -6,6 +6,7 @@ import StoredImage from '../components/StoredImage.jsx';
 import Lightbox from '../components/Lightbox.jsx';
 import { FileChip } from '../components/FileChip.jsx';
 import { todayISO, localISO } from '../lib/dates.js';
+import { isConfigured } from '../lib/backend/supabase.js';
 
 // ---- voice → structured work order ----------------------------------
 // "create work order unit 4B leaking faucet for Gianni tomorrow at 301 Central"
@@ -227,7 +228,7 @@ export default function WorkOrders({ store, focus }) {
         <p>What feeds the timer — create by voice or by hand, assign, track to done</p>
       </div>
 
-      {woBackend === 'local' && (
+      {woBackend === 'local' && isConfigured() && (
         <div className="offline">◐ Stored on this device — syncs to the cloud once the work-orders migration is applied.</div>
       )}
       {voiceErr && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{voiceErr}</div>}
