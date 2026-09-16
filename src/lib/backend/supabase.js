@@ -1660,6 +1660,22 @@ export async function deleteLiveTimer(orgId) {
   await supabase.from('live_timers').delete().eq('org_id', orgId).eq('user_id', user.id);
 }
 
+// ---- Web Push subscriptions: one row per device endpoint, owned by the user ----
+export async function savePushSubscription(orgId, { endpoint, p256dh, auth }) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('not signed in');
+  const { error } = await supabase.from('push_subscriptions').upsert({
+    user_id: user.id, org_id: orgId || null, endpoint, p256dh, auth,
+    user_agent: (typeof navigator !== 'undefined' ? navigator.userAgent : '').slice(0, 200),
+    last_seen_at: new Date().toISOString(),
+  }, { onConflict: 'endpoint' });
+  if (error) throw error;
+}
+export async function deletePushSubscription(endpoint) {
+  const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+  if (error) throw error;
+}
+
 // purchases: a receipt submitted from the field pings the office live (needs
 // migration 0056; without it the channel simply never fires)
 export function subscribePurchases(orgId, cb) {

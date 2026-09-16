@@ -4,6 +4,42 @@
 // requestPermission() on load — only from a button the person tapped.
 // ============================================================
 
+import { pushSupported, pushConfigured, registerServiceWorker, subscribePush, unsubscribePush, getPushSubscription, subscriptionRow } from './push.js';
+import { isConfigured, savePushSubscription, deletePushSubscription } from './backend/supabase.js';
+
+// What the controls show for THIS device:
+//   'unsupported' · 'denied' · 'off' (not enabled yet)
+//   'local'  — system notifications while Caliper is open (no push endpoint)
+//   'push'   — this device receives pushes even with Caliper closed
+export async function notificationState() {
+  const perm = browserPermission();
+  if (perm === 'unsupported' || perm === 'denied') return perm;
+  if (perm !== 'granted') return 'off';
+  if (!pushAvailable()) return 'local';
+  try { return (await getPushSubscription()) ? 'push' : 'local'; } catch { return 'local'; }
+}
+// push needs: a browser that can, VAPID keys in the build, and a connected org to store the endpoint
+export const pushAvailable = () => pushSupported() && pushConfigured() && isConfigured();
+
+// the single enable flow: permission → (when push is available) subscribe + save the endpoint
+export async function enableNotifications({ orgId } = {}) {
+  const perm = await requestBrowserPermission();
+  if (perm !== 'granted') return perm === 'denied' ? 'denied' : 'off';
+  if (!pushAvailable()) return 'local';
+  try {
+    await registerServiceWorker();
+    const sub = await subscribePush();
+    await savePushSubscription(orgId, subscriptionRow(sub));
+    return 'push';
+  } catch { return 'local'; }
+}
+// stop pushes to this device (permission itself stays — that's the browser's to change)
+export async function disableNotificationsHere() {
+  const endpoint = await unsubscribePush().catch(() => null);
+  if (endpoint && isConfigured()) await deletePushSubscription(endpoint).catch(() => {});
+  return browserPermission() === 'granted' ? 'local' : 'off';
+}
+
 export function browserPermission() {
   if (typeof Notification === 'undefined') return 'unsupported';
   return Notification.permission; // 'default' | 'granted' | 'denied'

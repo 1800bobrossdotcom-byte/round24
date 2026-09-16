@@ -26,3 +26,8 @@ verify_jwt = true
 
 [functions.rm-sync]
 verify_jwt = true
+
+# push-send is called by the DATABASE (pg_net trigger), not by a signed-in user,
+# so there's no JWT to verify — it checks the x-push-secret header itself.
+[functions.push-send]
+verify_jwt = false

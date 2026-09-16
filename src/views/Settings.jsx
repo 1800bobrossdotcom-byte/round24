@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { browserPermission, requestBrowserPermission } from '../lib/notify.js';
+import { useNotifyState, notifyHint } from '../components/NotifyControl.jsx';
 import ConfirmButton from '../components/ConfirmButton.jsx';
 import { useAuth } from '../components/AuthGate.jsx';
 import {
@@ -34,19 +34,21 @@ function Row({ label, hint, children }) {
   );
 }
 
-// system (browser) notifications: opt-in, and only ever from this button
+// system / push notifications for THIS device: opt-in, and only ever from this
+// button. Same state machine as the bell footer (components/NotifyControl.jsx).
 function BrowserNotifRow() {
-  const [perm, setPerm] = useState(() => browserPermission());
-  const hint = perm === 'granted' ? 'On — urgent jobs reach you even when Caliper is in the background'
-    : perm === 'denied' ? 'Blocked for this site — allow notifications in your browser settings'
-    : perm === 'unsupported' ? 'Not available in this browser'
-    : 'Get pinged when Caliper is in the background';
+  const n = useNotifyState();
+  const on = n.state === 'push' || (n.state === 'local' && !n.canPush);
   return (
-    <Row label="Browser notifications" hint={hint}>
-      {perm === 'granted' ? <span className="chip money"><IcCheck width={11} height={11} style={{ verticalAlign: -1 }} /> On</span>
-        : perm === 'denied' ? <span className="chip warn">Blocked</span>
-        : perm === 'unsupported' ? <span className="chip">n/a</span>
-        : <button className="btn ghost sm" onClick={async () => setPerm(await requestBrowserPermission())}>Enable</button>}
+    <Row label="Notifications on this device" hint={notifyHint(n)}>
+      {on ? (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span className="chip money"><IcCheck width={11} height={11} style={{ verticalAlign: -1 }} /> On</span>
+          {n.state === 'push' && <button className="lnk" onClick={n.disable} disabled={n.busy}>Turn off</button>}
+        </span>
+      ) : n.state === 'denied' ? <span className="chip warn">Blocked</span>
+        : n.state === 'unsupported' ? <span className="chip">n/a</span>
+        : <button className="btn ghost sm" onClick={n.enable} disabled={n.busy}>{n.busy ? 'Enabling…' : n.state === 'local' ? 'Enable push' : 'Enable'}</button>}
     </Row>
   );
 }

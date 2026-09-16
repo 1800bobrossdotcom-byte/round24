@@ -70,6 +70,13 @@ ships to the browser. For now, to test encryption end-to-end:
 
 ---
 
+## Step 6 — Web Push (optional, ~10 min)
+
+Lock-screen notifications on phones even when Caliper is closed. The code is
+in the repo; the keys, secrets and function deploy are one-time steps in
+**[docs/PUSH-SETUP.md](docs/PUSH-SETUP.md)**. Without it, the bell, feed and
+in-app toasts still work.
+
 ## Security notes (plain English)
 
 - The **anon key is safe** in the browser — it's not a password. Row-Level

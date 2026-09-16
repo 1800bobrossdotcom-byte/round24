@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { attentionItems } from '../lib/attention.js';
 import { todayISO } from '../lib/dates.js';
-import { ago, browserPermission, requestBrowserPermission } from '../lib/notify.js';
+import { ago } from '../lib/notify.js';
+import NotifyControl from './NotifyControl.jsx';
 import { totals } from '../lib/rollups.js';
 import { IcBell, IcX, IcWrench, IcChat, IcReceipt, IcBuilding, IcClock, IcCheck } from './ui.jsx';
 
 // The bell in the top bar: unread count, and a panel with two halves —
 // "Needs attention" (live, computed from the data: urgent orders, receipts to
 // review, lapsed insurance…) and "Activity" (the persisted feed every realtime
-// event lands in). Tap a row to jump to that tab. Browser notifications are
-// opt-in from the footer — never requested on load.
+// event lands in). Tap a row to jump to that tab. System/push notifications
+// are opt-in from the footer (NotifyControl) — never requested on load.
 const KIND_ICON = { wo: IcWrench, chat: IcChat, purchase: IcReceipt, request: IcBuilding, clock: IcClock };
 
 export default function NotificationBell({ store, navigate }) {
   const [open, setOpen] = useState(false);
-  const [perm, setPerm] = useState(() => browserPermission());
   const {
     notifications = [], unreadCount = 0, markNotificationRead, markNotificationsRead, clearNotifications,
     role, myName, timers = [], workOrders = [], purchases = [], maintRequests = [], cois = [], maintSchedules = [],
@@ -28,17 +28,15 @@ export default function NotificationBell({ store, navigate }) {
     unallocatedHrs, queuedTimers: typeof timerQueueCount === 'function' ? timerQueueCount() : 0,
   }), [role, myName, today, workOrders, purchases, maintRequests, cois, maintSchedules, bookings, vendors, unallocatedHrs, timerQueueCount, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Escape closes; re-check system permission whenever the panel opens
+  // Escape closes
   useEffect(() => {
     if (!open) return undefined;
-    setPerm(browserPermission());
     const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
   const go = (tab) => { setOpen(false); if (tab && navigate) navigate(tab); };
-  const enable = async () => setPerm(await requestBrowserPermission());
   const attentionCount = attention.reduce((a, i) => a + (i.priority === 'info' ? 0 : i.count), 0);
   const badge = unreadCount + attentionCount;
 
@@ -84,10 +82,7 @@ export default function NotificationBell({ store, navigate }) {
                 })}
             </div>
             <div className="nbell-foot">
-              {perm === 'granted' ? <span className="note"><IcCheck width={12} height={12} /> Browser notifications on</span>
-                : perm === 'denied' ? <span className="note">Browser notifications are blocked for this site — allow them in your browser settings.</span>
-                : perm === 'unsupported' ? <span className="note">This browser can’t show system notifications.</span>
-                : <button className="btn ghost sm" onClick={enable}>Enable browser notifications</button>}
+              <NotifyControl />
               <span style={{ flex: 1 }} />
               {notifications.length > 0 && <button className="lnk" onClick={clearNotifications}>Clear</button>}
             </div>

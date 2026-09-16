@@ -42,10 +42,13 @@ npm run preview
 - `src/lib/store.js` — data + range filtering (demo spine from `demoData.js`; cloud via `lib/backend`).
 - `src/views/` — Dashboard, Field (live timer, offline-safe), Properties
   (drill to unit), Team (per-operator, pay-period grain).
+- Notifications — bell + persisted feed in `src/lib/store.js`, "needs attention"
+  in `src/lib/attention.js`, Web Push via `public/sw.js` + `supabase/functions/push-send`
+  (setup: `docs/PUSH-SETUP.md`).
 
 ## Next build steps
 - receipt OCR → material cost on the same allocation spine (true job cost)
 - pay-period lock + payroll CSV export + Excel import wizard
 - warranty catcher, dispute packet
 - Rent Manager read-only sync to replace seed properties/units
-- PWA service worker (vite-plugin-pwa) for the real offline queue
+- service-worker caching for the real offline queue (`public/sw.js` carries Web Push today)
