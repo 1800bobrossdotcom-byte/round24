@@ -211,9 +211,11 @@ export default function Field({ store }) {
 
   const hour = new Date().getHours();
   const lunchTime = hour >= 11 && hour < 14;
+  // Settings → "Break reminders" / "Lunch nudge" switch these off
+  const prefs = store.notifPrefs || {};
   const nudge = running && !onBreak && (
-    elapsed - lastNudge >= BREAK_AFTER_S ? 'stretch'
-    : (lunchTime && elapsed > 3600 && !lunchNudged ? 'lunch' : null)
+    prefs.breaks !== false && elapsed - lastNudge >= BREAK_AFTER_S ? 'stretch'
+    : (prefs.lunch !== false && lunchTime && elapsed > 3600 && !lunchNudged ? 'lunch' : null)
   );
 
   const hh = String(Math.floor(elapsed / 3600)).padStart(2, '0');

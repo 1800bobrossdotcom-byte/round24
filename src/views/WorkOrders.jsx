@@ -132,13 +132,6 @@ export default function WorkOrders({ store, focus }) {
   const pending = useMemo(() => workOrders.filter((w) => w.status === 'pending').sort(byPriority), [workOrders]);
   const closed = useMemo(() => workOrders.filter((w) => w.status === 'done' || w.status === 'cancelled'), [workOrders]);
 
-  // crew: ask once so priority changes can reach the phone as notifications
-  useEffect(() => {
-    if (role === 'tech' && typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {});
-    }
-  }, [role]);
-
   // drill-down from a unit ("New work order for this unit") → open a prefilled draft
   useEffect(() => {
     if (focus?.newFor) setDraft((d) => { if (d?.photoPreview) URL.revokeObjectURL(d.photoPreview); return { task: '', detail: '', source: 'manual', priority: 3, ...focus.newFor }; });

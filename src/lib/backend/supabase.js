@@ -1660,6 +1660,14 @@ export async function deleteLiveTimer(orgId) {
   await supabase.from('live_timers').delete().eq('org_id', orgId).eq('user_id', user.id);
 }
 
+// purchases: a receipt submitted from the field pings the office live (needs
+// migration 0056; without it the channel simply never fires)
+export function subscribePurchases(orgId, cb) {
+  const ch = supabase.channel('purchases-live-' + orgId)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'purchases', filter: `org_id=eq.${orgId}` }, (payload) => cb(payload))
+    .subscribe();
+  return () => supabase.removeChannel(ch);
+}
 export function subscribeLiveTimers(orgId, cb) {
   const ch = supabase.channel('live-timers-' + orgId)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'live_timers', filter: `org_id=eq.${orgId}` }, () => cb())

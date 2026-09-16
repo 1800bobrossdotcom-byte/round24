@@ -3,6 +3,7 @@ import { laborSig, mergeLabor, costEligible } from './laborMerge.js';
 import { useAuth } from '../components/AuthGate.jsx';
 import { DEMO_PROPERTIES, buildDemoTimers, buildDemoSpine, DEMO_ORG, DEMO_WORK_ORDERS, DEMO_PURCHASES } from './demoData.js';
 import { DEMO_LEASING, DEMO_PORTFOLIO, BUILDING_GEO, DEMO_PL_CONFIG } from '../data/leaseDemo.js';
+import { systemNotify } from './notify.js';
 import { DEMO_VENDORS, DEMO_VENDOR_PRODUCTS } from '../data/vendorDemo.js';
 import { DEMO_COIS } from '../data/coiDemo.js';
 import { DEMO_HANDBOOKS } from '../data/handbookDemo.js';
@@ -32,7 +33,7 @@ import {
   listOrgMembers, enableFieldWork, disableFieldWork,
   listMaintenanceSchedules, insertMaintenanceSchedule, updateMaintenanceSchedule, deleteMaintenanceSchedule,
   getFieldState, upsertFieldState, subscribeFieldState, listFieldStates,
-  listMaintenanceRequests, updateMaintenanceRequest, subscribeMaintenanceRequests,
+  listMaintenanceRequests, updateMaintenanceRequest, subscribeMaintenanceRequests, subscribePurchases,
   updateWorkOrderChecklist,
   listChecklistTemplates, insertChecklistTemplate, updateChecklistTemplate, deleteChecklistTemplate,
   listUnitTurns, insertUnitTurn, updateUnitTurn, deleteUnitTurn, subscribeUnitTurns,
@@ -47,6 +48,9 @@ const TQ_KEY = 'caliper_timerqueue_v1';   // offline queue for unsynced timer en
 const SEEN_KEY = 'caliper_seen_v1';        // per-tab "last viewed" stamps → nav badges
 const MSG_KEY = 'caliper_messages_v1';     // team comms fallback when unmigrated
 const CHAN_KEY = 'caliper_channels_v1';    // local DM/group definitions (demo mode)
+const NOTIF_KEY = 'caliper_notifs_v1';     // the notification feed, per org (bell panel)
+const NOTIF_MAX = 100;
+const DEFAULT_NOTIF_PREFS = { workOrders: true, chat: true, breaks: true, lunch: true };
 
 function loadLS(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -101,6 +105,17 @@ function saveLS(key, value) {
 const demoStamp = (daysAgo, hour = 9) => { const d = new Date(); d.setDate(d.getDate() - daysAgo); d.setHours(hour, 0, 0, 0); return d.toISOString(); };
 const seedDemoWorkOrders = () => DEMO_WORK_ORDERS.map((wo, i) => ({ ...wo, id: `wo_demo_${i + 1}`, status: wo.status || 'open', createdAt: demoStamp(i, 8 + i) }));
 const seedDemoPurchases = () => DEMO_PURCHASES.map((p, i) => ({ ...p, id: `pur_demo_${i + 1}`, status: i < 2 ? 'approved' : 'pending', date: isoAhead(-i), createdAt: demoStamp(i, 14) }));
+// the activity a demo office would have woken up to (newest first)
+const seedDemoNotifications = () => {
+  const at = (daysAgo, hour, min = 0) => { const d = new Date(); d.setDate(d.getDate() - daysAgo); d.setHours(hour, min, 0, 0); return d.getTime(); };
+  return [
+    { id: 'demo:n1', kind: 'wo', priority: 'high', title: 'Field report: Café entry door won’t latch', body: 'Parkview Lofts · Unit C1 · needs triage', tab: 'wo', ts: at(0, 8, 41), read: false },
+    { id: 'demo:n2', kind: 'clock', priority: 'info', title: 'Gianni Arone clocked in · Parkview Lofts', body: 'Kitchen faucet leaking under sink', tab: 'today', ts: at(0, 8, 2), read: false },
+    { id: 'demo:n3', kind: 'purchase', priority: 'info', title: 'Receipt · Ferguson · $318.00', body: '210 Water Street · furnace igniter + flame sensor — awaiting review', tab: 'pur', ts: at(1, 16, 20), read: true },
+    { id: 'demo:n4', kind: 'chat', priority: 'info', title: 'Marco Rossi: Heading to Highland Court — paint order is in the truck', tab: 'chat', ts: at(1, 13, 5), read: true },
+    { id: 'demo:n5', kind: 'wo', priority: 'urgent', title: '“Furnace not igniting — no heat” is now URGENT', body: '210 Water Street · Unit 2', tab: 'wo', ts: at(1, 7, 48), read: true },
+  ];
+};
 
 // One-time purge of pre-fix imported caches. Older builds appended every
 // upload, so browsers carry compounded test data that a code deploy can't
@@ -135,10 +150,18 @@ export function useStore() {
   // handle. This is what labels their chat messages, live presence, availability,
   // and audit entries — so the name they chose shows everywhere, not the raw email.
   const [profileName, setProfileName] = useState('');
+  // notification preferences (Settings → user_settings.notif) — the alert
+  // paths below honor them; Settings pushes edits here so they apply at once
+  const [notifPrefs, setNotifPrefsState] = useState(DEFAULT_NOTIF_PREFS);
+  const setNotifPrefs = useCallback((p) => setNotifPrefsState({ ...DEFAULT_NOTIF_PREFS, ...(p || {}) }), []);
   useEffect(() => {
-    if (!isConfigured() || !session) { setProfileName(''); return; }
+    if (!isConfigured() || !session) { setProfileName(''); setNotifPrefsState(DEFAULT_NOTIF_PREFS); return; }
     let on = true;
-    getUserSettings().then((d) => { if (on) setProfileName((d?.displayName || '').trim()); }).catch(() => {});
+    getUserSettings().then((d) => {
+      if (!on) return;
+      setProfileName((d?.displayName || '').trim());
+      setNotifPrefsState({ ...DEFAULT_NOTIF_PREFS, ...(d?.notif || {}) });
+    }).catch(() => {});
     return () => { on = false; };
   }, [myId]);
   const myName = profileName || session?.user?.email?.split('@')[0] || (role === 'tech' ? 'Crew' : 'Office');
@@ -181,6 +204,45 @@ export function useStore() {
   const [tsTable, setTsTable] = useState([]);
   const tsTableRef = useRef(tsTable);
   useEffect(() => { tsTableRef.current = tsTable; }, [tsTable]);
+
+  // ---- notification center: one feed for everything that pings a person ----
+  // Realtime work orders, chat, resident requests, receipts and clock-ins all
+  // land here (newest first, per org, ≤100, read/unread), plus the toast and —
+  // when the person opted in — a system notification. Demo seeds a morning's
+  // worth so the bell isn't empty on first open.
+  const notifKey = `${NOTIF_KEY}:${demoMode ? 'demo' : (orgId || 'none')}`;
+  const [notifications, setNotifications] = useState(() => loadLS(notifKey, null) ?? (demoMode ? seedDemoNotifications() : []));
+  const notifLoadedKeyRef = useRef(notifKey);
+  const seenNotifRef = useRef(new Set((loadLS(notifKey, null) ?? []).map((n) => n.id)));
+  useEffect(() => {
+    if (notifLoadedKeyRef.current === notifKey) return;
+    // org switch: load that org's feed; never write the old org's items under the new key
+    const next = loadLS(notifKey, null) ?? (demoMode ? seedDemoNotifications() : []);
+    seenNotifRef.current = new Set(next.map((n) => n.id));
+    setNotifications(next);
+    notifLoadedKeyRef.current = notifKey;
+  }, [notifKey, demoMode]);
+  useEffect(() => { if (notifLoadedKeyRef.current === notifKey) saveLS(notifKey, notifications.slice(0, NOTIF_MAX)); }, [notifications, notifKey]);
+  const [notice, setNotice] = useState(null); // the transient toast: { msg, ts, priority }
+  const pushNotice = useCallback(({ id, kind = 'info', title, body = null, tab = null, priority = 'info', quiet = false }) => {
+    if (!title) return;
+    const key = id || `${kind}:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`;
+    if (seenNotifRef.current.has(key)) return;        // realtime + optimistic paths can echo — once only
+    seenNotifRef.current.add(key);
+    setNotifications((l) => [{ id: key, kind, title, body, tab, priority, ts: Date.now(), read: false }, ...l].slice(0, NOTIF_MAX));
+    // a switched-off preference keeps the entry in the feed but stops the pings
+    const muted = quiet || (kind === 'wo' && notifPrefs.workOrders === false) || (kind === 'chat' && notifPrefs.chat === false);
+    if (muted) return;
+    setNotice({ msg: title, ts: Date.now(), priority });
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(priority === 'urgent' ? [80, 40, 80] : 40); } catch { /* unsupported */ }
+    }
+    systemNotify(title, { body, priority, tag: key });
+  }, [notifPrefs]);
+  const markNotificationRead = useCallback((id) => setNotifications((l) => l.map((n) => (n.id === id && !n.read ? { ...n, read: true } : n))), []);
+  const markNotificationsRead = useCallback(() => setNotifications((l) => (l.some((n) => !n.read) ? l.map((n) => ({ ...n, read: true })) : l)), []);
+  const clearNotifications = useCallback(() => { setNotifications([]); seenNotifRef.current = new Set(); }, []);
+  const unreadCount = useMemo(() => notifications.reduce((a, n) => a + (n.read ? 0 : 1), 0), [notifications]);
   // work orders (declared up top so the office labor merge can gate hours by their
   // WO's approval status). A configured deployment is cloud-authoritative — don't
   // seed from the shared localStorage cache (it could hold another org's rows).
@@ -652,14 +714,28 @@ export function useStore() {
 
   // ---- resident maintenance requests: office triage → work order ----
   const [maintRequests, setMaintRequests] = useState([]);
+  const knownReqRef = useRef(null); // ids seen so far (null until the first load — never ping for history)
   useEffect(() => {
     if (!isConfigured() || !orgId || !isStaffMember) { setMaintRequests([]); return undefined; }
     let alive = true;
-    const refresh = () => listMaintenanceRequests(orgId).then((r) => { if (alive) setMaintRequests(r); }).catch(() => {});
+    knownReqRef.current = null;
+    const refresh = () => listMaintenanceRequests(orgId).then((r) => {
+      if (!alive) return;
+      setMaintRequests(r);
+      if (knownReqRef.current) {
+        for (const x of r) {
+          if (x.status === 'new' && !knownReqRef.current.has(x.id)) {
+            pushNotice({ id: `req:${x.id}`, kind: 'request', priority: 'high', title: 'New resident request',
+              body: [x.propLabel, x.unit && `Unit ${x.unit}`, (x.description || '').slice(0, 90)].filter(Boolean).join(' · '), tab: 'requests' });
+          }
+        }
+      }
+      knownReqRef.current = new Set(r.map((x) => x.id));
+    }).catch(() => {});
     refresh();
     const unsub = subscribeMaintenanceRequests(orgId, refresh);
     return () => { alive = false; if (typeof unsub === 'function') unsub(); };
-  }, [orgId, isStaffMember]);
+  }, [orgId, isStaffMember, pushNotice]);
 
   const setRequestStatus = useCallback(async (id, status, workOrderId) => {
     setMaintRequests((l) => l.map((x) => (x.id === id ? { ...x, status, ...(workOrderId ? { workOrderId } : {}) } : x)));
@@ -849,23 +925,13 @@ export function useStore() {
   }, [orgId, woBackend]);
 
   // ---- live task list: realtime changes → state merge + notification ----
-  const [woNotice, setWoNotice] = useState(null); // { msg, ts }
   const woRef = useRef(workOrders);
   useEffect(() => { woRef.current = workOrders; }, [workOrders]);
   useEffect(() => {
     if (!isConfigured() || !orgId || woBackend !== 'db') return;
     const PRIO = { 1: 'URGENT', 2: 'high', 3: 'normal', 4: 'low' };
     const PRIO_KIND = { 1: 'urgent', 2: 'high', 3: 'info', 4: 'info' };
-    const notify = (msg, priority = 'info') => {
-      setWoNotice({ msg, ts: Date.now(), priority });
-      // haptic buzz on supporting devices makes it pronounced on mobile
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        try { navigator.vibrate(priority === 'urgent' ? [80, 40, 80] : 40); } catch { /* unsupported */ }
-      }
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        try { new Notification('Caliper', { body: msg }); } catch { /* mobile needs a SW; the in-app toast covers it */ }
-      }
-    };
+    const where = (w) => [w.propLabel, w.unit && w.unit !== '—' && `Unit ${w.unit}`].filter(Boolean).join(' · ') || null;
     return subscribeWorkOrders(orgId, (payload) => {
       const { eventType } = payload;
       if (eventType === 'INSERT') {
@@ -888,16 +954,19 @@ export function useStore() {
           setWorkOrders((l) => l.map((w) => (w.id === optimistic.id ? wo : w)));
         } else if (!woRef.current.some((w) => w.id === wo.id)) {
           setWorkOrders((l) => l.some((w) => w.id === wo.id) ? l : [wo, ...l]);
-          notify(`New work order: ${wo.task}`, PRIO_KIND[wo.priority] || 'info');
+          pushNotice({ id: `wo:${wo.id}:new`, kind: 'wo', priority: PRIO_KIND[wo.priority] || 'info', tab: 'wo',
+            title: wo.status === 'pending' ? `Field report: ${wo.task}` : `New work order: ${wo.task}`, body: where(wo) });
         }
       } else if (eventType === 'UPDATE') {
         const upd = payload.new;
         const prev = woRef.current.find((w) => w.id === upd.id);
         // announce only changes we didn't already apply locally (someone else's edit)
         if (prev && (upd.priority ?? 3) !== (prev.priority ?? 3)) {
-          notify(`Priority changed: “${upd.task}” is now ${PRIO[upd.priority ?? 3]}`, PRIO_KIND[upd.priority ?? 3] || 'info');
+          pushNotice({ id: `wo:${upd.id}:prio:${upd.priority ?? 3}`, kind: 'wo', priority: PRIO_KIND[upd.priority ?? 3] || 'info', tab: 'wo',
+            title: `“${upd.task}” is now ${PRIO[upd.priority ?? 3]}`, body: where(prev) });
         } else if (prev && upd.status !== prev.status) {
-          notify(`“${upd.task}” is now ${upd.status.replace('_', ' ')}`);
+          pushNotice({ id: `wo:${upd.id}:status:${upd.status}`, kind: 'wo', priority: 'info', tab: 'wo',
+            title: `“${upd.task}” is now ${upd.status.replace('_', ' ')}`, body: where(prev) });
         }
         // the payload carries the full new row — merge every column so an update
         // from another viewer (e.g. a newly attached photo, an edited detail or
@@ -914,7 +983,7 @@ export function useStore() {
         setWorkOrders((l) => l.filter((w) => w.id !== payload.old.id));
       }
     });
-  }, [orgId, woBackend]);
+  }, [orgId, woBackend, pushNotice]);
 
   // ---- purchases: DB-backed when connected, localStorage otherwise ----
   const [purchases, setPurchases] = useState(() => (isConfigured() ? [] : (loadLS(PUR_KEY, null) ?? seedDemoPurchases())));
@@ -932,6 +1001,24 @@ export function useStore() {
       .catch(() => { if (alive) setPurBackend('local'); });
     return () => { alive = false; };
   }, [orgId]);
+  // realtime receipts (migration 0056): a field receipt pings the office; an
+  // approval/rejection pings the person who submitted it. Either way, re-list.
+  useEffect(() => {
+    if (!isConfigured() || !orgId || purBackend !== 'db') return undefined;
+    return subscribePurchases(orgId, (payload) => {
+      const n = payload.new;
+      listPurchases(orgId).then(setPurchases).catch(() => {});
+      if (!n) return;
+      const amt = n.amount != null ? `$${Number(n.amount).toFixed(2)}` : '';
+      if (payload.eventType === 'INSERT' && isStaffMember && n.submitted_by_label !== myName) {
+        pushNotice({ id: `pur:${n.id}:new`, kind: 'purchase', priority: 'info', tab: 'pur',
+          title: `Receipt · ${n.vendor || 'Purchase'} · ${amt}`, body: [n.property_label, n.submitted_by_label && `by ${n.submitted_by_label}`, 'awaiting review'].filter(Boolean).join(' · ') });
+      } else if (payload.eventType === 'UPDATE' && n.status && n.status !== 'pending' && n.submitted_by_label === myName && !isStaffMember) {
+        pushNotice({ id: `pur:${n.id}:${n.status}`, kind: 'purchase', priority: n.status === 'rejected' ? 'high' : 'info', tab: 'pur',
+          title: `Receipt ${n.status}: ${n.vendor || 'Purchase'} · ${amt}`, body: n.property_label || null });
+      }
+    });
+  }, [orgId, purBackend, isStaffMember, myName, pushNotice]);
 
   const addPurchase = useCallback(async (p, receiptFile) => {
     let receiptPath = null;
@@ -1201,15 +1288,35 @@ export function useStore() {
 
   // ---- live presence: who's on the clock (crew timers → office board) ----
   const [liveTimers, setLiveTimers] = useState([]);
+  const knownLiveRef = useRef(null); // userId → row, after the first load
   useEffect(() => {
     if (!isConfigured() || !orgId) return undefined;
     let alive = true;
     setLiveTimers([]);
-    const refresh = () => listLiveTimers(orgId).then((r) => { if (alive) setLiveTimers(r); }).catch(() => {});
+    knownLiveRef.current = null;
+    const refresh = () => listLiveTimers(orgId).then((r) => {
+      if (!alive) return;
+      setLiveTimers(r);
+      const prev = knownLiveRef.current;
+      if (prev) {
+        for (const t of r) {
+          if (t.userId === myId || prev.has(t.userId)) continue;
+          pushNotice({ id: `clock:${t.userId}:${t.startedAt}`, kind: 'clock', priority: 'info', tab: 'today', quiet: true,
+            title: `${t.operatorLabel || 'Operator'} clocked in${t.propLabel ? ` · ${t.propLabel}` : ''}`, body: t.task || null });
+        }
+        for (const [uid, t] of prev) {
+          if (uid === myId || r.some((x) => x.userId === uid)) continue;
+          const hrs = t.startedAt ? Math.round(((Date.now() - new Date(t.startedAt).getTime()) / 36e5) * 10) / 10 : null;
+          pushNotice({ id: `clock:${uid}:${t.startedAt}:out`, kind: 'clock', priority: 'info', tab: 'today', quiet: true,
+            title: `${t.operatorLabel || 'Operator'} clocked out${t.propLabel ? ` · ${t.propLabel}` : ''}`, body: hrs != null ? `${hrs}h on the clock` : null });
+        }
+      }
+      knownLiveRef.current = new Map(r.map((t) => [t.userId, t]));
+    }).catch(() => {});
     refresh();
     const unsub = subscribeLiveTimers(orgId, refresh);
     return () => { alive = false; if (typeof unsub === 'function') unsub(); };
-  }, [orgId]);
+  }, [orgId, myId, pushNotice]);
 
   // Field timer calls this: pass the running session (or null on stop) to
   // broadcast/clear this operator's presence.
@@ -1574,6 +1681,10 @@ export function useStore() {
   useEffect(() => {
     if (!isConfigured() || !orgId || msgBackend !== 'db') return undefined;
     return subscribeMessages(orgId, (m) => {
+      if (m.senderId && m.senderId !== myId) {
+        pushNotice({ id: `msg:${m.id}`, kind: 'chat', priority: 'info', tab: 'chat',
+          title: `${m.sender || 'Crew'}: ${m.body ? m.body.slice(0, 90) : (m.voicePath || m.voiceData ? 'voice note' : 'attachment')}` });
+      }
       setMessages((l) => {
         if (l.some((x) => x.id === m.id)) return l; // already have the saved row (insert remap won the race)
         // my own just-sent message can arrive here before insertMessage resolves — upgrade the
@@ -1584,7 +1695,7 @@ export function useStore() {
         return [...l, m];
       });
     }, (deletedId) => setMessages((l) => l.filter((x) => x.id !== deletedId)));
-  }, [orgId, msgBackend]);
+  }, [orgId, msgBackend, myId, pushNotice]);
 
   // post a message: typed body and/or a recorded voice note (Blob).
   const addMessage = useCallback(async ({ channel = 'all', body, voiceBlob, voiceSecs, attachFile, workOrderId } = {}) => {
@@ -1830,7 +1941,11 @@ export function useStore() {
     // reusable checklist templates + make-ready turn board
     checklistTemplates, setTemplate, removeTemplate,
     unitTurns, setTurn, removeTurn, createTurnWorkOrder,
-    woNotice, clearWoNotice: () => setWoNotice(null),
+    notice, clearNotice: () => setNotice(null),
+    // notification center
+    notifications, unreadCount, pushNotice, markNotificationRead, markNotificationsRead, clearNotifications,
+    notifPrefs, setNotifPrefs,
+    timerQueueCount: () => { try { return loadLS(TQ_KEY, []).filter((t) => t._org == null || t._org === orgId).length; } catch { return 0; } },
     // cloud timers
     addTimerEntry, updateTimerEntry, deleteTimerEntry, operatorId,
     // timesheet (editable log history)

@@ -3,6 +3,7 @@ import { AuthGate, SignOutButton, AccountButton, useAuth } from './components/Au
 import TopStrip from './components/TopStrip.jsx';
 import { useStore } from './lib/store.js';
 import OrgLogo from './components/OrgLogo.jsx';
+import NotificationBell from './components/NotificationBell.jsx';
 import { Mark, BrandLockup, IcDash, IcClock, IcBuilding, IcUsers, IcImport, IcCal, IcWrench, IcReceipt, IcDoc, IcPlug, IcMore, IcBell, IcX, IcChat, IcGear, IcClip, IcShield, IcTag, IcChart, IcTable, IcChevron, IcTrend, IcSync } from './components/ui.jsx';
 import { isPlatformAdmin, isConfigured } from './lib/backend/supabase.js';
 // Direct-render views (special routes / My Home takeover) stay eager — they're
@@ -245,12 +246,12 @@ function Shell() {
   const overflowGroups = groupByCat(overflow);
 
   // live task-list notifications (priority changes, new assignments)
-  const { woNotice, clearWoNotice } = store;
+  const { notice, clearNotice } = store;
   useEffect(() => {
-    if (!woNotice) return;
-    const t = setTimeout(clearWoNotice, 7000);
+    if (!notice) return;
+    const t = setTimeout(clearNotice, 7000);
     return () => clearTimeout(t);
-  }, [woNotice]);
+  }, [notice]);
 
   // My Home is a room of its own — a dual-hat user who taps it leaves the ops
   // nav entirely for the clean Community surface, with one way back to work.
@@ -277,10 +278,10 @@ function Shell() {
   return (
     <div className="app desk">
       <TopStrip />
-      {woNotice && (
-        <div className={`toast prio-${woNotice.priority || 'info'}`} role="alert" onClick={clearWoNotice}>
+      {notice && (
+        <div className={`toast prio-${notice.priority || 'info'}`} role="alert" onClick={clearNotice}>
           <IcBell width={18} height={18} />
-          <span className="toast-msg">{woNotice.msg}</span>
+          <span className="toast-msg">{notice.msg}</span>
           <IcX width={15} height={15} className="toast-x" />
         </div>
       )}
@@ -315,6 +316,7 @@ function Shell() {
           <div className="brand"><OrgLogo logo={store.orgLogo} name={store.meta?.org} height={34} fallback={<><Mark /> Caliper</>} /> <span className="sub" style={tab === 'myhome' ? { color: '#C96F3B' } : undefined}>{tab === 'myhome' ? 'home' : orgKind === 'owner' ? 'portfolio' : role === 'tech' ? 'crew' : role === 'viewer' ? 'viewer' : 'office'}</span></div>
           <div className="spacer" />
           <div className="org-pill">{store.meta.org}</div>
+          <NotificationBell store={store} navigate={navigate} />
           <AccountButton onOpen={() => navigate('settings')} />
           <SignOutButton />
         </header>

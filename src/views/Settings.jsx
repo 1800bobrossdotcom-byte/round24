@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { browserPermission, requestBrowserPermission } from '../lib/notify.js';
 import ConfirmButton from '../components/ConfirmButton.jsx';
 import { useAuth } from '../components/AuthGate.jsx';
 import {
@@ -33,6 +34,23 @@ function Row({ label, hint, children }) {
   );
 }
 
+// system (browser) notifications: opt-in, and only ever from this button
+function BrowserNotifRow() {
+  const [perm, setPerm] = useState(() => browserPermission());
+  const hint = perm === 'granted' ? 'On — urgent jobs reach you even when Caliper is in the background'
+    : perm === 'denied' ? 'Blocked for this site — allow notifications in your browser settings'
+    : perm === 'unsupported' ? 'Not available in this browser'
+    : 'Get pinged when Caliper is in the background';
+  return (
+    <Row label="Browser notifications" hint={hint}>
+      {perm === 'granted' ? <span className="chip money"><IcCheck width={11} height={11} style={{ verticalAlign: -1 }} /> On</span>
+        : perm === 'denied' ? <span className="chip warn">Blocked</span>
+        : perm === 'unsupported' ? <span className="chip">n/a</span>
+        : <button className="btn ghost sm" onClick={async () => setPerm(await requestBrowserPermission())}>Enable</button>}
+    </Row>
+  );
+}
+
 export default function Settings({ store }) {
   const { role, orgId, orgName, session } = useAuth();
   const email = session?.user?.email || '';
@@ -63,6 +81,10 @@ export default function Settings({ store }) {
       <div>
         <div className="view-head"><h1>Settings</h1><p>Your profile, security, and preferences</p></div>
         <div className="card" style={{ marginBottom: 'var(--gap)' }}><p className="note">Connect to the cloud to manage your account.</p></div>
+        <div className="card" style={{ marginBottom: 'var(--gap)' }}>
+          <span className="field-label">Notifications</span>
+          <BrowserNotifRow />
+        </div>
         <div className="card">
           <span className="field-label"><IcMic width={12} height={12} /> Voice commands · hands-free</span>
           <VoiceCommandGuide />
@@ -72,7 +94,9 @@ export default function Settings({ store }) {
   }
 
   const notif = s.notif || { workOrders: true, chat: true, breaks: true, lunch: true };
-  const setNotif = (k, v) => patch({ notif: { ...notif, [k]: v } });
+  // persist to user_settings AND hand the store the live copy, so the toggle
+  // takes effect on the next ping instead of the next reload
+  const setNotif = (k, v) => { const next = { ...notif, [k]: v }; patch({ notif: next }); store.setNotifPrefs?.(next); };
 
   return (
     <div>
@@ -104,6 +128,7 @@ export default function Settings({ store }) {
         </Row>
         <Row label="Work-order alerts" hint="New & re-prioritized jobs"><Toggle on={notif.workOrders} onChange={(v) => setNotif('workOrders', v)} /></Row>
         <Row label="Chat notifications"><Toggle on={notif.chat} onChange={(v) => setNotif('chat', v)} /></Row>
+        <BrowserNotifRow />
         {isCrew && <>
           <Row label="Break reminders" hint="Nudge to stretch on long jobs"><Toggle on={notif.breaks} onChange={(v) => setNotif('breaks', v)} /></Row>
           <Row label="Lunch nudge"><Toggle on={notif.lunch} onChange={(v) => setNotif('lunch', v)} /></Row>
