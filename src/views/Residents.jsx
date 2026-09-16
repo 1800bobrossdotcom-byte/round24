@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import ConfirmButton from '../components/ConfirmButton.jsx';
 import {
   listResidents, setResidentStatus, listAnnouncements, postAnnouncement, deleteAnnouncement,
 } from '../lib/backend/supabase.js';
@@ -93,7 +94,7 @@ export default function Residents({ store }) {
           {pending.map((r) => row(r, (
             <div style={{ display: 'flex', gap: 6 }}>
               <button className="btn grad sm" disabled={busy === r.id} onClick={() => decide(r, 'verified')}><IcCheck width={13} height={13} /> Verify</button>
-              <button className="btn ghost sm" style={{ color: 'var(--danger)' }} disabled={busy === r.id} onClick={() => { if (window.confirm('Decline this residency claim?')) decide(r, 'declined'); }}><IcX width={13} height={13} /> Decline</button>
+              <ConfirmButton className="btn ghost sm" style={{ color: 'var(--danger)' }} disabled={busy === r.id} label="Decline claim?" yes="Decline" onConfirm={() => decide(r, 'declined')}><IcX width={13} height={13} /> Decline</ConfirmButton>
             </div>
           )))}
         </div>
@@ -105,7 +106,7 @@ export default function Residents({ store }) {
         {residents === null ? <p className="note">Loading…</p>
           : roster.length === 0 ? <p className="note"><IcUsers width={13} height={13} style={{ verticalAlign: -2 }} /> No verified residents yet. Share the join link (or post the QR in lobbies) and claims will land here.</p>
           : roster.map((r) => row(r, (
-            <button className="btn ghost sm" disabled={busy === r.id} onClick={() => { if (window.confirm(`Mark ${r.name || 'this resident'} as moved out? Their access ends; their request history stays with the unit.`)) decide(r, 'moved_out'); }}>Moved out</button>
+            <ConfirmButton className="btn ghost sm" disabled={busy === r.id} label="Moved out? Access ends, history stays." yes="Moved out" onConfirm={() => decide(r, 'moved_out')}>Moved out</ConfirmButton>
           )))}
         {past.length > 0 && (
           <details style={{ marginTop: 8 }}>
@@ -144,7 +145,7 @@ export default function Residents({ store }) {
                 <div className="t" style={{ fontSize: 14 }}>{a.urgent && <span style={{ color: 'var(--danger)' }}>⚠ </span>}{a.title}</div>
                 <div className="s">{fmtWhen(a.createdAt)}{a.body ? ` · ${a.body.slice(0, 80)}${a.body.length > 80 ? '…' : ''}` : ''}</div>
               </div>
-              <button className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)' }} onClick={() => { if (window.confirm('Delete this announcement?')) deleteAnnouncement(a.id).then(refresh).catch(() => {}); }} aria-label="Delete"><IcTrash width={13} height={13} /></button>
+              <ConfirmButton className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)' }} label="Delete announcement?" yes="Delete" onConfirm={() => deleteAnnouncement(a.id).then(refresh).catch(() => {})} aria-label="Delete"><IcTrash width={13} height={13} /></ConfirmButton>
             </div>
           ))}
       </div>

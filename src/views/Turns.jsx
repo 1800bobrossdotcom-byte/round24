@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import ConfirmButton from '../components/ConfirmButton.jsx';
 import { IcBuilding, IcWrench, IcX, IcTrash, IcCheck, IcClip, IcChevron } from '../components/ui.jsx';
 
 // the make-ready / turnover pipeline. A vacant unit moves left → right until it's
@@ -80,7 +81,7 @@ export default function Turns({ store, navigate }) {
             </div>
             {t.marketRent > 0 && <div className="s" style={{ color: 'var(--warn)' }}>${Number(t.marketRent).toLocaleString()}/mo at risk</div>}
           </div>
-          <button className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)' }} onClick={() => { if (window.confirm('Delete this turn?')) removeTurn(t.id); }} aria-label="Delete"><IcTrash width={12} height={12} /></button>
+          <ConfirmButton className="btn ghost sm icon-btn" style={{ color: 'var(--text-faint)' }} label="Delete turn?" yes="Delete" onConfirm={() => removeTurn(t.id)} aria-label="Delete"><IcTrash width={12} height={12} /></ConfirmButton>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' }}>
           {cl && <a onClick={() => setExpanded((e) => (e === t.id ? null : t.id))} style={{ fontSize: 12, cursor: 'pointer', color: clDone === cl.length && cl.length ? 'var(--money)' : 'var(--warn)' }}><IcCheck width={11} height={11} style={{ verticalAlign: -1 }} /> {clDone}/{cl.length}</a>}
@@ -261,7 +262,7 @@ function TemplateManager({ templates = [], setTemplate, removeTemplate }) {
               <div className="s">{(t.items || []).length} steps · {(t.items || []).slice(0, 3).join(', ')}{(t.items || []).length > 3 ? '…' : ''}</div>
             </div>
             <button className="btn ghost sm" onClick={() => startEdit(t)}>Edit</button>
-            <button className="btn ghost sm icon-btn" style={{ color: 'var(--danger)' }} onClick={() => { if (window.confirm(`Delete the "${t.name}" template?`)) removeTemplate(t.id); }} aria-label="Delete"><IcTrash width={13} height={13} /></button>
+            <ConfirmButton className="btn ghost sm icon-btn" style={{ color: 'var(--danger)' }} label="Delete template?" yes="Delete" onConfirm={() => removeTemplate(t.id)} aria-label="Delete"><IcTrash width={13} height={13} /></ConfirmButton>
           </div>
         ))
       )}

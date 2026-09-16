@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ConfirmButton from '../components/ConfirmButton.jsx';
 import { useAuth } from '../components/AuthGate.jsx';
 import {
   isConfigured, updatePassword, getUserSettings, saveUserSettings, signOutEverywhere,
@@ -367,7 +368,6 @@ function WorkspaceBranding({ store, orgName, flash }) {
     flash(r?.ok ? 'Logo updated' : 'Upload failed');
   };
   const removeLogo = async () => {
-    if (!window.confirm('Remove the workspace logo? It will fall back to the Caliper mark.')) return;
     setBusy(true); const r = await store.setOrgBranding({ logoUrl: null }); setBusy(false);
     flash(r?.ok ? 'Logo removed' : 'Could not remove');
   };
@@ -394,7 +394,7 @@ function WorkspaceBranding({ store, orgName, flash }) {
           {logo ? 'Replace logo' : 'Upload logo'}
           <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden onChange={onLogo} disabled={busy} />
         </label>
-        {logo && <button className="btn ghost sm" style={{ width: 'auto', color: 'var(--danger)' }} onClick={removeLogo} disabled={busy}>Remove</button>}
+        {logo && <ConfirmButton className="btn ghost sm" style={{ width: 'auto', color: 'var(--danger)' }} label="Remove logo?" yes="Remove" onConfirm={removeLogo} disabled={busy}>Remove</ConfirmButton>}
       </div>
       <p className="note" style={{ margin: '8px 0 0', color: 'var(--text-faint)' }}>PNG with a transparent background works best. Shown small — a wide/horizontal logo reads best.</p>
     </div>

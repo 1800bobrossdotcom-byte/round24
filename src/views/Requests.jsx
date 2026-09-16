@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import ConfirmButton from '../components/ConfirmButton.jsx';
 import { IcCheck, IcX, IcWrench, IcBuilding } from '../components/ui.jsx';
 import { qrDataUrl, downloadDataUrl, qrPosterDataUrl } from '../lib/qr.js';
 
@@ -41,7 +42,7 @@ export default function Requests({ store, navigate }) {
   }
 
   const convert = async (r) => { setBusy(r.id); try { const wo = await convertRequestToWorkOrder(r); if (wo && navigate) navigate('wo'); } finally { setBusy(null); } };
-  const decline = async (r) => { if (!window.confirm('Decline this request?')) return; setBusy(r.id); try { await setRequestStatus(r.id, 'declined'); } finally { setBusy(null); } };
+  const decline = async (r) => { setBusy(r.id); try { await setRequestStatus(r.id, 'declined'); } finally { setBusy(null); } };
   const copyLink = async () => { try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* no clipboard */ } };
 
   const card = (r, active) => (
@@ -80,7 +81,7 @@ export default function Requests({ store, navigate }) {
       ); })()}
       {active && (
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
-          <button className="btn ghost sm" style={{ color: 'var(--danger)' }} disabled={busy === r.id} onClick={() => decline(r)}><IcX width={13} height={13} /> Decline</button>
+          <ConfirmButton className="btn ghost sm" style={{ color: 'var(--danger)' }} disabled={busy === r.id} label="Decline request?" yes="Decline" onConfirm={() => decline(r)}><IcX width={13} height={13} /> Decline</ConfirmButton>
           <button className="btn grad sm" disabled={busy === r.id} onClick={() => convert(r)}><IcWrench width={13} height={13} /> {busy === r.id ? 'Creating…' : 'Create work order'}</button>
         </div>
       )}

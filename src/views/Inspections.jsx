@@ -95,7 +95,7 @@ export default function Inspections({ store }) {
           <h1>Inspections</h1>
           <p>Templated condition checklists — move-in, move-out, quarterly safety, unit turns — scored pass/fail with notes, on the record for every unit.</p>
         </div>
-        {canEdit && <button className="btn grad" style={{ width: 'auto', whiteSpace: 'nowrap' }} onClick={startCreate}>+ Inspection</button>}
+        {canEdit && <button className="btn grad" style={{ width: 'auto', whiteSpace: 'nowrap' }} onClick={startCreate}>+ New inspection</button>}
       </div>
 
       <div className="rr-kpis">

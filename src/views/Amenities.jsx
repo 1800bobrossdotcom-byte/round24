@@ -52,7 +52,7 @@ export default function Amenities({ store }) {
           <h1>Amenities</h1>
           <p>Bookable shared spaces — conference rooms, the roof, the community room, laundry. Residents and tenants request; you confirm.</p>
         </div>
-        {canEdit && <button className="btn grad" style={{ width: 'auto', whiteSpace: 'nowrap' }} onClick={startAdd}>+ Space</button>}
+        {canEdit && <button className="btn grad" style={{ width: 'auto', whiteSpace: 'nowrap' }} onClick={startAdd}>+ New space</button>}
       </div>
 
       <div className="rr-kpis">

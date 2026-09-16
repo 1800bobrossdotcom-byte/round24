@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import ConfirmButton from '../components/ConfirmButton.jsx';
 import { IcCal, IcWrench, IcCheck, IcX, IcTrash, IcBuilding, IcPlay, IcClock } from '../components/ui.jsx';
 import { categoryForText, tagSegments } from '../lib/taskTags.js';
 
@@ -71,7 +72,7 @@ export default function Maintenance({ store }) {
       {isDue && <button className="btn grad sm" onClick={() => gen(s)} disabled={busy}><IcPlay width={13} height={13} /> Generate WO</button>}
       <button className="btn ghost sm" onClick={() => setEdit({ ...s, intervalDays: String(s.intervalDays) })}>Edit</button>
       <button className="btn ghost sm" onClick={() => setSchedule({ id: s.id, active: !s.active })} title={s.active ? 'Pause' : 'Resume'}>{s.active ? 'Pause' : 'Resume'}</button>
-      <button className="btn ghost sm icon-btn" style={{ color: 'var(--danger)' }} onClick={() => { if (window.confirm(`Delete the "${s.task}" schedule?`)) removeSchedule(s.id); }} aria-label="Delete schedule"><IcTrash width={13} height={13} /></button>
+      <ConfirmButton className="btn ghost sm icon-btn" style={{ color: 'var(--danger)' }} label="Delete schedule?" yes="Delete" onConfirm={() => removeSchedule(s.id)} aria-label="Delete schedule"><IcTrash width={13} height={13} /></ConfirmButton>
     </div>
   );
 

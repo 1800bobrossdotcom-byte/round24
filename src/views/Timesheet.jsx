@@ -152,9 +152,9 @@ function TsEditor({ draft, setDraft, propNames, onSave, onCancel, busy }) {
         <MentionInput value={draft.note} onChange={(v) => setDraft({ ...draft, note: v })} options={propNames}
           placeholder="e.g. replaced disposal @121 → tag routes the hours to that door" />
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn grad sm" onClick={onSave} disabled={busy || !(Number(draft.durationHrs) > 0)}>{busy ? '…' : 'Save entry'}</button>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <button className="btn ghost sm" onClick={onCancel} disabled={busy}>Cancel</button>
+        <button className="btn grad sm" onClick={onSave} disabled={busy || !(Number(draft.durationHrs) > 0)}>{busy ? '…' : 'Save entry'}</button>
       </div>
     </div>
   );
@@ -226,8 +226,8 @@ function SplitEditor({ date0, propNames, workOrders = [], onSaveAll, onCancel, b
       <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <button className="btn ghost sm" onClick={() => setLines((l) => [...l, blankLine()])} disabled={busy}>+ Add property</button>
         <div style={{ flex: 1 }} />
-        <button className="btn grad sm" onClick={() => onSaveAll({ date, lines })} disabled={busy || !valid}>{busy ? 'Saving…' : (() => { const k = lines.filter((x) => Number(x.hrs) > 0).length; return `Save ${k || ''} ${k === 1 ? 'entry' : 'entries'}`.replace('  ', ' ').trim(); })()}</button>
         <button className="btn ghost sm" onClick={onCancel} disabled={busy}>Cancel</button>
+        <button className="btn grad sm" onClick={() => onSaveAll({ date, lines })} disabled={busy || !valid}>{busy ? 'Saving…' : (() => { const k = lines.filter((x) => Number(x.hrs) > 0).length; return `Save ${k || ''} ${k === 1 ? 'entry' : 'entries'}`.replace('  ', ' ').trim(); })()}</button>
       </div>
     </div>
   );
@@ -461,11 +461,11 @@ export default function Timesheet({ store }) {
       {isOffice && (
         <div className="card" style={{ marginBottom: 'var(--gap)', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <span className="field-label" style={{ margin: 0, marginRight: 2 }}>Operators</span>
-          <button className={'chip' + (opFilter === 'all' ? ' on' : '')} style={{ cursor: 'pointer', border: opFilter === 'all' ? '1px solid var(--accent)' : '1px solid var(--line)' }}
+          <button className={'fchip' + (opFilter === 'all' ? ' on' : '')}
             onClick={() => { setOpFilter('all'); cancel(); }}><IcUsers width={12} height={12} style={{ verticalAlign: -2, marginRight: 4 }} />All · master tally</button>
           {roster.map((o) => (
-            <button key={o.key} className={'chip' + (opFilter === o.key ? ' on' : '')} style={{ cursor: 'pointer', border: opFilter === o.key ? '1px solid var(--accent)' : '1px solid var(--line)' }}
-              onClick={() => openOp(o)}>{o.name} · <span className="mono">{Math.round(o.hrs * 10) / 10}h</span></button>
+            <button key={o.key} className={'fchip' + (opFilter === o.key ? ' on' : '')}
+              onClick={() => openOp(o)}>{o.name}<span className="n">{Math.round(o.hrs * 10) / 10}h</span></button>
           ))}
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
             <button className="btn ghost sm" onClick={onExportXlsx} title="Export to a formula-driven Excel workbook" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><IcTable width={12} height={12} /> Excel</button>
@@ -478,7 +478,7 @@ export default function Timesheet({ store }) {
         <>
           {/* master tally + period */}
           <div className="card" style={{ marginBottom: 'var(--gap)', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div className="pick" style={{ margin: 0 }}>
+            <div className="seg">
               {PERIODS.map(([v, l]) => <button key={v} className={period === v ? 'on' : ''} onClick={() => setPeriod(v)}>{l}</button>)}
             </div>
             <div style={{ flex: 1 }} />
@@ -542,12 +542,12 @@ export default function Timesheet({ store }) {
 
       {/* view toggle + totals + add */}
       <div className="card" style={{ marginBottom: 'var(--gap)', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div className="pick" style={{ margin: 0 }}>
+        <div className="seg">
           <button className={view === 'week' ? 'on' : ''} onClick={() => setView('week')}><IcCal width={12} height={12} style={{ verticalAlign: -1, marginRight: 4 }} />Week</button>
           <button className={view === 'list' ? 'on' : ''} onClick={() => setView('list')}><IcTable width={12} height={12} style={{ verticalAlign: -1, marginRight: 4 }} />List</button>
         </div>
         {view === 'list' && (
-          <div className="pick" style={{ margin: 0 }}>
+          <div className="seg">
             {PERIODS.map(([v, l]) => <button key={v} className={period === v ? 'on' : ''} onClick={() => setPeriod(v)}>{l}</button>)}
           </div>
         )}

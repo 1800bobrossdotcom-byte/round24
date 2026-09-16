@@ -105,7 +105,7 @@ export default function Vendors({ store, navigate }) {
       </div>
 
       {/* top controls */}
-      <div className="pick" style={{ marginBottom: 10 }}>
+      <div className="seg" style={{ marginBottom: 10 }}>
         <button className={tab === 'vendors' ? 'on' : ''} onClick={() => { setTab('vendors'); setTrade('all'); }}>Contractors & suppliers</button>
         <button className={tab === 'products' ? 'on' : ''} onClick={() => { setTab('products'); setTrade('all'); }}>Favorite products {vendorProducts.length ? `(${vendorProducts.length})` : ''}</button>
       </div>
@@ -115,20 +115,20 @@ export default function Vendors({ store, navigate }) {
         {tab === 'vendors' && (
           <div className="rr-filters" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {[['all', 'All'], ['contractor', 'Contractors'], ['supplier', 'Suppliers'], ['favorite', `★ Favorites${favCount ? ` (${favCount})` : ''}`]].map(([k, l]) => (
-              <button key={k} className={'chip' + (kind === k ? ' on' : '')} style={{ cursor: 'pointer', border: kind === k ? '1px solid var(--accent)' : '1px solid var(--line)' }} onClick={() => setKind(k)}>{l}</button>
+              <button key={k} className={'fchip' + (kind === k ? ' on' : '')} onClick={() => setKind(k)}>{l}</button>
             ))}
           </div>
         )}
         {(canEditVendors || (canAddVendors && tab === 'vendors')) && (
-          <button className="btn grad sm" style={{ marginLeft: 'auto' }} onClick={() => (tab === 'vendors' ? startVendor() : startProduct())}>+ {tab === 'vendors' ? 'Add vendor' : 'Add product'}</button>
+          <button className="btn grad sm" style={{ marginLeft: 'auto' }} onClick={() => (tab === 'vendors' ? startVendor() : startProduct())}>+ {tab === 'vendors' ? 'New vendor' : 'New product'}</button>
         )}
       </div>
 
       {/* trade filter chips */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-        <button className={'chip' + (trade === 'all' ? ' on' : '')} style={{ cursor: 'pointer', border: trade === 'all' ? '1px solid var(--accent)' : '1px solid var(--line)' }} onClick={() => setTrade('all')}>All trades</button>
+        <button className={'fchip' + (trade === 'all' ? ' on' : '')} onClick={() => setTrade('all')}>All trades</button>
         {TRADES.map((t) => (
-          <button key={t} className={'chip' + (trade === t ? ' on' : '')} style={{ cursor: 'pointer', border: trade === t ? '1px solid var(--accent)' : '1px solid var(--line)' }} onClick={() => setTrade(t)}>{tradeLabel(t)}</button>
+          <button key={t} className={'fchip' + (trade === t ? ' on' : '')} onClick={() => setTrade(t)}>{tradeLabel(t)}</button>
         ))}
       </div>
 

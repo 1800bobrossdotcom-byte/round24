@@ -40,8 +40,7 @@ export default function CAM({ store }) {
   }
 
   const seg = (val, label) => (
-    <button onClick={() => setMonths(val)} className={months === val ? 'on' : ''}
-      style={{ background: months === val ? 'var(--accent)' : 'transparent', color: months === val ? '#fff' : 'var(--text-dim)', border: '1px solid var(--line)', borderRadius: 8, padding: '6px 12px', font: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{label}</button>
+    <button onClick={() => setMonths(val)} className={months === val ? 'on' : ''}>{label}</button>
   );
 
   return (
@@ -52,9 +51,9 @@ export default function CAM({ store }) {
           <p>Every tenant's share of the building's <b>measured</b> operating cost — labor from the crew's verified timers, materials from approved receipts. The one CAM statement nobody can argue with.</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div className="seg" style={{ display: 'flex' }}>
-            <button className={mode === 'table' ? 'on' : ''} onClick={() => setMode('table')} style={{ padding: '7px 12px', font: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer', border: '1px solid var(--line)', background: mode === 'table' ? 'var(--accent)' : 'transparent', color: mode === 'table' ? '#fff' : 'var(--text-dim)', borderRadius: '8px 0 0 8px' }}>Reconciliation</button>
-            <button className={mode === 'statements' ? 'on' : ''} onClick={() => setMode('statements')} style={{ padding: '7px 12px', font: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer', border: '1px solid var(--line)', borderLeft: 'none', background: mode === 'statements' ? 'var(--accent)' : 'transparent', color: mode === 'statements' ? '#fff' : 'var(--text-dim)', borderRadius: '0 8px 8px 0' }}>Statements</button>
+          <div className="seg">
+            <button className={mode === 'table' ? 'on' : ''} onClick={() => setMode('table')}>Reconciliation</button>
+            <button className={mode === 'statements' ? 'on' : ''} onClick={() => setMode('statements')}>Statements</button>
           </div>
           <button className="btn ghost" onClick={() => window.print()} style={{ width: 'auto', whiteSpace: 'nowrap' }}>{mode === 'statements' ? 'Print / save PDF' : 'Print'}</button>
         </div>
@@ -71,7 +70,7 @@ export default function CAM({ store }) {
         </div>
         <div>
           <div className="field-label">Reconciliation period</div>
-          <div style={{ display: 'flex', gap: 8 }}>{seg(12, 'Annual')}{seg(6, 'Half-year')}{seg(3, 'Quarter')}</div>
+          <div className="seg">{seg(12, 'Annual')}{seg(6, 'Half-year')}{seg(3, 'Quarter')}</div>
         </div>
       </div>
 

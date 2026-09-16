@@ -50,8 +50,7 @@ export default function Handbook({ store }) {
   }
 
   const segBtn = (val, label) => (
-    <button onClick={() => setMode(val)} className={mode === val ? 'on' : ''}
-      style={{ padding: '7px 12px', font: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer', border: '1px solid var(--line)', background: mode === val ? 'var(--accent)' : 'transparent', color: mode === val ? '#fff' : 'var(--text-dim)', borderRadius: val === 'reader' ? '8px 0 0 8px' : '0 8px 8px 0', borderLeft: val === 'edit' ? 'none' : undefined }}>{label}</button>
+    <button onClick={() => setMode(val)} className={mode === val ? 'on' : ''}>{label}</button>
   );
 
   return (
@@ -63,7 +62,7 @@ export default function Handbook({ store }) {
         </div>
         {canEdit && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <div style={{ display: 'flex' }}>{segBtn('reader', 'Reader')}{segBtn('edit', 'Edit')}</div>
+            <div className="seg">{segBtn('reader', 'Reader')}{segBtn('edit', 'Edit')}</div>
             {mode === 'reader' && <button className="btn ghost" onClick={() => window.print()} style={{ width: 'auto' }}>Print</button>}
           </div>
         )}

@@ -78,9 +78,9 @@ export default function Dashboard({ store, navigate }) {
       <div className="card" style={{ marginBottom: 'var(--gap)' }}>
         <Stat hero grad k="True labor cost" v={fmtMoney(t.cost)} d={`${fmtHrs(t.hrs)} hrs logged`} />
       </div>
-      <div className="grid g2" style={{ marginBottom: 'var(--gap)' }}>
-        <div className="card"><Stat k="Work sessions" v={t.count.toLocaleString()} d="timers closed" /></div>
-        <div className="card"><Stat k="Blended rate" v={blended} d="per hour, loaded" /></div>
+      <div className="rr-kpis n2">
+        <div className="kpi-c"><span className="v mono">{t.count.toLocaleString()}</span><span className="k">work sessions · timers closed</span></div>
+        <div className="kpi-c"><span className="v mono">{blended}</span><span className="k">blended rate · per hour, loaded</span></div>
       </div>
 
       {lease.length > 0 && (

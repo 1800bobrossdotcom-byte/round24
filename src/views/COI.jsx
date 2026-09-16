@@ -57,9 +57,8 @@ export default function COI({ store }) {
   };
 
   const chip = (id, label, n) => (
-    <button className={'pill' + (filter === id ? ' on' : '')} onClick={() => setFilter(id)}
-      style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid var(--line)', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, background: filter === id ? 'var(--accent)' : 'transparent', color: filter === id ? '#fff' : 'var(--text-dim)' }}>
-      {label}{n != null && <span style={{ opacity: 0.7, marginLeft: 5 }}>{n}</span>}
+    <button className={'fchip' + (filter === id ? ' on' : '')} onClick={() => setFilter(id)}>
+      {label}{n != null && <span className="n">{n}</span>}
     </button>
   );
 
@@ -70,7 +69,7 @@ export default function COI({ store }) {
           <h1>Insurance · COI</h1>
           <p>Certificates of insurance for your vendors and commercial tenants — who's covered, for how much, and what's about to lapse. A vendor with a lapsed COI shouldn't be on your property.</p>
         </div>
-        {canEdit && <button className="btn grad" style={{ width: 'auto', whiteSpace: 'nowrap' }} onClick={startAdd}>+ Certificate</button>}
+        {canEdit && <button className="btn grad" style={{ width: 'auto', whiteSpace: 'nowrap' }} onClick={startAdd}>+ New certificate</button>}
       </div>
 
       <div className="rr-kpis">

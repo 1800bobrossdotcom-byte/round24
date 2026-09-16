@@ -127,10 +127,10 @@ export default function Purchases({ store }) {
       )}
 
       {isStaff && (
-        <div className="grid g3" style={{ marginBottom: 'var(--gap)' }}>
-          <div className="card"><div className="stat"><span className="k">Approved spend</span><span className="v mono sm money">{fmtMoneyC(approvedTotal)}</span></div></div>
-          <div className="card"><div className="stat"><span className="k">Awaiting review</span><span className="v mono sm">{pending.length}</span></div></div>
-          <div className="card"><div className="stat"><span className="k">Receipts</span><span className="v mono sm">{purchases.length}</span></div></div>
+        <div className="rr-kpis n3">
+          <div className="kpi-c"><span className="v mono money">{fmtMoneyC(approvedTotal)}</span><span className="k">approved spend</span></div>
+          <div className="kpi-c"><span className="v mono">{pending.length}</span><span className="k">awaiting review</span></div>
+          <div className="kpi-c"><span className="v mono">{purchases.length}</span><span className="k">receipts</span></div>
         </div>
       )}
 

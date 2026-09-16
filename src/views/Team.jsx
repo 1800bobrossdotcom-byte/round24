@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import ConfirmButton from '../components/ConfirmButton.jsx';
 import { byTech, byPeriod, totals, fmtMoney, fmtHrs, periodKey } from '../lib/rollups.js';
 import { Avatar, IcBuilding } from '../components/ui.jsx';
 import { disperseSalary, monthlyOf, annualOf, SALARY_PERIODS } from '../lib/salary.js';
@@ -83,8 +84,8 @@ export default function Team({ store, focus, navigate }) {
                   <button className="btn ghost sm" onClick={() => setSalEdit(r.key)}>{sal ? 'Edit salary' : 'Set salaried'}</button>
                   {inactive
                     ? <button className="btn ghost sm" onClick={() => setOperatorActive?.(r.key, true)}>Reactivate</button>
-                    : <button className="btn ghost sm" style={{ color: 'var(--danger)' }}
-                        onClick={() => { if (window.confirm(`Mark ${tech.name} as no longer active? Their labor history stays; they drop off the assignment roster.`)) setOperatorActive?.(r.key, false); }}>Mark inactive</button>}
+                    : <ConfirmButton className="btn ghost sm" style={{ color: 'var(--danger)' }} label="Mark inactive? History stays." yes="Mark inactive"
+                        onConfirm={() => setOperatorActive?.(r.key, false)}>Mark inactive</ConfirmButton>}
                 </>}
           </div>
         )}
@@ -210,8 +211,8 @@ function RateEditor({ initial, onSave, onCancel }) {
         <input style={{ ...salInput, width: 90 }} type="number" min="0" step="0.25" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="23" autoFocus />
         <span style={{ color: 'var(--text-dim)' }}>/hr</span>
       </div>
-      <button className="btn grad sm" disabled={!ok} onClick={() => onSave(parseFloat(rate))}>Save</button>
       <button className="btn ghost sm" onClick={onCancel}>Cancel</button>
+      <button className="btn grad sm" disabled={!ok} onClick={() => onSave(parseFloat(rate))}>Save</button>
     </div>
   );
 }
@@ -229,9 +230,9 @@ function SalaryEditor({ initial, onSave, onCancel }) {
       <select style={salInput} value={period} onChange={(e) => setPeriod(e.target.value)}>
         {SALARY_PERIODS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
       </select>
-      <button className="btn grad sm" disabled={!ok} onClick={() => onSave({ amount: parseFloat(amount), period })}>Save</button>
       {initial && <button className="btn ghost sm" style={{ color: 'var(--danger)' }} onClick={() => onSave(null)}>To hourly</button>}
       <button className="btn ghost sm" onClick={onCancel}>Cancel</button>
+      <button className="btn grad sm" disabled={!ok} onClick={() => onSave({ amount: parseFloat(amount), period })}>Save</button>
     </div>
   );
 }

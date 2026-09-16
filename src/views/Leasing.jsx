@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
+import ConfirmButton from '../components/ConfirmButton.jsx';
 import { useAuth } from '../components/AuthGate.jsx';
 import { isConfigured } from '../lib/backend/supabase.js';
 import { interpretRentRoll } from '../lib/rentRollInterpret.js';
@@ -72,7 +73,7 @@ export default function Leasing({ store, navigate, focus }) {
     });
     setEditRow(null);
   };
-  const delRow = (u) => { if (window.confirm(`Delete unit ${u.number || ''}${u.tenant ? ` — ${u.tenant}` : ''}? This removes the unit and its lease.`)) { store.removeUnit(u.id); setEditRow(null); } };
+  const delRow = (u) => { store.removeUnit(u.id); setEditRow(null); }; // confirmed inline by ConfirmButton
   const addUnitTo = async (building) => {
     // clear any active filter/search first, or the brand-new vacant unit is
     // filtered out of view and its editor never renders (orphaned blank row)
@@ -391,7 +392,7 @@ export default function Leasing({ store, navigate, focus }) {
                   <label>Status<select value={editRow.draft.status} onChange={(e) => dset('status', e.target.value)}>{UNIT_STATUS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
                 </div>
                 <div className="rr-edit-actions">
-                  <button className="btn ghost sm" style={{ color: 'var(--danger)' }} onClick={() => delRow(editUnit)}>Delete unit</button>
+                  <ConfirmButton className="btn ghost sm" style={{ color: 'var(--danger)' }} label="Delete unit + its lease?" yes="Delete" onConfirm={() => delRow(editUnit)}>Delete unit</ConfirmButton>
                   <span style={{ flex: 1 }} />
                   <button className="btn ghost sm" onClick={() => setEditRow(null)}>Cancel</button>
                   <button className="btn grad sm" onClick={saveEdit}>Save</button>
