@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { localISO } from './dates.js';
 
 // Parse a lease-worksheet workbook into { buildings:[{name,city,units:[...]}] }.
 // Auto-detects which sheets are per-building worksheets (a header row with
@@ -19,7 +20,7 @@ const money = (v) => {
   return neg ? -Math.abs(f) : f;
 };
 const isoDate = (v) => {
-  if (v instanceof Date && !isNaN(v)) return v.toISOString().slice(0, 10);
+  if (v instanceof Date && !isNaN(v)) return localISO(v);   // SheetJS dates are local midnight
   // Excel serial date (days since 1899-12-30) when the cell wasn't date-formatted
   if (typeof v === 'number' && v > 20000 && v < 90000) return new Date(Date.UTC(1899, 11, 30) + v * 86400000).toISOString().slice(0, 10);
   const s = norm(v);
@@ -45,7 +46,7 @@ function dedupeKey(name) {
 }
 
 function findHeader(rows) {
-  for (let r = 0; r < Math.min(rows.length, 8); r++) {
+  for (let r = 0; r < Math.min(rows.length, 30); r++) {
     const cells = (rows[r] || []).map(low);
     const j = cells.join(' ');
     if (j.includes('rent amount') &&

@@ -13,6 +13,7 @@
 
 import * as XLSX from 'xlsx';
 import { parseLeaseWorkbook } from './leaseParser.js';
+import { localISO } from './dates.js';
 
 const norm = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 const low = (s) => norm(s).toLowerCase();
@@ -26,7 +27,7 @@ const money = (v) => {
   return neg ? -Math.abs(f) : f;
 };
 const isoDate = (v) => {
-  if (v instanceof Date && !isNaN(v.getTime())) return v.toISOString().slice(0, 10);
+  if (v instanceof Date && !isNaN(v.getTime())) return localISO(v);   // SheetJS dates are local midnight
   if (typeof v === 'number' && v > 20000 && v < 90000) return new Date(Date.UTC(1899, 11, 30) + v * 86400000).toISOString().slice(0, 10);
   const s = norm(v);
   let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
@@ -55,8 +56,10 @@ const RR = {
   pet: /^pet(\s*fee)?$/i, insurance: /^insurance(\s*fee)?$/i, water: /^(water|utilit(y|ies)|trash)(\s*fee)?$/i, cam: /^(cam|tax(es)?)(\s*fee)?$/i,
 };
 
+// when a roll carries both, the rent people actually pay beats the asking rent
+const RENT_PREF = /^(lease|current|actual|contract|scheduled|effective|monthly)\s*rent$/i;
 function findHeader(rows) {
-  for (let r = 0; r < Math.min(rows.length, 12); r++) {
+  for (let r = 0; r < Math.min(rows.length, 60); r++) {
     const cells = (rows[r] || []).map(norm);
     const map = {}; let hits = 0;
     cells.forEach((h, i) => {
@@ -65,6 +68,7 @@ function findHeader(rows) {
         if (re.test(h)) { if (map[field] == null) { map[field] = i; hits++; } break; }
       }
     });
+    cells.forEach((h, i) => { if (RENT_PREF.test(h)) map.rent = i; });
     // a rent roll needs a rent column plus something identifying the unit/tenant
     if (map.rent != null && (map.tenant != null || map.unit != null || map.first != null) && hits >= 2) return { r, map };
   }
@@ -83,25 +87,34 @@ function parseGeneric(arrayBuffer) {
   const wb = XLSX.read(arrayBuffer, { cellDates: true });
   const byBuilding = new Map();
   const NON_DATA = /notes?vendors?|referral|leases?\s*ending|^sheet\d+$|tenant\s*referrals/i;
+  const single = wb.SheetNames.length === 1;     // a CSV or one-tab export is "Sheet1" — never skip it
   for (const name of wb.SheetNames) {
-    if (NON_DATA.test(name)) continue;
+    if (!single && NON_DATA.test(name)) continue;
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, blankrows: true, defval: '' });
     const H = findHeader(rows);
     if (!H) continue;
     const M = H.map;
     const g = (row, k) => (M[k] != null ? row[M[k]] : undefined);
     const sheetBuilding = norm(name.replace(/\b20\d\d(-20\d\d)?\b/g, '')) || name;
-    let blanks = 0;
+    let blanks = 0, section = null;
     for (let r = H.r + 1; r < rows.length; r++) {
       const row = rows[r] || [];
       const unit = norm(g(row, 'unit')).replace(/\.0$/, '');
       const tenant = M.tenant != null ? norm(g(row, 'tenant')) : `${norm(g(row, 'first'))} ${norm(g(row, 'last'))}`.trim();
       const rent = money(g(row, 'rent'));
-      if (/^total|^subtotal|sqft/i.test(low(unit)) || /total\s*rent/i.test(low(tenant))) break;
+      const ul = low(unit);
+      // a section row — one lone text cell naming the building the rows below
+      // belong to (how most PM exports group a multi-property roll)
+      const filled = row.filter((c) => c !== '' && c != null).map(norm).filter(Boolean);
+      if (filled.length === 1 && /[a-z]/i.test(filled[0]) && !/^\d+\s*[a-z]?$/i.test(filled[0])
+        && !/^(sub|grand\s*)?total/i.test(filled[0]) && (filled[0].length >= 6 || filled[0].includes(' '))
+        && !(M.building != null && norm(g(row, 'building')))) { section = filled[0]; continue; }
+      if (/^(grand\s*)?totals?$/.test(ul) || /total\s*rent/i.test(low(tenant))) break;   // the roll's own grand total ends it
+      if (/^(sub)?total\b/.test(ul) || /sqft/.test(ul)) continue;                       // a per-building subtotal: keep going
       if (!unit && !tenant && rent == null) { if (++blanks >= 3) break; continue; }
       blanks = 0;
       if (rent == null && !tenant && !unit) continue;
-      const buildingName = M.building != null && norm(g(row, 'building')) ? norm(g(row, 'building')) : sheetBuilding;
+      const buildingName = (M.building != null && norm(g(row, 'building'))) || section || sheetBuilding;
       const bedsRaw = norm(g(row, 'beds'));
       const COMM = /\b(commercial|retail|office|storefront|shop|unit\s*type\s*:?\s*comm)\b/i;
       const commercial = COMM.test(bedsRaw) || COMM.test(unit);

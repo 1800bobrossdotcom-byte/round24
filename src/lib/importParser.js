@@ -8,13 +8,14 @@
 // ============================================================
 
 import * as XLSX from 'xlsx';
+import { localISO } from './dates.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}/;
 const isNum = (v) => typeof v === 'number' && !Number.isNaN(v);
 
 // Excel serial or JS date → ISO
 function toISO(v) {
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (v instanceof Date && !isNaN(v.getTime())) return localISO(v);   // SheetJS dates are local midnight
   if (isNum(v) && v > 40000 && v < 60000) {
     const d = new Date(Date.UTC(1899, 11, 30) + v * 86400000);
     return d.toISOString().slice(0, 10);

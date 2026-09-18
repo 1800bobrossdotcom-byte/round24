@@ -75,18 +75,20 @@ export default function Import({ store }) {
   const toggle = (name) =>
     setSelected((s) => (s.includes(name) ? s.filter((n) => n !== name) : [...s, name]));
 
-  // techs represented in selected sheets, and whether they need a rate
+  // people represented in the selected sheets, and whether they need a rate.
+  // Keyed by the person on each ENTRY (an Employee column puts several people
+  // on one sheet), which is also how runImport applies the rates.
   const techsNeeding = useMemo(() => {
     const map = new Map();
     for (const s of sheets) {
       if (!selected.includes(s.name)) continue;
-      const worked = s.entries.filter((e) => e.hours > 0);
-      const noRate = worked.filter((e) => !e.rate).length;
-      const cur = map.get(s.techName) || { name: s.techName, hours: 0, entries: 0, missing: 0 };
-      cur.hours += worked.reduce((a, e) => a + e.hours, 0);
-      cur.entries += worked.length;
-      cur.missing += noRate;
-      map.set(s.techName, cur);
+      for (const e of s.entries) {
+        if (!(e.hours > 0)) continue;
+        const who = e.tech || s.techName;
+        const cur = map.get(who) || { name: who, hours: 0, entries: 0, missing: 0 };
+        cur.hours += e.hours; cur.entries += 1; if (!e.rate) cur.missing += 1;
+        map.set(who, cur);
+      }
     }
     return [...map.values()].sort((a, b) => b.hours - a.hours);
   }, [sheets, selected]);
@@ -130,7 +132,7 @@ export default function Import({ store }) {
     )];
     const patched = sheets.map((s) => ({
       ...s,
-      entries: s.entries.map((e) => ({ ...e, rate: e.rate || rates[e.tech] || 0 })),
+      entries: s.entries.map((e) => ({ ...e, rate: e.rate || rates[e.tech || s.techName] || 0 })),
     }));
     const { timers, allocated, unallocated } = toTimers(patched, selected, resolveBuildings);
     const withRate = timers.filter((t) => t.rate > 0);
@@ -214,7 +216,7 @@ export default function Import({ store }) {
             <div className="sm">or tap to browse · .xlsx files</div>
           </div>
           <input ref={fileRef} type="file" accept=".xlsx,.xls" hidden onChange={(e) => { handleFile(e.target.files[0]); e.target.value = ''; }} />
-          <p className="note">Reads most timesheet shapes — a plain Date/Hours/Property table, a column-per-property grid, or a recurring allocation matrix like Evolution24's. It auto-detects the layout, pulls hours, dates, pay periods, rates, and per-property allocation, then shows you everything before saving a thing.</p>
+          <p className="note">Reads most timesheet shapes — a plain Date/Hours/Property table (hours, time in/out, or regular + overtime), a column-per-property grid, a weekly or monthly grid with the dates across the top, or a recurring allocation matrix like Evolution24's. Also .xls and .csv. It auto-detects the layout, pulls hours, dates, pay periods, rates, and per-property allocation, then shows you everything before saving a thing.</p>
         </>
       )}
 
