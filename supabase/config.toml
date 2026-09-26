@@ -31,3 +31,34 @@ verify_jwt = true
 # so there's no JWT to verify — it checks the x-push-secret header itself.
 [functions.push-send]
 verify_jwt = false
+
+# ---- Auth: where links may land, and the branded emails Supabase sends ----
+# Apply with `supabase config push` (shows a diff first), or paste each template
+# into Dashboard → Authentication → Email Templates. See docs/EMAIL-SETUP.md.
+[auth]
+site_url = "https://round24.app"
+additional_redirect_urls = ["https://round24.app/**", "https://www.round24.app/**", "https://round24.vercel.app/**", "https://caliper.solutions/**", "http://localhost:5173/**"]
+
+[auth.email.template.recovery]
+subject = "Reset your Round24 password"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.confirmation]
+subject = "Confirm your Round24 account"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.invite]
+subject = "You’ve been invited to Round24"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.magic_link]
+subject = "Your Round24 sign-in link"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your new Round24 email"
+content_path = "./supabase/templates/email_change.html"
+
+[auth.email.template.reauthentication]
+subject = "Your Round24 verification code"
+content_path = "./supabase/templates/reauthentication.html"

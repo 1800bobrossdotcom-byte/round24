@@ -30,16 +30,16 @@ const esc = (s = '') => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;'
 
 function page(title: string, msg: string) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Round24</title></head>
-  <body style="margin:0;background:#f4f5f2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#14171a">
+  <body style="margin:0;background:#e9e9e9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0a0a0a">
     <div style="max-width:520px;margin:12vh auto;padding:0 16px;text-align:center">
-      <div style="background:#fff;border:1px solid #e0e2db;border-radius:16px;padding:34px 28px">
-        <div style="font-weight:800;font-size:22px;letter-spacing:-.01em">Round24</div>
-        <div style="font-size:11px;color:#8b929b;letter-spacing:.12em;text-transform:uppercase;margin-top:2px">around the clock</div>
+      <div style="background:#fff;border:1px solid #0a0a0a;border-radius:0;padding:34px 28px">
+        <div style="font-weight:800;font-size:18px;letter-spacing:.14em;text-transform:uppercase">Round24</div>
+        <div style="font-size:11px;color:#6b6b6b;letter-spacing:.12em;text-transform:uppercase;margin-top:2px">around the clock</div>
         <h1 style="font-size:20px;margin:22px 0 8px">${esc(title)}</h1>
-        <p style="font-size:15px;line-height:1.6;color:#3a4048;margin:0 0 20px">${msg}</p>
-        <a href="${APP}" style="display:inline-block;background:#14171a;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:11px 22px;border-radius:10px">Back to Round24</a>
+        <p style="font-size:15px;line-height:1.6;color:#3a3a3a;margin:0 0 20px">${msg}</p>
+        <a href="${APP}" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:11px 22px;border-radius:0">Back to Round24</a>
       </div>
-      <div style="color:#8b929b;font-size:12px;margin-top:16px">Round24 · Evolution24 Property Management · Rochester, NY</div>
+      <div style="color:#6b6b6b;font-size:12px;margin-top:16px">Round24 · Evolution24 Property Management · Rochester, NY</div>
     </div>
   </body></html>`;
 }

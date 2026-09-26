@@ -130,6 +130,15 @@ export async function signOut() {
   await supabase.auth.signOut();
 }
 
+// forgot password: Supabase mails a branded recovery link (supabase/templates/
+// recovery.html) that lands back on the app with ?reset=1 — AuthGate then shows
+// the set-a-new-password screen. Same message whether or not the address exists.
+export async function requestPasswordReset(email) {
+  const redirectTo = `${window.location.origin}/?reset=1`;
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+  if (error) throw error;
+}
+
 export async function updatePassword(newPassword) {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
@@ -210,7 +219,7 @@ export async function getSession() {
 }
 
 export function onAuthChange(cb) {
-  return supabase.auth.onAuthStateChange((_e, session) => cb(session));
+  return supabase.auth.onAuthStateChange((event, session) => cb(session, event));   // event: SIGNED_IN, PASSWORD_RECOVERY, …
 }
 
 // ---- availability (on shift / off / PTO) ----
@@ -501,9 +510,11 @@ export async function resolveDeletionRequest(userId) {
 // The 'email' edge function degrades gracefully when Resend isn't configured,
 // so these are fire-and-forget: a mail failure must never break signup or a
 // workspace approval. Callers may ignore the resolved value.
-export async function sendWelcomeEmail(name) {
+// welcome mail is idempotent server-side (user_settings.data.welcomedAt), so
+// calling it on every first-session-in-a-workspace is safe. persona tunes the copy.
+export async function sendWelcomeEmail({ name, persona } = {}) {
   try {
-    const { data, error } = await supabase.functions.invoke('email', { body: { type: 'welcome', name: name || null } });
+    const { data, error } = await supabase.functions.invoke('email', { body: { type: 'welcome', name: name || null, persona: persona || null } });
     if (error) return { ok: false, error: error.message };
     return data || { ok: true };
   } catch (e) { return { ok: false, error: String(e?.message || e) }; }

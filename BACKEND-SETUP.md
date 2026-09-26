@@ -77,6 +77,13 @@ in the repo; the keys, secrets and function deploy are one-time steps in
 **[docs/PUSH-SETUP.md](docs/PUSH-SETUP.md)**. Without it, the bell, feed and
 in-app toasts still work.
 
+## Step 7 — Email: password reset, welcome, invitations (~10 min)
+
+Branded reset emails, a welcome on first landing, and invitations from Access.
+Templates and config are in the repo; the one-time steps (push the auth
+templates, custom SMTP, the sender's secrets) are in
+**[docs/EMAIL-SETUP.md](docs/EMAIL-SETUP.md)**.
+
 ## Security notes (plain English)
 
 - The **anon key is safe** in the browser — it's not a password. Row-Level

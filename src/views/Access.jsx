@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../components/AuthGate.jsx';
-import { isConfigured, createInvite, listInvites, revokeInvite, listOrgMembers, updateOrgName } from '../lib/backend/supabase.js';
+import { isConfigured, createInvite, listInvites, revokeInvite, listOrgMembers, updateOrgName, sendInviteEmail } from '../lib/backend/supabase.js';
 import { IcUsers, IcX, IcCheck, IcCopy } from '../components/ui.jsx';
 
 // office admin onboards the team: generate role-scoped invite links.
@@ -28,6 +28,8 @@ export default function Access({ store }) {
   const [invites, setInvites] = useState([]);
   const [role, setRole] = useState('tech');
   const [label, setLabel] = useState('');
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(null);   // 'mailed' | 'unmailed' | null
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(null);
   const [err, setErr] = useState(null);
@@ -42,7 +44,16 @@ export default function Access({ store }) {
   const linkFor = (code) => `${window.location.origin}/?invite=${code}`;
   const generate = async () => {
     setErr(null); setBusy(true);
-    try { await createInvite(orgId, { role, label: label.trim() || null }); store.audit && store.audit('create_invite', `${ROLE_LABEL[role]}${label.trim() ? ` · ${label.trim()}` : ''}`); setLabel(''); load(); }
+    try {
+      const inv = await createInvite(orgId, { role, label: label.trim() || null, email: email.trim() || null });
+      store.audit && store.audit('create_invite', `${ROLE_LABEL[role]}${label.trim() ? ` · ${label.trim()}` : ''}`);
+      // an address makes it a real invitation: the branded mail carries the link
+      if (email.trim()) {
+        const r = await sendInviteEmail({ to: email.trim(), code: inv.code, name: label.trim() || null, orgName });
+        setSent(r?.ok ? 'mailed' : 'unmailed');
+      } else setSent(null);
+      setLabel(''); setEmail(''); load();
+    }
     catch (e) { setErr(e.message || 'Could not create invite'); }
     finally { setBusy(false); }
   };
@@ -86,6 +97,10 @@ export default function Access({ store }) {
         </div>
         <div className="note" style={{ margin: '6px 0 10px' }}>{ROLES.find((r) => r.key === role)?.hint}</div>
         <input style={inputStyle} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Name or note (optional) — e.g. Gianni, painter" />
+        <div style={{ height: 8 }} />
+        <input style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email (optional) — we’ll send them the invite" />
+        {sent === 'mailed' && <p className="note" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IcCheck width={12} height={12} /> Invite emailed. The link below works too.</p>}
+        {sent === 'unmailed' && <p className="note">Invite created, but the email couldn’t be sent — share the link below instead.</p>}
         {err && <p className="note" style={{ color: 'var(--danger)', marginTop: 6 }}>{err}</p>}
         <button className="btn grad" style={{ marginTop: 12 }} onClick={generate} disabled={busy}>{busy ? 'Generating…' : 'Generate invite link'}</button>
       </div>

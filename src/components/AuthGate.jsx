@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, fetchMembership, redeemInvite, inviteInfo, requestBeta, isPlatformAdmin, sendWelcomeEmail, getMyResident } from '../lib/backend/supabase.js';
+import { supabase, isConfigured, signIn, signUp, signOut, getSession, onAuthChange, updatePassword, requestPasswordReset, fetchMembership, redeemInvite, inviteInfo, requestBeta, isPlatformAdmin, sendWelcomeEmail, getMyResident } from '../lib/backend/supabase.js';
 import { Mark, BrandLockup, IcGear, IcLogout, IcWrench, IcChart, IcBuilding, IcX, IcCheck, IcChevron, IcMapPin, IcMic, IcReceipt, IcShield } from './ui.jsx';
 import Platform from '../views/Platform.jsx';
 import ResidentHome from '../views/ResidentHome.jsx';
@@ -38,26 +38,21 @@ export function AuthGate({ children }) {
   const [mem, setMem] = useState(null);       // { org_id, role }
   const [memReady, setMemReady] = useState(false);
   const [invite, setInvite] = useState(null); // pending invite code
+  // password recovery: the emailed link lands on /?reset=1 with the recovery
+  // tokens; supabase-js turns them into a session and fires PASSWORD_RECOVERY.
+  const [recovery, setRecovery] = useState(() => { try { return new URL(window.location.href).searchParams.get('reset') === '1'; } catch { return false; } });
 
   useEffect(() => {
     if (!isConfigured()) { setReady(true); return; }
     setInvite(capturePendingInvite());
     getSession().then((s) => { setSession(s); setReady(true); });
-    const { data } = onAuthChange(setSession);
+    const { data } = onAuthChange((s, event) => { setSession(s); if (event === 'PASSWORD_RECOVERY') setRecovery(true); });
     return () => data?.subscription?.unsubscribe();
   }, []);
-
-  // welcome email: fire once, on the first session after signup (works whether
-  // or not email confirmation delays the session). Flag set by the signup form.
-  useEffect(() => {
-    if (!session) return;
-    try {
-      if (localStorage.getItem('caliper_pending_welcome')) {
-        localStorage.removeItem('caliper_pending_welcome');
-        sendWelcomeEmail().catch(() => {});
-      }
-    } catch { /* ignore */ }
-  }, [session]);
+  const finishRecovery = () => {
+    setRecovery(false);
+    try { const u = new URL(window.location.href); u.searchParams.delete('reset'); u.hash = ''; window.history.replaceState(null, '', u.toString()); } catch { /* ignore */ }
+  };
 
   const [resident, setResident] = useState(null); // Round24 Community: residency (no staff membership)
   useEffect(() => {
@@ -78,6 +73,17 @@ export function AuthGate({ children }) {
     })();
     return () => { on = false; };
   }, [session]);
+
+  // welcome email: the first time this person lands inside a workspace (a seat
+  // or a residency), whichever device they used. The function is idempotent
+  // (user_settings.welcomedAt); the local flag just saves a call per load.
+  useEffect(() => {
+    if (!session || !memReady || (!mem && !resident)) return;
+    const key = `caliper_welcomed:${session.user?.id || ''}`;
+    try { if (localStorage.getItem(key)) return; } catch { /* ignore */ }
+    const persona = !mem && resident ? 'resident' : mem?.role === 'tech' ? 'crew' : 'office';
+    sendWelcomeEmail({ persona }).catch(() => {}).finally(() => { try { localStorage.setItem(key, '1'); } catch { /* ignore */ } });
+  }, [session, memReady, mem, resident]);
 
   // demo-only role (office = admin, crew = tech); remembered per device
   const [demoRole, setDemoRoleState] = useState(() => {
@@ -107,7 +113,9 @@ export function AuthGate({ children }) {
     );
   }
 
-  if (!session) return <Login invite={invite} />;
+  // an expired / already-used reset link arrives with ?reset=1 but no session
+  if (!session) return <Login invite={invite} notice={recovery ? 'That password reset link has expired or was already used — request a new one below.' : null} />;
+  if (recovery) return <PasswordRecovery onDone={finishRecovery} />;
   if (!memReady) {
     // don't flash the wrong toolset while the role loads
     return (
@@ -436,7 +444,7 @@ function Landing({ onEnter, onBeta }) {
   );
 }
 
-function Login({ invite }) {
+function Login({ invite, notice }) {
   const [product, setProduct] = useState(() => localStorage.getItem('caliper_product') || null); // 'portfolio' | 'pro'
   const [portal, setPortal] = useState(() => localStorage.getItem('caliper_portal') || null);     // pro only: 'office' | 'crew'
   const [beta, setBeta] = useState(false);
@@ -537,14 +545,14 @@ function Login({ invite }) {
   if (product === 'community') {
     return (
       <div className="community-scope" style={{ minHeight: '100vh' }}>
-        <LoginForm brand="community" invite={invite} onSwitch={backToProducts} switchLabel="Not a resident? Choose a different Round24" community />
+        <LoginForm notice={notice} brand="community" invite={invite} onSwitch={backToProducts} switchLabel="Not a resident? Choose a different Round24" community />
       </div>
     );
   }
 
   // Portfolio → straight to the branded login
   if (product === 'portfolio') {
-    return <LoginForm brand="portfolio" invite={invite} onBeta={() => setBeta(true)} onSwitch={reset} switchLabel="Not enterprise? Choose a different Round24" />;
+    return <LoginForm notice={notice} brand="portfolio" invite={invite} onBeta={() => setBeta(true)} onSwitch={reset} switchLabel="Not enterprise? Choose a different Round24" />;
   }
 
   // Pro → level 2: pick Office or Crew
@@ -583,7 +591,7 @@ function Login({ invite }) {
       </div>
     );
   }
-  return <LoginForm brand={portal} invite={invite} onBeta={() => setBeta(true)} onSwitch={() => { localStorage.removeItem('caliper_portal'); setPortal(null); }}
+  return <LoginForm notice={notice} brand={portal} invite={invite} onBeta={() => setBeta(true)} onSwitch={() => { localStorage.removeItem('caliper_portal'); setPortal(null); }}
     switchLabel={portal === 'crew' ? 'Office staff? Switch portal' : 'On the crew? Switch portal'} />;
 }
 
@@ -642,27 +650,61 @@ function BetaRequest({ onBack }) {
   );
 }
 
-function LoginForm({ brand, onSwitch, onBeta, invite, switchLabel, community = false }) {
+function LoginForm({ brand, onSwitch, onBeta, invite, switchLabel, community = false, notice = null }) {
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
-  const [mode, setMode] = useState(invite ? 'signup' : 'signin'); // invited → create account
+  const [mode, setMode] = useState(invite ? 'signup' : 'signin'); // 'signin' | 'signup' | 'forgot'
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const [resetSent, setResetSent] = useState(false);
   const b = BRANDS[brand] || BRANDS.office;
   const isSignup = mode === 'signup';
+  const isForgot = mode === 'forgot';
 
   const submit = async () => {
     setErr(null); setBusy(true);
     try {
-      if (isSignup) {
-        await signUp(email, pw);   // invite is redeemed post-auth by AuthGate
-        // mark for a welcome email on first authenticated session — sending now
-        // would 401 when email confirmation is on (no session yet).
-        try { localStorage.setItem('caliper_pending_welcome', '1'); } catch { /* ignore */ }
-      } else await signIn(email, pw);
-    } catch (e) { setErr(e.message || (isSignup ? 'Could not create account' : 'Sign-in failed')); }
+      if (isForgot) { await requestPasswordReset(email); setResetSent(true); }
+      else if (isSignup) await signUp(email, pw);   // invite is redeemed post-auth by AuthGate; welcome mail fires on first landing
+      else await signIn(email, pw);
+    } catch (e) { setErr(e.message || (isForgot ? 'Could not send the reset link' : isSignup ? 'Could not create account' : 'Sign-in failed')); }
     finally { setBusy(false); }
   };
+
+  if (isForgot) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
+        <div style={{ width: '100%', maxWidth: 360 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><BrandLockup /></div>
+          <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 20 }}>Reset your password</p>
+          {resetSent ? (
+            <>
+              <div className="offline" style={{ color: 'var(--text)', borderColor: 'var(--line-strong)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <IcCheck width={14} height={14} /> If an account exists for <b>{email}</b>, a reset link is on its way. It expires in an hour.
+              </div>
+              <p className="note" style={{ textAlign: 'center' }}>Nothing after a few minutes? Check spam, or make sure this is the address you signed up with.</p>
+              <div style={{ textAlign: 'center', marginTop: 12 }}>
+                <a onClick={() => { setMode('signin'); setResetSent(false); setErr(null); }} style={{ color: 'var(--info)', cursor: 'pointer', fontSize: 13.5, fontWeight: 600 }}>Back to sign in</a>
+              </div>
+            </>
+          ) : (
+            <>
+              {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 20%, transparent)', background: 'color-mix(in srgb, var(--danger) 7%, transparent)' }}>{err}</div>}
+              <p className="note" style={{ marginTop: 0, marginBottom: 14 }}>Enter the email you sign in with. We’ll send a link to set a new password.</p>
+              <div className="field-label">Email</div>
+              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && email && submit()} style={inputStyle} />
+              <div style={{ height: 20 }} />
+              <button className="btn grad" onClick={submit} disabled={busy || !email.includes('@')}>{busy ? 'Sending…' : 'Send reset link'}</button>
+              <div style={{ textAlign: 'center', marginTop: 16 }}>
+                <a onClick={() => { setMode('signin'); setErr(null); }} style={{ color: 'var(--info)', cursor: 'pointer', fontSize: 13.5, fontWeight: 600 }}>Back to sign in</a>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
@@ -681,13 +723,17 @@ function LoginForm({ brand, onSwitch, onBeta, invite, switchLabel, community = f
             <IcCheck width={14} height={14} /> You’ve been invited — create your account to join.
           </div>
         )}
+        {notice && !err && <div className="offline" style={{ color: 'var(--text)', borderColor: 'var(--line-strong)' }}>{notice}</div>}
         {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 20%, transparent)', background: 'color-mix(in srgb, var(--danger) 7%, transparent)' }}>{err}</div>}
 
         <div className="field-label">Email</div>
         <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email"
           onKeyDown={(e) => e.key === 'Enter' && submit()} style={inputStyle} />
         <div style={{ height: 14 }} />
-        <div className="field-label">Password</div>
+        <div style={{ display: 'flex', alignItems: 'baseline' }}>
+          <div className="field-label">Password</div>
+          {!isSignup && <a onClick={() => { setMode('forgot'); setErr(null); }} style={{ marginLeft: 'auto', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Forgot password?</a>}
+        </div>
         <input value={pw} onChange={(e) => setPw(e.target.value)} type="password" autoComplete={isSignup ? 'new-password' : 'current-password'}
           onKeyDown={(e) => e.key === 'Enter' && submit()} style={inputStyle} />
         <div style={{ height: 20 }} />
@@ -763,6 +809,54 @@ export function AccountButton({ onOpen }) {
       </button>
       {open && <ChangePasswordModal onClose={() => setOpen(false)} />}
     </>
+  );
+}
+
+// full-screen "set a new password" after a recovery link — the session is
+// already live (supabase-js exchanged the link's tokens), so updateUser works.
+function PasswordRecovery({ onDone }) {
+  const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const [done, setDone] = useState(false);
+  const canSubmit = pw.length >= 10 && pw === pw2 && !busy;
+  const submit = async () => {
+    setErr(null); setBusy(true);
+    try { await updatePassword(pw); setDone(true); }
+    catch (e) { setErr(e.message || 'Could not update password'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
+      <div style={{ width: '100%', maxWidth: 360 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><BrandLockup /></div>
+        <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 20 }}>Set a new password</p>
+        {done ? (
+          <>
+            <div className="offline" style={{ color: 'var(--text)', borderColor: 'var(--line-strong)', display: 'flex', alignItems: 'center', gap: 8 }}><IcCheck width={14} height={14} /> Password updated. You’re signed in.</div>
+            <button className="btn grad" style={{ marginTop: 16 }} onClick={onDone}>Continue to Round24</button>
+          </>
+        ) : (
+          <>
+            {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 20%, transparent)', background: 'color-mix(in srgb, var(--danger) 7%, transparent)' }}>{err}</div>}
+            <div className="field-label">New password</div>
+            <input value={pw} onChange={(e) => setPw(e.target.value)} type="password" autoComplete="new-password" autoFocus style={inputStyle} />
+            {pw && pw.length < 10 && <p className="note" style={{ marginTop: 6 }}>At least 10 characters.</p>}
+            <div style={{ height: 14 }} />
+            <div className="field-label">Confirm new password</div>
+            <input value={pw2} onChange={(e) => setPw2(e.target.value)} type="password" autoComplete="new-password"
+              onKeyDown={(e) => e.key === 'Enter' && canSubmit && submit()} style={inputStyle} />
+            {pw2 && pw !== pw2 && <p className="note" style={{ marginTop: 6 }}>Passwords don’t match.</p>}
+            <div style={{ height: 20 }} />
+            <button className="btn grad" onClick={submit} disabled={!canSubmit}>{busy ? 'Saving…' : 'Save new password'}</button>
+            <p className="note" style={{ textAlign: 'center', marginTop: 12 }}>
+              <a onClick={onDone} style={{ color: 'var(--text-dim)', cursor: 'pointer' }}>Skip for now</a>
+            </p>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
