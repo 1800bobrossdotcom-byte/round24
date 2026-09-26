@@ -1,0 +1,20 @@
+;; round24.app — zone file for Cloudflare DNS → Records → Import and Export → Import.
+;; Everything here is DNS-only (grey cloud). Keep the Vercel records unproxied.
+;; Placeholders in <angle brackets> come from the Resend dashboard (per-account values).
+$ORIGIN round24.app.
+$TTL 300
+
+;; --- the site (Vercel) ---
+@       IN  A       216.150.1.1
+www     IN  CNAME   fad4174917219ebe.vercel-dns-016.com.
+
+;; --- outbound mail (Resend): DKIM + the "send" subdomain it signs with ---
+;; resend._domainkey  IN  TXT   "p=<DKIM public key from Resend>"
+;; send               IN  MX    10 feedback-smtp.us-east-1.amazonses.com.
+;; send               IN  TXT   "v=spf1 include:amazonses.com ~all"
+
+;; --- policy: report-only DMARC until sending is proven, then p=quarantine ---
+_dmarc  IN  TXT     "v=DMARC1; p=none; rua=mailto:dmarc@round24.app"
+
+;; --- inbound mail: enable Cloudflare Email Routing instead of adding MX by hand;
+;;     it writes its own MX (route1/2/3.mx.cloudflare.net) and SPF on @.

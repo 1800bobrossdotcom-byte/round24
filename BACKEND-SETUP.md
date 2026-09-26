@@ -84,6 +84,11 @@ Templates and config are in the repo; the one-time steps (push the auth
 templates, custom SMTP, the sender's secrets) are in
 **[docs/EMAIL-SETUP.md](docs/EMAIL-SETUP.md)**.
 
+## Step 8 — Domain on Cloudflare (DNS, inbound mail, DNSSEC)
+
+Move `round24.app` from Namecheap DNS to Cloudflare, route `hello@round24.app`
+to your inbox, and add the Resend records: **[docs/CLOUDFLARE-SETUP.md](docs/CLOUDFLARE-SETUP.md)**.
+
 ## Security notes (plain English)
 
 - The **anon key is safe** in the browser — it's not a password. Row-Level
