@@ -39,6 +39,19 @@ verify_jwt = false
 site_url = "https://round24.app"
 additional_redirect_urls = ["https://round24.app/**", "https://www.round24.app/**", "https://round24.vercel.app/**", "https://caliper.solutions/**", "http://localhost:5173/**"]
 
+# Auth mail from our own domain via Resend (lifts the shared-sender rate limit).
+# The password is read from the RESEND_API_KEY environment variable at push
+# time, so `supabase config push` must run with it set — it never lives here.
+# Requires round24.app to be verified in Resend first.
+[auth.email.smtp]
+enabled = true
+host = "smtp.resend.com"
+port = 465
+user = "resend"
+pass = "env(RESEND_API_KEY)"
+admin_email = "hello@round24.app"
+sender_name = "Round24"
+
 [auth.email.template.recovery]
 subject = "Reset your Round24 password"
 content_path = "./supabase/templates/recovery.html"

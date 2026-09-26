@@ -11,6 +11,11 @@ Three kinds of mail leave Round24, from two senders:
 
 Everything below is one-time setup. The code is already in the repo.
 
+**Shortcut:** with `SUPABASE_ACCESS_TOKEN` and `RESEND_API_KEY` in your
+environment, `scripts/supabase-apply.sh` does steps 1–3 in one go (link, config
+push incl. custom SMTP, secrets, function deploy). Verify `round24.app` in
+Resend first so the SMTP sender is accepted.
+
 ## 1. Branded Supabase auth emails
 
 The templates live in `supabase/templates/` and are wired up in
