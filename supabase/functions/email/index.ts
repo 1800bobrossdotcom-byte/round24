@@ -13,19 +13,19 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const RESEND = Deno.env.get('RESEND_API_KEY');
-const FROM = Deno.env.get('EMAIL_FROM') || 'Caliper <onboarding@resend.dev>';
+const FROM = Deno.env.get('EMAIL_FROM') || 'Round24 <onboarding@resend.dev>';
 const SUPA_URL = Deno.env.get('SUPABASE_URL')!;
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const UNSUB_SECRET = Deno.env.get('UNSUB_SECRET') || SERVICE; // signs one-click unsubscribe links
 // CAN-SPAM requires a valid physical postal address — set EMAIL_POSTAL to the real street address.
 const POSTAL = Deno.env.get('EMAIL_POSTAL') || 'Evolution24 Property Management, Rochester, NY';
-const APP = 'https://caliper.solutions';
+const APP = 'https://round24.app';
 
 // CORS: reflect only the app's own origins (audit S5) — never '*'. Re-bound per
 // request in the handler; a concurrent re-bind can only swap one allowlisted
 // origin for another, so it stays safe.
-const CORS_ORIGINS = ['https://caliper.solutions', 'https://www.caliper.solutions', 'http://localhost:5173', 'http://localhost:4173'];
+const CORS_ORIGINS = ['https://round24.app', 'https://www.round24.app', 'https://round24.com', 'https://www.round24.com', 'https://round24.vercel.app', 'https://caliper.solutions', 'https://www.caliper.solutions', 'http://localhost:5173', 'http://localhost:4173'];
 const corsFor = (origin: string | null) => ({
   'Access-Control-Allow-Origin': origin && CORS_ORIGINS.includes(origin) ? origin : CORS_ORIGINS[0],
   'Vary': 'Origin',
@@ -52,8 +52,8 @@ function shell(bodyHtml: string, unsub: string) {
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #e0e2db;border-radius:16px;overflow:hidden">
         <tr><td style="padding:22px 26px 6px">
-          <span style="font-weight:800;font-size:20px;letter-spacing:-.01em;color:#14171a">Caliper</span>
-          <span style="font-size:11px;color:#8b929b;letter-spacing:.12em;text-transform:uppercase;margin-left:6px">labor, measured true</span>
+          <span style="font-weight:800;font-size:20px;letter-spacing:-.01em;color:#14171a">Round24</span>
+          <span style="font-size:11px;color:#8b929b;letter-spacing:.12em;text-transform:uppercase;margin-left:6px">around the clock</span>
         </td></tr>
         <tr><td style="padding:8px 26px 24px">${bodyHtml}</td></tr>
       </table>
@@ -63,7 +63,7 @@ function shell(bodyHtml: string, unsub: string) {
           <a href="${APP}/legal/privacy.html" style="color:#586069;text-decoration:none">Privacy Policy</a> &nbsp;·&nbsp;
           <a href="${APP}/legal/terms.html" style="color:#586069;text-decoration:none">Terms</a> &nbsp;·&nbsp;
           <a href="${esc(unsub)}" style="color:#586069;text-decoration:none">Unsubscribe</a>
-          <div style="margin-top:8px">Caliper · ${esc(POSTAL)}</div>
+          <div style="margin-top:8px">Round24 · ${esc(POSTAL)}</div>
         </td></tr>
       </table>
     </td></tr>
@@ -77,17 +77,17 @@ function render(type: string, v: { name?: string; code?: string; orgName?: strin
   if (type === 'invite') {
     const link = `${APP}/?invite=${encodeURIComponent(v.code || '')}`;
     return shell(`
-      <h1 style="font-size:22px;margin:12px 0 8px;color:#14171a">You’re in — welcome to Caliper</h1>
+      <h1 style="font-size:22px;margin:12px 0 8px;color:#14171a">You’re in — welcome to Round24</h1>
       <p style="font-size:15px;line-height:1.6;color:#3a4048;margin:0 0 8px">${hi}</p>
       <p style="font-size:15px;line-height:1.6;color:#3a4048;margin:0 0 18px">Your workspace${v.orgName ? ` <b>${esc(v.orgName)}</b>` : ''} is ready. Create your account through the button below and you’ll land inside as the admin.</p>
       <p style="margin:0 0 18px">${button(link, 'Create your account')}</p>
       <p style="font-size:12.5px;line-height:1.6;color:#8b929b;margin:0">If the button doesn’t work, paste this link: <br><span style="color:#586069">${esc(link)}</span></p>`, v.unsub);
   }
   return shell(`
-    <h1 style="font-size:22px;margin:12px 0 8px;color:#14171a">Welcome to Caliper</h1>
+    <h1 style="font-size:22px;margin:12px 0 8px;color:#14171a">Welcome to Round24</h1>
     <p style="font-size:15px;line-height:1.6;color:#3a4048;margin:0 0 8px">${hi}</p>
-    <p style="font-size:15px;line-height:1.6;color:#3a4048;margin:0 0 18px">Your account is set up. Caliper puts your properties, leases, work orders and expenses in one place — the spreadsheet, replaced. Jump in whenever you’re ready.</p>
-    <p style="margin:0 0 18px">${button(APP, 'Open Caliper')}</p>
+    <p style="font-size:15px;line-height:1.6;color:#3a4048;margin:0 0 18px">Your account is set up. Round24 puts your properties, leases, work orders and expenses in one place — the spreadsheet, replaced. Jump in whenever you’re ready.</p>
+    <p style="margin:0 0 18px">${button(APP, 'Open Round24')}</p>
     <p style="font-size:13px;line-height:1.7;color:#586069;margin:0">A few things you can do first: import your rent roll, set lease renewal reminders, and add your team from <b>Access</b>. Manage your profile and security anytime under <b>Settings</b>.</p>`, v.unsub);
 }
 
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
     if (!RESEND) return json({ ok: false, reason: 'not_configured' });
 
     const unsub = await unsubLink(to);
-    const subject = type === 'invite' ? 'Your Caliper workspace is ready' : 'Welcome to Caliper';
+    const subject = type === 'invite' ? 'Your Round24 workspace is ready' : 'Welcome to Round24';
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${RESEND}`, 'Content-Type': 'application/json' },

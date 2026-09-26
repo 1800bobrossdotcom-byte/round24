@@ -1,6 +1,6 @@
 -- 0050_insurance_certificates.sql
 -- Certificate of Insurance (COI) tracking — the "risk management" surface every
--- commercial-property platform has and Caliper didn't. Tracks insurance carried
+-- commercial-property platform has and Round24 didn't. Tracks insurance carried
 -- by two kinds of holder: VENDORS (Pro's subcontractors) and TENANTS (Enterprise's
 -- commercial tenants). Staff-managed; same deny-by-default org scope as the rest
 -- of the app (is_org_staff, established 0002).

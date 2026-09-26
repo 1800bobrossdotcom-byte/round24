@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v18: availability, audit log, compliance visibility
+-- Round24 — schema v18: availability, audit log, compliance visibility
 -- - availability: crew set on-shift / off / PTO; office sees it on the board.
 -- - audit_log: append-only record of sensitive actions (staff-readable).
 -- - org_member_compliance(): lets staff see contractor certs / W-9 / emergency

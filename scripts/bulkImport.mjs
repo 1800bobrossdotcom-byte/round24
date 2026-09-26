@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ============================================================
-// One-shot bulk import: port the Evolution24 Excel workbooks into a live Caliper
+// One-shot bulk import: port the Evolution24 Excel workbooks into a live Round24
 // org — rent roll (units + leases), the labor spine (imported pay logs), and the
 // per-building P&L config. Runs the SAME interpreters the app uses.
 //
@@ -16,7 +16,7 @@
 //     [--url https://xxx.supabase.co --key <SERVICE_ROLE_KEY> --commit]
 //
 // Fields are written as legacy PLAINTEXT (units/leases tenant, the labor + plconfig
-// blobs). Caliper reads these dual-mode; the next in-app save re-encrypts them.
+// blobs). Round24 reads these dual-mode; the next in-app save re-encrypts them.
 // ============================================================
 
 import { readFileSync } from 'fs';
@@ -109,7 +109,7 @@ function buildMatcher(canonicalNames) {
 }
 
 // ---- parse everything ----
-console.log(`\n=== Caliper bulk import  (org ${ORG})  ${COMMIT ? '*** COMMIT ***' : 'DRY RUN'} ===`);
+console.log(`\n=== Round24 bulk import  (org ${ORG})  ${COMMIT ? '*** COMMIT ***' : 'DRY RUN'} ===`);
 
 const rr = interpretRentRoll(readFileSync(need('leases')));
 // split any stacked "two buildings on one tab" sheet (31 Genesee + 379 Main) into two
@@ -240,4 +240,4 @@ for (const t of timers) { const canon = t.propLabelRaw && match(t.propLabelRaw);
 const range = timers.length ? { from: timers.reduce((a, t) => t.date && t.date < a ? t.date : a, '9999'), to: timers.reduce((a, t) => t.date && t.date > a ? t.date : a, '0000') } : { from: '2026-01-01', to: '2026-12-31' };
 await supa.from('labor_state').upsert({ org_id: ORG, imported: { timers, techs }, props: [], range, plconfig, updated_at: new Date().toISOString() }, { onConflict: 'org_id' });
 
-console.log('\nDONE. Rent roll, labor spine, and P&L config written. Open Caliper as office to verify.\n');
+console.log('\nDONE. Rent roll, labor spine, and P&L config written. Open Round24 as office to verify.\n');

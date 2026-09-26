@@ -1,6 +1,6 @@
-# Caliper
+# Round24
 
-Labor, measured true. Mobile-first field timer + desktop analytics portal for
+Every door, every round. Mobile-first field timer + desktop analytics portal for
 property maintenance — every hour allocated to a property and unit, reconciled
 automatically. Built with Vite + React + vanilla CSS.
 
@@ -26,7 +26,7 @@ npm run preview
 1. Push this folder to a GitHub repo.
 2. In Vercel: New Project → import the repo. Framework preset: **Vite**
    (build `vite build`, output `dist`). Deploy.
-3. Settings → Domains → add `caliper.solutions`.
+3. Settings → Domains → add `round24.app`.
 4. In Namecheap → Advanced DNS, set:
    - A `@` → `76.76.21.21`  (use the IP Vercel shows if different)
    - CNAME `www` → `cname.vercel-dns.com.`
@@ -35,7 +35,7 @@ npm run preview
 ## Architecture notes
 - `src/styles/tokens.css` — the ONLY place colors live. Whitelabel theming =
   swap this token block per tenant. Carries the brand language: black surface,
-  rainbow measurement gradient, Space Mono for all data, VHS scanline, glitch-settle.
+  black and white only, IBM Plex Mono for all data, Barlow Condensed caps, corner brackets, scanline, glitch-settle.
 - `src/lib/rollups.js` — the query spine. Every view (tech / property / unit /
   period at day–year grain) is one reduce over the same timer set. Allocation
   provably reconciles: sum(by-property) === grand total.

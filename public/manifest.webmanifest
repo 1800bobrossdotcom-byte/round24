@@ -1,7 +1,7 @@
 {
-  "name": "Caliper — labor, measured true",
-  "short_name": "Caliper",
-  "description": "Property maintenance, measured true — per-door labor and materials.",
+  "name": "Round24 — property ops, around the clock",
+  "short_name": "Round24",
+  "description": "Property maintenance, around the clock — every hour, receipt and door accounted for.",
   "id": "/",
   "start_url": "/",
   "scope": "/",

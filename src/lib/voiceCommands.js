@@ -1,8 +1,8 @@
 // ============================================================
-// Caliper voice commands — the spoken grammar for hands-free field work.
+// Round 24 voice commands — the spoken grammar for hands-free field work.
 // Gloves on, up a ladder, hands full of a P-trap: say it instead of tapping.
 //
-// Every command starts with the wake word "Caliper", then a plain-English
+// Every command starts with the wake word "Round24", then a plain-English
 // phrase. This file is the single source of truth: the Field mic dispatches
 // off `parseCommand`, and the help/FAQ (and later the pricing page) renders
 // off `VOICE_COMMANDS`. Pure + dependency-free so it's trivially testable.
@@ -15,7 +15,7 @@
 // destructive action returns `confirm:true` so the caller can ask before acting.
 // ============================================================
 
-export const WAKE_WORD = 'caliper';
+export const WAKE_WORD = 'round24';   // spoken "Round twenty-four" — see normalize()
 
 // intent → what the app does. `phrases` are exact accepts; `anchors` are the
 // distinctive single words the fuzzy matcher scores against; `say` is the
@@ -23,43 +23,43 @@ export const WAKE_WORD = 'caliper';
 export const VOICE_COMMANDS = [
   {
     group: 'Timer', intent: 'start', title: 'Start the clock on a job',
-    say: 'Caliper, start job',
+    say: 'Round 24, start job',
     phrases: ['start job', 'start task', 'start work', 'start the job', 'start timer', 'start the timer', 'start the clock', 'clock in', 'clock on', 'begin job', 'start', 'begin'],
     anchors: ['start', 'begin', 'commence', 'clockin', 'clockon', 'startup', 'starting'],
   },
   {
     group: 'Timer', intent: 'stop', title: 'Stop & log the hours to this job',
-    say: 'Caliper, stop job',
+    say: 'Round 24, stop job',
     phrases: ['stop job', 'stop task', 'stop work', 'stop the job', 'stop timer', 'stop the timer', 'stop the clock', 'clock out', 'log it', 'log the job', 'save job', 'stop'],
     anchors: ['stop', 'clockout', 'logit', 'wrap', 'wrapup', 'stopping', 'halt'],
   },
   {
     group: 'Timer', intent: 'done', title: 'Stop & mark the work order done',
-    say: 'Caliper, mark it done',
+    say: 'Round 24, mark it done',
     phrases: ['mark done', 'mark it done', 'mark complete', 'finish job', 'finish the job', 'job done', 'job is done', 'work order done', 'all done', 'complete the job'],
     anchors: ['done', 'complete', 'completed', 'finish', 'finished', 'finishing'],
   },
   {
     group: 'Timer', intent: 'pauseJob', title: 'Park this job to switch to another',
-    say: 'Caliper, pause job',
+    say: 'Round 24, pause job',
     phrases: ['pause job', 'pause the job', 'pause this job', 'park job', 'park the job', 'park it', 'switch job', 'switch jobs', 'switch to another job', 'set it aside', 'set aside'],
     anchors: ['park', 'parked', 'parking', 'switch', 'switching', 'aside'],
   },
   {
     group: 'Breaks', intent: 'break', title: 'Take a break — the clock pauses',
-    say: 'Caliper, take a break',
+    say: 'Round 24, take a break',
     phrases: ['take a break', 'take break', 'start break', 'break time', 'pause', 'pause the clock', 'stepping away', 'going to lunch', 'lunch break', 'break'],
     anchors: ['break', 'brake', 'lunch', 'pause', 'paused', 'rest', 'breather'],
   },
   {
     group: 'Breaks', intent: 'resume', title: 'Back to work — the clock resumes',
-    say: 'Caliper, back to work',
+    say: 'Round 24, back to work',
     phrases: ['back to work', 'back on the clock', 'resume', 'end break', 'off break', 'keep going', 'im back', 'i am back'],
     anchors: ['resume', 'resumed', 'continue', 'unpause', 'returning', 'back'],
   },
   {
     group: 'Status', intent: 'status', title: 'Hear your running time out loud',
-    say: 'Caliper, status',
+    say: 'Round 24, status',
     phrases: ['status', 'how long', 'how long have i been', 'time check', 'whats my time', 'where am i', 'am i on the clock'],
     anchors: ['status', 'update', 'timecheck', 'howlong'],
   },
@@ -80,9 +80,14 @@ const PHRASE_INDEX = ALL
   .sort((a, b) => b.phrase.length - a.phrase.length);
 
 // normalize speech to bare words: lowercase, strip punctuation, collapse space.
-// Speech engines often return "Caliper, stop job." — we want "caliper stop job".
+// Speech engines return the wake phrase a dozen ways — "Round 24,", "round
+// twenty-four", "Round twenty four", even "around 24" on a loud site — so the
+// number is folded to 24 and "round 24" becomes the single token "round24".
 export function normalize(raw) {
-  return (raw || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  return (raw || '').toLowerCase()
+    .replace(/twenty[\s-]*four/g, '24')
+    .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim()
+    .replace(/\b(?:a?round|ground|rounds?|wound)\s*(?:24|2\s*4)\b/g, 'round24');
 }
 
 // Levenshtein edit distance + a 0..1 similarity, for tolerating mis-hears.
@@ -103,7 +108,7 @@ function lev(a, b) {
 const sim = (a, b) => { const L = Math.max(a.length, b.length); return L ? 1 - lev(a, b) / L : 1; };
 
 const FUZZY_MIN = 0.6;   // token must be at least this similar to an anchor to count
-const WAKE_MIN = 0.72;   // "caliber"/"calibre" still count as the wake word
+const WAKE_MIN = 0.72;   // a garbled "round24" token ("round2", "roun24") still counts
 
 // which intents make sense given the live timer state — this is what safely
 // resolves start-vs-stop when the word itself is garbled. No context → allow all.
@@ -144,7 +149,7 @@ export function parseCommand(raw, ctx) {
   const t = normalize(raw);
   if (!t) return null;
   const toks = t.split(' ');
-  // fuzzy wake-word detection: last token that is (near) "caliper"
+  // fuzzy wake-word detection: last token that is (near) "round24"
   let wi = -1;
   for (let i = toks.length - 1; i >= 0; i--) {
     if (toks[i] === WAKE_WORD || (toks[i].length >= 5 && sim(toks[i], WAKE_WORD) >= WAKE_MIN)) { wi = i; break; }
@@ -172,7 +177,7 @@ export function parseCommand(raw, ctx) {
   if (!pick) {
     // sole-valid-action fallback: if the timer state leaves exactly ONE plausible
     // timer action and the phrase carries a job word, infer it even when the verb
-    // was too garbled to score (e.g. off the clock, "caliper stock job" → start)
+    // was too garbled to score (e.g. off the clock, "round 24 stock job" → start)
     const JOB = /\b(job|jobs|task|work|working|clock|timer|gig)\b/;
     // require a near-miss verb signal (not zero) so a random off-clock sentence that
     // merely contains "job"/"work" doesn't auto-start the timer

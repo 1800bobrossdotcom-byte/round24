@@ -57,7 +57,7 @@ if (!decks.length) {
 let failed = false;
 for (const html of decks) {
   const src = join(pitchDir, html);
-  const out = join(pitchDir, `caliper-${basename(html, '.html')}.pdf`);
+  const out = join(pitchDir, `round24-${basename(html, '.html')}.pdf`);
   const args = [
     '--headless', '--no-sandbox', '--disable-gpu', '--hide-scrollbars',
     '--run-all-compositor-stages-before-draw', '--virtual-time-budget=8000',

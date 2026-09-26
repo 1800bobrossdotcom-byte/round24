@@ -177,7 +177,7 @@ export default function DayOverview({ store, navigate }) {
 
       {/* unassigned — needs dispatch, assign right here */}
       {unassigned.length > 0 && (
-        <div className="card" style={{ borderColor: '#ffb02033' }}>
+        <div className="card" style={{ borderColor: 'color-mix(in srgb, var(--warn) 20%, transparent)' }}>
           <span className="field-label" style={{ color: 'var(--warn)' }}><IcWrench width={13} height={13} style={{ verticalAlign: -2 }} /> Needs dispatch ({unassigned.length})</span>
           {unassigned.map((w) => (
             <div className="row" key={w.id}>

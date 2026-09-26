@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v56: purchases join the realtime publication.
+-- Round24 — schema v56: purchases join the realtime publication.
 -- A receipt a crew member snaps in the field should ping the office the moment
 -- it lands ("$318 from Ferguson awaiting review"), the same way a new work
 -- order or resident request already does. RLS still scopes every row the

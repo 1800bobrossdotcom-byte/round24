@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Generate the VAPID key pair for Caliper Web Push. Run ONCE per environment:
+// Generate the VAPID key pair for Round24 Web Push. Run ONCE per environment:
 //
 //   node scripts/vapid-keys.mjs
 //

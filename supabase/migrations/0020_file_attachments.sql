@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v20: document (non-image) attachments
+-- Round24 — schema v20: document (non-image) attachments
 -- Photos already live on work_orders.photos / messages.image_path.
 -- This adds PDFs & other files alongside them: a jsonb list of
 -- {path,name} on a work order, and a single file (path + original

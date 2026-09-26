@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v16: self-serve workspace (tenant) provisioning
+-- Round24 — schema v16: self-serve workspace (tenant) provisioning
 -- A brand-new company owner signs up and creates their own workspace, becoming
 -- its admin. This is how new whitelabel customers onboard without a manual DB
 -- step. Admins can also rename their workspace.

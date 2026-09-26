@@ -10,7 +10,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 const SUPA_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const UNSUB_SECRET = Deno.env.get('UNSUB_SECRET') || SERVICE;
-const APP = 'https://caliper.solutions';
+const APP = 'https://round24.app';
 
 // verify the HMAC token minted by the email function — only links WE sent can
 // suppress an address, so no one can unsubscribe an arbitrary third party.
@@ -29,17 +29,17 @@ async function validToken(email: string, t: string): Promise<boolean> {
 const esc = (s = '') => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
 
 function page(title: string, msg: string) {
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Caliper</title></head>
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Round24</title></head>
   <body style="margin:0;background:#f4f5f2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#14171a">
     <div style="max-width:520px;margin:12vh auto;padding:0 16px;text-align:center">
       <div style="background:#fff;border:1px solid #e0e2db;border-radius:16px;padding:34px 28px">
-        <div style="font-weight:800;font-size:22px;letter-spacing:-.01em">Caliper</div>
-        <div style="font-size:11px;color:#8b929b;letter-spacing:.12em;text-transform:uppercase;margin-top:2px">labor, measured true</div>
+        <div style="font-weight:800;font-size:22px;letter-spacing:-.01em">Round24</div>
+        <div style="font-size:11px;color:#8b929b;letter-spacing:.12em;text-transform:uppercase;margin-top:2px">around the clock</div>
         <h1 style="font-size:20px;margin:22px 0 8px">${esc(title)}</h1>
         <p style="font-size:15px;line-height:1.6;color:#3a4048;margin:0 0 20px">${msg}</p>
-        <a href="${APP}" style="display:inline-block;background:#14171a;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:11px 22px;border-radius:10px">Back to Caliper</a>
+        <a href="${APP}" style="display:inline-block;background:#14171a;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:11px 22px;border-radius:10px">Back to Round24</a>
       </div>
-      <div style="color:#8b929b;font-size:12px;margin-top:16px">Caliper · Evolution24 Property Management · Rochester, NY</div>
+      <div style="color:#8b929b;font-size:12px;margin-top:16px">Round24 · Evolution24 Property Management · Rochester, NY</div>
     </div>
   </body></html>`;
 }
@@ -61,11 +61,11 @@ Deno.serve(async (req) => {
     }
     // the address must carry a valid signature from a link we actually sent
     if (!(await validToken(email, t))) {
-      return html(page('That link looks off', 'This unsubscribe link is missing or invalid. Please use the link from a Caliper email, or reach out and we’ll sort it out.'), 400);
+      return html(page('That link looks off', 'This unsubscribe link is missing or invalid. Please use the link from a Round24 email, or reach out and we’ll sort it out.'), 400);
     }
     const svc = createClient(SUPA_URL, SERVICE);
     await svc.from('email_unsub').upsert({ email }, { onConflict: 'email' });
-    return html(page('You’re unsubscribed', `<b>${esc(email)}</b> won’t receive non-essential email from Caliper anymore. You’ll still get security and account notices tied to your account. Changed your mind? Reach out and we’ll turn it back on.`));
+    return html(page('You’re unsubscribed', `<b>${esc(email)}</b> won’t receive non-essential email from Round24 anymore. You’ll still get security and account notices tied to your account. Changed your mind? Reach out and we’ll turn it back on.`));
   } catch (_e) {
     return html(page('Something went wrong', 'We hit a snag recording that. Please try the link again in a moment.'), 500);
   }

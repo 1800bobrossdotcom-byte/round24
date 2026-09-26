@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v5: operator display names + assignment linking
+-- Round24 — schema v5: operator display names + assignment linking
 -- Work orders are assigned by display label in the UI; RLS grants a
 -- tech visibility by operator id. This bridges the two: a plaintext
 -- crew handle (display_name) resolves labels to operator ids on

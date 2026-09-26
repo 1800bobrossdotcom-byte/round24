@@ -234,7 +234,7 @@ export function parseWorkbook(arrayBuffer) {
   return sheets;
 }
 
-// map imported entries → Caliper timer shape.
+// map imported entries → Round24 timer shape.
 // resolveBuildings(names[]) → [propId] (already-created, deduped). A day's
 // hours are split evenly across the buildings it's allocated to (one timer
 // each). Rows that resolve to NO building are still ingested as a single

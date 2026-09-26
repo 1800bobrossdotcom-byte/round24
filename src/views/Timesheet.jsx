@@ -41,7 +41,7 @@ const weekStartOf = (iso) => { const d = new Date(`${iso}T00:00:00`); const diff
 
 const cellInput = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, padding: '7px 8px', borderRadius: 8,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, padding: '7px 8px', borderRadius: 3,
 };
 
 // the work window: we store duration + when it was logged, so start = logged−hours.
@@ -305,7 +305,7 @@ export default function Timesheet({ store }) {
   const activeOp = viewingOp ? roster.find((o) => o.key === opFilter) : null;
 
   // export the currently-visible timesheet (respects the operator + period filter)
-  // to a formula-driven Excel workbook or a Caliper-branded PDF.
+  // to a formula-driven Excel workbook or a Round24-branded PDF.
   const exportRows = () => [...rows]
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
     .map((r) => ({
@@ -314,7 +314,7 @@ export default function Timesheet({ store }) {
       hours: Number(r.durationHrs) || 0, rate: Number(r.rate) || 0,
     }));
   const exportMeta = () => ({
-    orgName: store.meta?.org || 'Caliper',
+    orgName: store.meta?.org || 'Round24',
     rangeLabel: `${viewingOp && activeOp ? `${activeOp.name} · ` : ''}${(PERIODS.find(([v]) => v === period) || [])[1] || 'All'}`,
   });
   const onExportXlsx = () => exportTimesheetXlsx(exportRows(), exportMeta());
@@ -469,7 +469,7 @@ export default function Timesheet({ store }) {
           ))}
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
             <button className="btn ghost sm" onClick={onExportXlsx} title="Export to a formula-driven Excel workbook" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><IcTable width={12} height={12} /> Excel</button>
-            <button className="btn ghost sm" onClick={onExportPdf} title="Export a Caliper-branded PDF" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><IcReceipt width={12} height={12} /> PDF</button>
+            <button className="btn ghost sm" onClick={onExportPdf} title="Export a Round24-branded PDF" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><IcReceipt width={12} height={12} /> PDF</button>
           </div>
         </div>
       )}

@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v17: personal settings & profile
+-- Round24 — schema v17: personal settings & profile
 -- Per-user profile, preferences, consent, and (for contractors) license /
 -- insurance records. Own-row only — nobody reads anyone else's settings.
 -- ============================================================

@@ -30,7 +30,7 @@ July 2026). Preview/sample-data path is live and demoable now.
 
 ## Design constraints baked in (from build brief + API doc)
 - Read-only first; RM push (completed WOs + costs) is post-launch.
-- Conflict rule: **RM wins on properties/units; Caliper wins on work orders.**
+- Conflict rule: **RM wins on properties/units; Round24 wins on work orders.**
 - Creds server-side only (secrets), never browser — same as getdek/KMS.
 - Re-auth on 401 (tokens idle out after 15 min); respect 500 req/min.
 - Multi-tenant later: move per-org creds into `rm_connections.credentials_enc`
@@ -48,4 +48,4 @@ July 2026). Preview/sample-data path is live and demoable now.
 The preview path is deliberately demoable without RM access — it shows
 the integration producing real synced rows, useful for the RM partnership
 conversation and investor demos before credentials are granted. See
-`docs/CALIPER-BUILD-BRIEF.md` for the wedge→flywheel→moat narrative.
+`docs/ROUND24-BUILD-BRIEF.md` for the wedge→flywheel→moat narrative.

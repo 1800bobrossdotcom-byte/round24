@@ -7,5 +7,5 @@ Drop an org's logo here and point to it from `src/lib/brand.js` (keyed by org id
 - PNG with a **transparent background** works best (it sits on both light and
   dark surfaces). ~400–800px wide is plenty; it's displayed small.
 
-Until a file exists here the app falls back to the Caliper lockup, so adding an
+Until a file exists here the app falls back to the Round24 lockup, so adding an
 org to `brand.js` before the logo is uploaded never breaks anything.

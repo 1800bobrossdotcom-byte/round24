@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v29: real account-deletion / erasure requests (White #2).
+-- Round24 — schema v29: real account-deletion / erasure requests (White #2).
 -- Previously "Request account deletion" only wrote a flag into the user's own
 -- settings that nothing read — a dead end vs. the Terms/Privacy promise. Now it
 -- lands in a server-side table the platform admin can see and process.

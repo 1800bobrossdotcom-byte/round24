@@ -141,7 +141,7 @@ const KNOWN_TAB_IDS = new Set([...TABS.map((t) => t.id), ...OWNER_TABS.map((t) =
 const hashTab = () => window.location.hash.replace(/^#\/?/, '');
 
 // dual-hat: staff who ALSO hold a residency (founder / crew who lives in a
-// building) get their Caliper Community home as a tab inside the shell.
+// building) get their Round24 Community home as a tab inside the shell.
 function MyHomeView() {
   const { resident } = useAuth();
   return resident ? <ResidentHome resident={resident} embedded /> : null;
@@ -267,7 +267,7 @@ function Shell() {
             <button className="btn ghost sm" style={{ width: 'auto' }} onClick={() => navigate(backTo)}>← Back to {backLabel}</button>
             <span style={{ flex: 1 }} />
             <OrgLogo logo={store.orgLogo} name={store.meta?.org} height={30}
-              fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800 }}><Mark /> Caliper</span>} />
+              fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800 }}><Mark /> Round24</span>} />
           </div>
           <ResidentHome resident={resident} embedded />
         </div>
@@ -288,7 +288,7 @@ function Shell() {
 
       {/* desktop side rail — grouped into collapsible categories */}
       <nav className="tabbar nav-desktop">
-        <div className="desk-brand"><Mark /> Caliper</div>
+        <div className="desk-brand"><Mark /> Round24</div>
         {navGroups.map((g) => {
           const hasActive = g.items.some((t) => t.id === tab);
           const open = !navCollapsed[g.id] || hasActive; // active category is always visible
@@ -313,7 +313,7 @@ function Shell() {
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <header className="topbar">
-          <div className="brand"><OrgLogo logo={store.orgLogo} name={store.meta?.org} height={34} fallback={<><Mark /> Caliper</>} /> <span className="sub" style={tab === 'myhome' ? { color: '#C96F3B' } : undefined}>{tab === 'myhome' ? 'home' : orgKind === 'owner' ? 'portfolio' : role === 'tech' ? 'crew' : role === 'viewer' ? 'viewer' : 'office'}</span></div>
+          <div className="brand"><OrgLogo logo={store.orgLogo} name={store.meta?.org} height={34} fallback={<><Mark /> Round24</>} /> <span className="sub" style={tab === 'myhome' ? { color: 'var(--accent)' } : undefined}>{tab === 'myhome' ? 'home' : orgKind === 'owner' ? 'portfolio' : role === 'tech' ? 'crew' : role === 'viewer' ? 'viewer' : 'office'}</span></div>
           <div className="spacer" />
           <div className="org-pill">{store.meta.org}</div>
           <NotificationBell store={store} navigate={navigate} />
@@ -386,9 +386,9 @@ function SplashIntro({ onDone, community = false }) {
   }, []);
   // heading home ≠ heading to work: the resident-facing launch drops the ops
   // tagline for a Community one.
-  const tag = community ? 'welcome home' : 'labor, measured true';
+  const tag = community ? 'welcome home' : 'around the clock';
   return (
-    <div className={`splash ${leaving ? 'leaving' : ''}`} onClick={finish} role="img" aria-label={`Caliper — ${tag}`}>
+    <div className={`splash ${leaving ? 'leaving' : ''}`} onClick={finish} role="img" aria-label={`Round24 — ${tag}`}>
       <div className="splash-inner">
         <BrandLockup className="bl-hero" />
         <div className="splash-tag">{tag}</div>
@@ -407,12 +407,12 @@ export default function App() {
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
-  // public resident request form: caliper.solutions/?request=<orgId>[&b=<building>]
+  // public resident request form: round24.app/?request=<orgId>[&b=<building>]
   // renders unauthenticated, before the login gate — residents have no account.
   const params = new URLSearchParams(window.location.search);
   const reqOrg = params.get('request');
   if (reqOrg) return <ResidentRequest orgId={reqOrg} building={params.get('b') || ''} />;
-  // Caliper Community: caliper.solutions/?join=<orgId>[&b=…] — resident signup +
+  // Round24 Community: round24.app/?join=<orgId>[&b=…] — resident signup +
   // unit claim. Manages its own auth; the office verifies every claim.
   const joinOrg = params.get('join');
   if (joinOrg) return <ResidentJoin orgId={joinOrg} building={params.get('b') || ''} />;

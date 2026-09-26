@@ -13,7 +13,7 @@ const CATS = ['plumbing', 'electrical', 'hvac', 'appliance', 'painting', 'turn',
 
 const tiInput = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 10, borderRadius: 10,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 10, borderRadius: 3,
 };
 
 // contractor-friendly pacing: nudge a break after 3h straight, and around
@@ -90,7 +90,7 @@ export default function Field({ store }) {
     setPunch({ lat: pos.lat, lng: pos.lng, verified: fence.verified, distance: fence.distance });
   };
 
-  // hands-free voice — gloves on, up a ladder: say "Caliper, start job".
+  // hands-free voice — gloves on, up a ladder: say "Round 24, start job".
   const [handsFree, setHandsFree] = useState(() => localStorage.getItem('caliper_handsfree') === '1');
   const [showCmds, setShowCmds] = useState(false);
   useEffect(() => { localStorage.setItem('caliper_handsfree', handsFree ? '1' : '0'); }, [handsFree]);
@@ -326,7 +326,7 @@ export default function Field({ store }) {
     if (cmd?.confirm) {
       const LABEL = { start: 'start the job', stop: 'stop the job', done: 'mark it done', pauseJob: 'pause and switch jobs', break: 'take a break', resume: 'get back to work' };
       armPending(intent);
-      speak(`Heard ${LABEL[intent] || intent}. Say Caliper yes to confirm, or Caliper no.`);
+      speak(`Heard ${LABEL[intent] || intent}. Say Round 24 yes to confirm, or Round 24 no.`);
       return;
     }
     runIntent(intent);
@@ -406,7 +406,7 @@ export default function Field({ store }) {
   const punchChip = (() => {
     if (locating) return { txt: 'Locating…', color: 'var(--text-dim)', bg: 'var(--surface-2)', bd: 'var(--line)' };
     if (!punch) return null;
-    if (punch.verified === true) return { txt: `On-site · ${fmtDistance(punch.distance)}`, color: 'var(--money)', bg: '#4ade8012', bd: '#4ade8033', on: true };
+    if (punch.verified === true) return { txt: `On-site · ${fmtDistance(punch.distance)}`, color: 'var(--money)', bg: 'color-mix(in srgb, var(--money) 7%, transparent)', bd: 'color-mix(in srgb, var(--money) 20%, transparent)', on: true };
     if (punch.verified === false) return { txt: `Off-site · ${fmtDistance(punch.distance)} from ${selectedProp?.name || 'site'}`, color: 'var(--warn)', bg: '#f59e0b12', bd: '#f59e0b33' };
     if (punch.denied) return { txt: 'Location off — punch not verified', color: 'var(--text-faint)', bg: 'var(--surface-2)', bd: 'var(--line)' };
     return { txt: 'Logged — no fence set for this building', color: 'var(--text-faint)', bg: 'var(--surface-2)', bd: 'var(--line)' };
@@ -489,7 +489,7 @@ export default function Field({ store }) {
 
       <div className="offline">◐ Offline-safe — timers and photos queue on-device, sync when signal returns.</div>
 
-      {/* hands-free voice — say "Caliper, start job" without touching the phone */}
+      {/* hands-free voice — say "Round 24, start job" without touching the phone */}
       <div className="card voice-card" style={{ marginBottom: 'var(--gap)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
@@ -512,12 +512,12 @@ export default function Field({ store }) {
             <div className="s" style={{ color: 'var(--danger)' }}>{voice.error}</div>
           ) : pendingVoice ? (
             <div className="s" style={{ color: 'var(--warn)', fontWeight: 600 }}>
-              Did you mean “<b>{{ start: 'start the job', stop: 'stop the job', done: 'mark it done', break: 'take a break', resume: 'back to work' }[pendingVoice.intent] || pendingVoice.intent}</b>”? Say “<b>Caliper, yes</b>” to confirm or “<b>Caliper, no</b>”.
+              Did you mean “<b>{{ start: 'start the job', stop: 'stop the job', done: 'mark it done', break: 'take a break', resume: 'back to work' }[pendingVoice.intent] || pendingVoice.intent}</b>”? Say “<b>Round 24, yes</b>” to confirm or “<b>Round 24, no</b>”.
               {voice.lastHeard && <div style={{ color: 'var(--text-faint)', fontFamily: 'var(--mono)', fontSize: 11, marginTop: 2 }}>heard: “{voice.lastHeard}”</div>}
             </div>
           ) : handsFree ? (
             <div className="s" style={{ color: voice.listening ? 'var(--money)' : 'var(--text-dim)' }}>
-              {voice.listening ? 'Listening — ' : 'Starting… '}say “<b>Caliper, {running ? (onBreak ? 'back to work' : 'stop job') : 'start job'}</b>”
+              {voice.listening ? 'Listening — ' : 'Starting… '}say “<b>Round 24, {running ? (onBreak ? 'back to work' : 'stop job') : 'start job'}</b>”
               {voice.lastHeard && <div style={{ color: 'var(--text-faint)', fontFamily: 'var(--mono)', fontSize: 11, marginTop: 2 }}>heard: “{voice.lastHeard}”</div>}
             </div>
           ) : (
@@ -543,7 +543,7 @@ export default function Field({ store }) {
       )}
 
       {running && onBreak ? (
-        <div className="timer-live" style={{ borderColor: '#4ade8044' }}>
+        <div className="timer-live" style={{ borderColor: 'color-mix(in srgb, var(--money) 27%, transparent)' }}>
           <div style={{ color: 'var(--money)', display: 'flex', justifyContent: 'center', marginBottom: 4 }}><IcCoffee width={30} height={30} /></div>
           <div className="clock mono" style={{ color: 'var(--money)' }}>
             {String(Math.floor(breakNow / 60)).padStart(2, '0')}:{String(Math.floor(breakNow % 60)).padStart(2, '0')}
@@ -559,7 +559,7 @@ export default function Field({ store }) {
       ) : running ? (
         <div className="timer-live">
           {nudge && (
-            <div className="offline" style={{ textAlign: 'left', color: 'var(--money)', borderColor: '#4ade8033', background: '#4ade8012' }}>
+            <div className="offline" style={{ textAlign: 'left', color: 'var(--money)', borderColor: 'color-mix(in srgb, var(--money) 20%, transparent)', background: 'color-mix(in srgb, var(--money) 7%, transparent)' }}>
               {nudge === 'lunch' ? <IcUtensils width={16} height={16} /> : <IcActivity width={16} height={16} />}
               <span style={{ marginLeft: 2 }}>{nudge === 'lunch' ? 'Lunchtime — grab a bite?' : `${Math.floor(elapsed / 3600)}h straight — stretch those legs?`}</span>
               <span style={{ flex: 1 }} />
@@ -610,7 +610,7 @@ export default function Field({ store }) {
         <div className="card">
           <div className="field-label">Property</div>
           <select className="rangebar" value={prop} onChange={(e) => setProp(e.target.value)}
-            style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontWeight: 700, fontSize: 14, padding: 12, borderRadius: 10, marginBottom: 16 }}>
+            style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontWeight: 700, fontSize: 14, padding: 12, borderRadius: 3, marginBottom: 16 }}>
             {properties.map((p) => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
           </select>
           <p className="note" style={{ margin: '-8px 2px 16px', display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -620,11 +620,11 @@ export default function Field({ store }) {
 
           <div className="field-label">Unit</div>
           <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="e.g. 4B"
-            style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--mono)', fontSize: 14, padding: 12, borderRadius: 10, marginBottom: 16 }} />
+            style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--mono)', fontSize: 14, padding: 12, borderRadius: 3, marginBottom: 16 }} />
 
           <div className="field-label">What are you on? <span style={{ color: 'var(--text-faint)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— type <b style={{ color: 'var(--accent)' }}>#</b> to tag (#rounds, #mopping, #spotcheck…)</span></div>
           <input value={task} onChange={(e) => onTaskChange(e.target.value)} placeholder="e.g. #rounds + trash haul on the 2nd floor"
-            style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 12, borderRadius: 10, marginBottom: task ? 8 : 16 }} />
+            style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 12, borderRadius: 3, marginBottom: task ? 8 : 16 }} />
           {task && tagSegments(task).some((s) => s.tag) && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
               {tagSegments(task).filter((s) => s.tag).map((s, i) => (

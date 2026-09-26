@@ -10,7 +10,7 @@ import { FileChip } from '../components/FileChip.jsx';
 // log, and office can summarize a thread into a work-order update with AI.
 const inputStyle = {
   flex: 1, minWidth: 0, background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: '11px 12px', borderRadius: 12,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: '11px 12px', borderRadius: 4,
 };
 
 const fmtTime = (iso) => { try { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); } catch { return ''; } };
@@ -175,7 +175,7 @@ export default function Chat({ store }) {
           </button>
           {summErr && <p className="note" style={{ color: 'var(--danger)', marginTop: 6 }}>{summErr}</p>}
           {summary && (
-            <div className="card" style={{ marginTop: 8, borderColor: '#a855f733' }}>
+            <div className="card" style={{ marginTop: 8, borderColor: 'color-mix(in srgb, var(--accent-2) 20%, transparent)' }}>
               <span className="field-label" style={{ color: 'var(--accent)' }}><IcSparkle width={12} height={12} /> AI summary</span>
               {summary.status && <div className="note" style={{ margin: '2px 0' }}>Status read: <b>{summary.status}</b></div>}
               {summary.summary && <div style={{ fontSize: 13, margin: '4px 0' }}>{summary.summary}</div>}
@@ -259,7 +259,7 @@ function NewConversation({ roster, onClose, onCreate }) {
             </div>
             {isGroup && (
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Group name (e.g. Rochester crew)"
-                style={{ width: '100%', marginTop: 12, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 11, borderRadius: 10 }} />
+                style={{ width: '100%', marginTop: 12, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 11, borderRadius: 3 }} />
             )}
             <button className="btn grad" style={{ marginTop: 14 }} onClick={create} disabled={busy || sel.length === 0}>
               {sel.length === 0 ? 'Pick someone' : isGroup ? `Create group · ${sel.length} people` : `Message ${sel[0].label}`}

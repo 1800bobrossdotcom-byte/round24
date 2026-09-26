@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v39: let crew add a vendor from the field (pending approval)
+-- Round24 — schema v39: let crew add a vendor from the field (pending approval)
 -- A vendor often shows up on-site while the crew is there. Allow any org member
 -- to INSERT a vendor, but only as PENDING (approved = false); the office still
 -- owns update/approve/delete via the existing staff-only vendors_write policy.

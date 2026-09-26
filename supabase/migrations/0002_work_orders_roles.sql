@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v2: work orders + role separation
+-- Round24 — schema v2: work orders + role separation
 --
 -- Roles (memberships.role): admin | manager | tech | viewer
 --   admin/manager ("staff")  → full suite incl. financials

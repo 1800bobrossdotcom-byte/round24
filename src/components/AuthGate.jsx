@@ -59,7 +59,7 @@ export function AuthGate({ children }) {
     } catch { /* ignore */ }
   }, [session]);
 
-  const [resident, setResident] = useState(null); // Caliper Community: residency (no staff membership)
+  const [resident, setResident] = useState(null); // Round24 Community: residency (no staff membership)
   useEffect(() => {
     if (!isConfigured() || !session) { setMem(null); setResident(null); setMemReady(false); return; }
     let on = true;
@@ -117,7 +117,7 @@ export function AuthGate({ children }) {
     );
   }
 
-  // a resident (Caliper Community) gets their own home — never the staff shell
+  // a resident (Round24 Community) gets their own home — never the staff shell
   if (!mem && resident && resident.status !== 'declined') return <ResidentHome resident={resident} />;
   // signed in but not part of any workspace yet → let them redeem an invite
   if (!mem) return <NeedsAccess />;
@@ -193,7 +193,7 @@ function NeedsAccess() {
     return (
       <div className="app desk" style={{ minHeight: '100vh' }}>
         <header className="topbar" style={{ position: 'static' }}>
-          <div className="brand"><Mark /> Caliper <span className="sub">platform</span></div>
+          <div className="brand"><Mark /> Round24 <span className="sub">platform</span></div>
           <div className="spacer" />
           <SignOutButton />
         </header>
@@ -210,7 +210,7 @@ function NeedsAccess() {
         <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: '6px 0 14px' }}>You’re signed in — join a workspace with an invite, or request one.</p>
 
         {sent ? (
-          <div className="offline" style={{ color: 'var(--money)', borderColor: '#4ade8033', background: 'var(--money-dim)' }}>
+          <div className="offline" style={{ color: 'var(--money)', borderColor: 'color-mix(in srgb, var(--money) 20%, transparent)', background: 'var(--money-dim)' }}>
             <IcCheck width={14} height={14} /> Request sent. You’ll get an invite link once it’s approved.
           </div>
         ) : (
@@ -220,7 +220,7 @@ function NeedsAccess() {
               <button className={tab === 'request' ? 'on' : ''} onClick={() => { setTab('request'); setErr(null); }}>Request a workspace</button>
             </div>
 
-            {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{err}</div>}
+            {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 20%, transparent)', background: 'color-mix(in srgb, var(--danger) 7%, transparent)' }}>{err}</div>}
 
             {tab === 'join' ? (
               <>
@@ -240,7 +240,7 @@ function NeedsAccess() {
                 <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything we should know? (optional)" style={inputStyle} />
                 <div style={{ height: 14 }} />
                 <button className="btn grad" onClick={request} disabled={busy || !name.trim()}>{busy ? 'Sending…' : 'Request beta invite'}</button>
-                <p className="note" style={{ marginTop: 10 }}>Caliper is in private beta — we’ll send an invite once approved.</p>
+                <p className="note" style={{ marginTop: 10 }}>Round24 is in private beta — we’ll send an invite once approved.</p>
               </>
             )}
           </>
@@ -252,9 +252,9 @@ function NeedsAccess() {
 }
 
 // ---- two products, one secure backend ----
-// Caliper Enterprise → commercial estates: office parks & towers, many tenants
+// Round24 Enterprise → commercial estates: office parks & towers, many tenants
 //                      and buildings (internal product key stays `portfolio`)
-// Caliper Pro        → maintenance companies, split into Office + Crew portals
+// Round24 Pro        → maintenance companies, split into Office + Crew portals
 // The choice only themes the login; after sign-in the org's KIND and the user's
 // ROLE decide the actual shell + toolset (server-enforced by RLS + getdek).
 const PORTALS = {
@@ -265,14 +265,14 @@ const PORTALS = {
   },
   office: {
     title: 'Office Portal',
-    tagline: 'The whole operation, measured true.',
+    tagline: 'The whole operation, around the clock.',
     points: ['Dashboards & financials', 'Dispatch work orders', 'Documents & purchasing'],
   },
 };
 // login branding per tier/portal — chip label, icon, tagline.
 const BRANDS = {
-  portfolio: { chip: 'enterprise', Icon: IcBuilding, tagline: 'The whole estate, measured true.' },
-  office: { chip: 'office', Icon: IcChart, tagline: 'The whole operation, measured true.' },
+  portfolio: { chip: 'enterprise', Icon: IcBuilding, tagline: 'The whole estate, around the clock.' },
+  office: { chip: 'office', Icon: IcChart, tagline: 'The whole operation, around the clock.' },
   crew: { chip: 'crew', Icon: IcWrench, tagline: 'Clock in. Get your orders. Snap your receipts.' },
   community: { chip: 'community', Icon: IcBuilding, tagline: 'Your building, in your pocket.' },
 };
@@ -283,32 +283,32 @@ const BRANDS = {
 // reconciliation, COI, commercial service requests) phase in on top.
 const PRODUCTS = {
   pro: {
-    title: 'Caliper Pro',
+    title: 'Round24 Pro',
     Icon: IcChart,
     tagline: 'For maintenance companies & their crews.',
     points: ['Office: dashboards & dispatch', 'Crew: timers & receipts', 'Team, compliance & payroll'],
   },
   portfolio: {
-    title: 'Caliper Enterprise',
+    title: 'Round24 Enterprise',
     Icon: IcBuilding,
     tagline: 'For office parks & towers — many tenants, many buildings, one ledger.',
     points: ['Multi-building roll-ups & dashboards', 'Auditable operating cost per suite', 'Measured labor across the estate'],
   },
   community: {
-    title: 'Caliper Community',
+    title: 'Round24 Community',
     Icon: IcBuilding,
     tagline: 'For residents & tenants — report repairs and reach your building.',
     points: ['Report a repair in seconds', 'Follow it to done', 'Hear from your management office'],
   },
 };
 
-// "What is Caliper" — the landing page after the splash. Explains the product
+// "What is Round24" — the landing page after the splash. Explains the product
 // and routes to a beta invite request or the sign-in picker.
 const LANDING_FEATURES = [
   { Icon: IcMapPin, title: 'Measured labor', body: 'Geofenced clock-in and a hands-free field timer put real hours on the right door — not a guess, not a spreadsheet after the fact.' },
   { Icon: IcChart, title: 'Connected money', body: 'Rent, receipts, and pay flow into per-door P&L, expense forecasts, and monthly statements that assemble themselves.' },
-  { Icon: IcMic, title: 'Built for the field', body: 'Offline-safe and voice-driven on any phone. Import the pay logs and rent rolls you already keep — Caliper reads them.' },
-  { Icon: IcBuilding, title: 'The whole building', body: 'Residents report repairs, follow them to done, and hear from the office — Caliper Community turns a ticket queue into a building that runs itself.' },
+  { Icon: IcMic, title: 'Built for the field', body: 'Offline-safe and voice-driven on any phone. Import the pay logs and rent rolls you already keep — Round24 reads them.' },
+  { Icon: IcBuilding, title: 'The whole building', body: 'Residents report repairs, follow them to done, and hear from the office — Round24 Community turns a ticket queue into a building that runs itself.' },
 ];
 // a framed product screenshot (browser-chrome mockup). Images are captured from
 // the app in DEMO mode — fictional company/buildings/people, sample numbers.
@@ -325,9 +325,9 @@ function Shot({ src, alt }) {
 // beta CTAs threaded throughout. Returning users skip this (see Login()).
 function Landing({ onEnter, onBeta }) {
   const PRODS = [
-    { Icon: IcChart, name: 'Caliper Pro', tag: 'Maintenance companies — office dispatch + a crew in the field.' },
-    { Icon: IcBuilding, name: 'Caliper Enterprise', tag: 'Office parks & towers — many tenants and buildings, one measured ledger.' },
-    { Icon: IcBuilding, name: 'Caliper Community', tag: 'Residents & tenants — report a repair, follow it to done, reach your building.' },
+    { Icon: IcChart, name: 'Round24 Pro', tag: 'Maintenance companies — office dispatch + a crew in the field.' },
+    { Icon: IcBuilding, name: 'Round24 Enterprise', tag: 'Office parks & towers — many tenants and buildings, one measured ledger.' },
+    { Icon: IcBuilding, name: 'Round24 Community', tag: 'Residents & tenants — report a repair, follow it to done, reach your building.' },
   ];
   return (
     <div className="lp">
@@ -341,22 +341,22 @@ function Landing({ onEnter, onBeta }) {
 
       {/* hero */}
       <section className="lp-wrap lp-hero">
-        <span className="lp-ey">Property maintenance · measured true</span>
+        <span className="lp-ey">Property maintenance · around the clock</span>
         <h1>The maintenance platform that <span className="grad-text">measures the labor</span>.</h1>
-        <p className="lp-sub">Every hour, receipt, and door — reconciled automatically. Caliper turns the pay logs, rent rolls, and P&amp;L sheets your crew and office keep by hand into one connected, encrypted ledger — and gives your residents a way in, so the whole building runs on one system.</p>
+        <p className="lp-sub">Every hour, receipt, and door — reconciled automatically. Round24 turns the pay logs, rent rolls, and P&amp;L sheets your crew and office keep by hand into one connected, encrypted ledger — and gives your residents a way in, so the whole building runs on one system.</p>
         <div className="lp-cta">
           <button className="btn grad" onClick={onBeta}>Request beta access →</button>
           <button className="btn ghost" onClick={onEnter}>Sign in</button>
         </div>
         <p className="lp-trust">🔒 AES-256 encrypted · live in beta · built by the crew that had the problem</p>
-        <Shot src="/shots/dash.png" alt="Caliper dashboard — true labor cost, reconciled to each building" />
+        <Shot src="/shots/dash.png" alt="Round24 dashboard — true labor cost, reconciled to each building" />
       </section>
 
       {/* the problem */}
       <section className="lp-band"><div className="lp-wrap">
         <span className="lp-ey">The problem</span>
         <h2>The books say one thing. The field did another. Nobody could prove which.</h2>
-        <p className="lp-p">Rent is tracked to the dollar. But the labor — the biggest controllable cost in the building — lives in pay logs, texts, and memory. When an owner asks what a unit actually cost to maintain, the honest answer is a guess. Caliper measures it.</p>
+        <p className="lp-p">Rent is tracked to the dollar. But the labor — the biggest controllable cost in the building — lives in pay logs, texts, and memory. When an owner asks what a unit actually cost to maintain, the honest answer is a guess. Round24 measures it.</p>
       </div></section>
 
       {/* how it works — the loop */}
@@ -388,9 +388,9 @@ function Landing({ onEnter, onBeta }) {
           <div className="lp-scene-txt">
             <span className="lp-ey">Built for the field</span>
             <h3>Voice-driven, offline-safe, and mobile-first — for people who never had software.</h3>
-            <p>Say a work order out loud. Report a repair with a photo. Split a day across four buildings from a phone in a stairwell. Import the pay logs and rent rolls you already keep — Caliper reads them.</p>
+            <p>Say a work order out loud. Report a repair with a photo. Split a day across four buildings from a phone in a stairwell. Import the pay logs and rent rolls you already keep — Round24 reads them.</p>
           </div>
-          <div className="lp-phone"><img src="/shots/mobile-wo.png" alt="Caliper work orders on a phone" loading="lazy" /></div>
+          <div className="lp-phone"><img src="/shots/mobile-wo.png" alt="Round24 work orders on a phone" loading="lazy" /></div>
         </div>
       </section>
 
@@ -416,14 +416,14 @@ function Landing({ onEnter, onBeta }) {
         <h2>Above-market security. Built inside a real operation.</h2>
         <div className="lp-steps">
           <div className="lp-step"><div className="n">Encrypted</div><h3>AES-256 + KMS</h3><p>Pay data and identity fields are field-encrypted with per-org keys; row-level security scopes every read and write at the database.</p></div>
-          <div className="lp-step"><div className="n">Live</div><h3>Real beta, real data</h3><p>Caliper runs a working multi-building maintenance operation in production today — the design partner and first proving ground.</p></div>
-          <div className="lp-step"><div className="n">Native</div><h3>Reads what you keep</h3><p>Excel-native onboarding. Rent Manager sync. No rip-and-replace — Caliper owns the operational ledger and syncs the rest.</p></div>
+          <div className="lp-step"><div className="n">Live</div><h3>Real beta, real data</h3><p>Round24 runs a working multi-building maintenance operation in production today — the design partner and first proving ground.</p></div>
+          <div className="lp-step"><div className="n">Native</div><h3>Reads what you keep</h3><p>Excel-native onboarding. Rent Manager sync. No rip-and-replace — Round24 owns the operational ledger and syncs the rest.</p></div>
         </div>
       </section>
 
       {/* final CTA */}
       <section className="lp-final">
-        <h2 style={{ margin: '0 auto', maxWidth: '20ch' }}>See your labor, measured true.</h2>
+        <h2 style={{ margin: '0 auto', maxWidth: '20ch' }}>Every door, every round.</h2>
         <p className="lp-sub" style={{ margin: '14px auto 0' }}>Request a beta invite, or sign in to your portal.</p>
         <div className="lp-cta">
           <button className="btn grad" onClick={onBeta}>Request beta access →</button>
@@ -440,7 +440,7 @@ function Login({ invite }) {
   const [product, setProduct] = useState(() => localStorage.getItem('caliper_product') || null); // 'portfolio' | 'pro'
   const [portal, setPortal] = useState(() => localStorage.getItem('caliper_portal') || null);     // pro only: 'office' | 'crew'
   const [beta, setBeta] = useState(false);
-  // caliper.solutions IS the funnel: every signed-out visit lands on it — sign-in
+  // round24.app IS the funnel: every signed-out visit lands on it — sign-in
   // is one tap away in the sticky header. Invite links skip straight to sign-in,
   // and once you head for sign-in it sticks for the browser session only, so a
   // mid-login refresh doesn't bounce you back to marketing.
@@ -491,7 +491,7 @@ function Login({ invite }) {
         <a href="#developer" style={{
           position: 'fixed', top: 16, right: 16, zIndex: 10,
           display: 'inline-flex', alignItems: 'center', gap: 6,
-          padding: '7px 14px', borderRadius: 999,
+          padding: '7px 14px', borderRadius: 2,
           background: 'linear-gradient(var(--surface-2), var(--surface-2)) padding-box, var(--grad) border-box',
           border: '1.5px solid transparent',
           fontFamily: 'var(--font)', fontWeight: 700, fontSize: 12.5, color: 'var(--text)',
@@ -502,7 +502,7 @@ function Login({ invite }) {
         </a>
         <div style={{ width: '100%', maxWidth: 720 }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}><BrandLockup /></div>
-          <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 26 }}>Labor, measured true. Which Caliper is yours?</p>
+          <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 26 }}>Around the clock. Which Round24 is yours?</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'stretch' }}>
             {Object.entries(PRODUCTS).map(([key, p]) => (
               <button key={key} onClick={() => pickProduct(key)} className="card portal-card" style={{
@@ -524,7 +524,7 @@ function Login({ invite }) {
           <p className="note" style={{ textAlign: 'center', marginTop: 22 }}>
             Not invited yet? <a onClick={() => setBeta(true)} style={{ color: 'var(--info)', cursor: 'pointer', fontWeight: 700 }}>Request a beta invite →</a>
             <span style={{ color: 'var(--text-faint)', margin: '0 8px' }}>·</span>
-            <a onClick={() => { sessionStorage.removeItem('caliper_signin'); setEntered(false); }} style={{ color: 'var(--text-dim)', cursor: 'pointer' }}>What is Caliper?</a>
+            <a onClick={() => { sessionStorage.removeItem('caliper_signin'); setEntered(false); }} style={{ color: 'var(--text-dim)', cursor: 'pointer' }}>What is Round24?</a>
           </p>
         </div>
       </div>
@@ -537,14 +537,14 @@ function Login({ invite }) {
   if (product === 'community') {
     return (
       <div className="community-scope" style={{ minHeight: '100vh' }}>
-        <LoginForm brand="community" invite={invite} onSwitch={backToProducts} switchLabel="Not a resident? Choose a different Caliper" community />
+        <LoginForm brand="community" invite={invite} onSwitch={backToProducts} switchLabel="Not a resident? Choose a different Round24" community />
       </div>
     );
   }
 
   // Portfolio → straight to the branded login
   if (product === 'portfolio') {
-    return <LoginForm brand="portfolio" invite={invite} onBeta={() => setBeta(true)} onSwitch={reset} switchLabel="Not enterprise? Choose a different Caliper" />;
+    return <LoginForm brand="portfolio" invite={invite} onBeta={() => setBeta(true)} onSwitch={reset} switchLabel="Not enterprise? Choose a different Round24" />;
   }
 
   // Pro → level 2: pick Office or Crew
@@ -609,11 +609,11 @@ function BetaRequest({ onBack }) {
       <div style={{ width: '100%', maxWidth: 400 }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><BrandLockup /></div>
         <div style={{ textAlign: 'center', fontWeight: 800, fontSize: 18, marginTop: 10 }}>Request a beta invite</div>
-        <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, margin: '6px 0 16px' }}>Caliper is in private beta. Tell us a bit about you and we’ll send an invite.</p>
+        <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, margin: '6px 0 16px' }}>Round24 is in private beta. Tell us a bit about you and we’ll send an invite.</p>
 
         {sent ? (
           <>
-            <div className="offline" style={{ color: 'var(--money)', borderColor: '#4ade8033', background: 'var(--money-dim)', display: 'flex', gap: 8 }}>
+            <div className="offline" style={{ color: 'var(--money)', borderColor: 'color-mix(in srgb, var(--money) 20%, transparent)', background: 'var(--money-dim)', display: 'flex', gap: 8 }}>
               <IcCheck width={16} height={16} /> Thanks{f.name ? `, ${f.name.split(' ')[0]}` : ''} — you’re on the list. We’ll email an invite to <b>{f.email}</b>.
             </div>
             <p className="note" style={{ textAlign: 'center', marginTop: 14 }}><a onClick={onBack} style={{ color: 'var(--info)', cursor: 'pointer' }}>← Back to sign in</a></p>
@@ -624,7 +624,7 @@ function BetaRequest({ onBack }) {
               <button className={f.kind === 'company' ? 'on' : ''} onClick={() => set('kind', 'company')}>Company + crew</button>
               <button className={f.kind === 'owner' ? 'on' : ''} onClick={() => set('kind', 'owner')}>I own / manage buildings</button>
             </div>
-            {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{err}</div>}
+            {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 20%, transparent)', background: 'color-mix(in srgb, var(--danger) 7%, transparent)' }}>{err}</div>}
             <input value={f.email} onChange={(e) => set('email', e.target.value)} placeholder="Email *" type="email" autoComplete="email" style={inputStyle} />
             <div style={{ height: 10 }} />
             <input value={f.name} onChange={(e) => set('name', e.target.value)} placeholder="Your name" style={inputStyle} />
@@ -677,11 +677,11 @@ function LoginForm({ brand, onSwitch, onBeta, invite, switchLabel, community = f
         <p style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, marginBottom: 20 }}>{b.tagline}</p>
 
         {invite && isSignup && (
-          <div className="offline" style={{ color: 'var(--money)', borderColor: '#4ade8033', background: 'var(--money-dim)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className="offline" style={{ color: 'var(--money)', borderColor: 'color-mix(in srgb, var(--money) 20%, transparent)', background: 'var(--money-dim)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <IcCheck width={14} height={14} /> You’ve been invited — create your account to join.
           </div>
         )}
-        {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{err}</div>}
+        {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 20%, transparent)', background: 'color-mix(in srgb, var(--danger) 7%, transparent)' }}>{err}</div>}
 
         <div className="field-label">Email</div>
         <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email"
@@ -741,7 +741,7 @@ function LoginForm({ brand, onSwitch, onBeta, invite, switchLabel, community = f
 
 const inputStyle = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 15, padding: 13, borderRadius: 10,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 15, padding: 13, borderRadius: 3,
 };
 
 export function SignOutButton() {
@@ -788,7 +788,7 @@ function ChangePasswordModal({ onClose }) {
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: '#000a', zIndex: 100,
       display: 'grid', placeItems: 'center', padding: 24 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 360,
-        background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, padding: 24 }}>
+        background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 4, padding: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18 }}>
           <span style={{ fontWeight: 800, fontSize: 16 }}>Change password</span>
           <div style={{ flex: 1 }} />
@@ -802,8 +802,8 @@ function ChangePasswordModal({ onClose }) {
           </>
         ) : (
           <>
-            {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33',
-              background: '#ff5a5a12', marginBottom: 14 }}>{err}</div>}
+            {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 20%, transparent)',
+              background: 'color-mix(in srgb, var(--danger) 7%, transparent)', marginBottom: 14 }}>{err}</div>}
 
             <div className="field-label">New password</div>
             <input value={pw} onChange={(e) => setPw(e.target.value)} type="password" autoComplete="new-password"

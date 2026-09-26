@@ -12,7 +12,7 @@ const periodLabel = (m) => (m === 12 ? 'Annual' : m === 6 ? 'Half-year' : m === 
 const fmtDay = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const periodDates = (w) => (w ? `${fmtDay(w.from)} – ${fmtDay(w.to)}` : '');
 
-// Caliper Enterprise — CAM reconciliation. Allocates a building's MEASURED
+// Round24 Enterprise — CAM reconciliation. Allocates a building's MEASURED
 // operating cost (labor + materials) pro-rata by rentable SF across its
 // commercial tenants, then trues it up against the CAM each was billed.
 export default function CAM({ store }) {
@@ -64,7 +64,7 @@ export default function CAM({ store }) {
         <div style={{ flex: '1 1 220px', minWidth: 0 }}>
           <div className="field-label">Building</div>
           <select value={active} onChange={(e) => setBuilding(e.target.value)}
-            style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 15, padding: 10, borderRadius: 10 }}>
+            style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 15, padding: 10, borderRadius: 3 }}>
             {buildings.map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
         </div>
@@ -81,7 +81,7 @@ export default function CAM({ store }) {
             <section className="cam-stmt" key={t.unit}>
               <header className="cam-stmt-head">
                 <OrgLogo logo={theme?.logo} name={orgName} height={40}
-                  fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Mark className="mark" /><span style={{ fontWeight: 800, fontSize: 18 }}>Caliper</span></span>} />
+                  fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Mark className="mark" /><span style={{ fontWeight: 800, fontSize: 18 }}>Round24</span></span>} />
                 <div className="cam-stmt-meta">
                   <div className="t">CAM Reconciliation Statement</div>
                   <div className="s">{periodLabel(months)} period · {periodDates(r.window)} · {active}</div>

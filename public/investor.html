@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0C1312" />
+<meta name="theme-color" content="var(--bg)" />
 <meta name="robots" content="noindex, nofollow" />
-<title>Caliper — Investor Brief</title>
+<title>Round24 — Investor Brief</title>
 <script src="/investor.js"></script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext y='.9em' font-size='18'%3E%F0%9F%93%90%3C/text%3E%3C/svg%3E" />
 <style>
   :root {
     --paper:#F1F3EF; --surface:#FBFCFA; --surface-2:#EAEDE7;
-    --ink:#16211E; --muted:#586863; --faint:#8A968F;
+    --ink:#16211E; --muted:#586863; --faint:var(--text-faint);
     --line:#D6DBD2; --tick:#C4CABF; --tick-major:#9FA89E;
     --accent:#0C9C6B; --accent-ink:#0A7A54; --accent-soft:#0c9c6b1a;
     --brass:#9C7328;
@@ -21,7 +21,7 @@
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --paper:#0C1312; --surface:#111B19; --surface-2:#16211E;
+      --paper:var(--bg); --surface:#111B19; --surface-2:#16211E;
       --ink:#E9EEEA; --muted:#93A29C; --faint:#63726C;
       --line:#233330; --tick:#263531; --tick-major:#3A4E48;
       --accent:#2ED08C; --accent-ink:#84ECC1; --accent-soft:#2ed08c1f;
@@ -30,12 +30,12 @@
   }
   :root[data-theme="light"] {
     --paper:#F1F3EF; --surface:#FBFCFA; --surface-2:#EAEDE7;
-    --ink:#16211E; --muted:#586863; --faint:#8A968F;
+    --ink:#16211E; --muted:#586863; --faint:var(--text-faint);
     --line:#D6DBD2; --tick:#C4CABF; --tick-major:#9FA89E;
     --accent:#0C9C6B; --accent-ink:#0A7A54; --accent-soft:#0c9c6b1a; --brass:#9C7328;
   }
   :root[data-theme="dark"] {
-    --paper:#0C1312; --surface:#111B19; --surface-2:#16211E;
+    --paper:var(--bg); --surface:#111B19; --surface-2:#16211E;
     --ink:#E9EEEA; --muted:#93A29C; --faint:#63726C;
     --line:#233330; --tick:#263531; --tick-major:#3A4E48;
     --accent:#2ED08C; --accent-ink:#84ECC1; --accent-soft:#2ed08c1f; --brass:#CBA057;
@@ -94,7 +94,7 @@
   .hero-grid { display:grid; grid-template-columns:1.35fr 1fr; gap:38px; align-items:end; }
   @media (max-width:820px){ .hero-grid{ grid-template-columns:1fr; gap:26px; } }
 
-  .status-card { border:1px solid var(--line); background:var(--surface); border-radius:4px; padding:18px 18px 16px; }
+  .status-card { border:1px solid var(--line); background:var(--surface); border-radius:2px; padding:18px 18px 16px; }
   .status-card .row { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px dashed var(--line); }
   .status-card .row:last-child { border-bottom:0; }
   .status-card .k { font-family:var(--mono); font-size:0.72rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); }
@@ -104,7 +104,7 @@
   @media (prefers-reduced-motion:no-preference){ .dot{ animation:pulse 2.4s ease-out infinite; } }
   @keyframes pulse { 0%{ box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 55%,transparent);} 70%{ box-shadow:0 0 0 9px transparent;} 100%{ box-shadow:0 0 0 0 transparent;} }
 
-  .caps { display:grid; grid-template-columns:repeat(4,1fr); gap:0; margin-top:6px; border:1px solid var(--line); border-radius:4px; overflow:hidden; background:var(--surface); }
+  .caps { display:grid; grid-template-columns:repeat(4,1fr); gap:0; margin-top:6px; border:1px solid var(--line); border-radius:2px; overflow:hidden; background:var(--surface); }
   @media (max-width:720px){ .caps{ grid-template-columns:repeat(2,1fr); } }
   .cap-cell { padding:22px 18px 18px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); }
   .cap-cell:nth-child(4n){ border-right:0; }
@@ -134,7 +134,7 @@
   .spec-title { display:flex; flex-direction:column; gap:10px; }
   .spec-title .idx { font-family:var(--mono); font-size:0.72rem; letter-spacing:0.16em; color:var(--faint); }
   .spec-title h3 { font-size:1.28rem; letter-spacing:-0.02em; }
-  .feat-grid { display:grid; grid-template-columns:1fr 1fr; gap:2px; background:var(--line); border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+  .feat-grid { display:grid; grid-template-columns:1fr 1fr; gap:2px; background:var(--line); border:1px solid var(--line); border-radius:2px; overflow:hidden; }
   @media (max-width:560px){ .feat-grid{ grid-template-columns:1fr; } }
   .feat { background:var(--surface); padding:16px 17px; }
   .feat .ft { display:flex; align-items:center; gap:9px; font-weight:700; font-size:0.97rem; letter-spacing:-0.01em; margin-bottom:5px; }
@@ -143,7 +143,7 @@
 
   .personas { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
   @media (max-width:760px){ .personas{ grid-template-columns:1fr; } }
-  .persona { border:1px solid var(--line); border-radius:4px; padding:22px; background:var(--surface); display:flex; flex-direction:column; gap:10px; }
+  .persona { border:1px solid var(--line); border-radius:2px; padding:22px; background:var(--surface); display:flex; flex-direction:column; gap:10px; }
   .persona .tag { font-family:var(--mono); font-size:0.68rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--accent-ink); }
   .persona h3 { font-size:1.18rem; }
   .persona p { color:var(--muted); font-size:0.92rem; line-height:1.5; }
@@ -151,11 +151,11 @@
   .band { background:var(--surface-2); border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
   .trace { display:grid; grid-template-columns:1.1fr 1fr; gap:40px; align-items:center; }
   @media (max-width:820px){ .trace{ grid-template-columns:1fr; gap:24px; } }
-  .receipt { border:1px solid var(--line); background:var(--surface); border-radius:4px; padding:18px 20px; font-family:var(--mono); font-size:0.82rem; }
+  .receipt { border:1px solid var(--line); background:var(--surface); border-radius:2px; padding:18px 20px; font-family:var(--mono); font-size:0.82rem; }
   .receipt .rline { display:flex; justify-content:space-between; gap:14px; padding:7px 0; border-bottom:1px dashed var(--line); color:var(--muted); }
   .receipt .rline:last-child { border-bottom:0; }
   .receipt .rline b { color:var(--ink); font-weight:600; }
-  .receipt .bar { display:inline-block; height:6px; border-radius:3px; background:var(--accent); opacity:.85; vertical-align:middle; }
+  .receipt .bar { display:inline-block; height:6px; border-radius:2px; background:var(--accent); opacity:.85; vertical-align:middle; }
   .receipt .rhead { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; padding-bottom:8px; border-bottom:1px solid var(--line); }
   .receipt .rtot { color:var(--accent-ink)!important; font-weight:700; }
   .receipt .note { margin-top:10px; color:var(--faint); font-size:0.68rem; letter-spacing:0.04em; }
@@ -169,7 +169,7 @@
 
   .close h2 { max-width:20ch; }
   .cta-row { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-top:26px; }
-  .btn { display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:0.82rem; letter-spacing:0.04em; font-weight:600; padding:12px 18px; border-radius:4px; text-decoration:none; border:1px solid var(--line); }
+  .btn { display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:0.82rem; letter-spacing:0.04em; font-weight:600; padding:12px 18px; border-radius:2px; text-decoration:none; border:1px solid var(--line); }
   .btn.pri { background:var(--accent); color:#04140E; border-color:var(--accent); font-weight:700; }
   .btn:hover { border-color:var(--accent); }
   .btn.pri:focus-visible, .btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
@@ -187,7 +187,7 @@
   @media (prefers-reduced-motion:reduce){ .js .reveal{ opacity:1; transform:none; } }
 
   /* comparison table (the landscape) */
-  .compare-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:4px; }
+  .compare-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:2px; }
   .compare { width:100%; border-collapse:collapse; font-size:0.92rem; min-width:660px; }
   .compare th, .compare td { text-align:left; padding:14px 16px; border-bottom:1px solid var(--line); vertical-align:top; }
   .compare thead th { font-family:var(--mono); font-size:0.66rem; letter-spacing:0.13em; text-transform:uppercase; color:var(--muted); font-weight:600; }
@@ -211,11 +211,8 @@
 <header class="top">
   <div class="wrap top-in">
     <span class="brandmark">
-      <svg class="caliper-ic" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M4 3v13M4 16l4 3 4-3V3M20 3v18M20 8h-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M4 7h2M4 10h2M4 13h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>
-      <span class="wm">Cali<b>per</b></span>
+      <svg class="caliper-ic" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5A8.5 8.5 0 1 1 3.8 9.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/><path d="M12 6.4v3.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/><circle cx="5.3" cy="6.2" r="1.5" fill="currentColor"/></svg>
+      <span class="wm">Round<b>24</b></span>
     </span>
     <span class="top-tag">Investor brief</span>
   </div>
@@ -224,9 +221,9 @@
 <section class="hero wrap">
   <div class="hero-grid">
     <div>
-      <p class="eyebrow reveal">Property maintenance · measured true</p>
+      <p class="eyebrow reveal">Property maintenance · around the clock</p>
       <h1 class="reveal" style="margin-top:16px">Every hour, every receipt, every door — <span class="true">reconciled.</span></h1>
-      <p class="lede reveal" style="margin-top:22px">Property-maintenance companies run on hand-kept pay logs, rent rolls, and P&amp;L sheets that never agree. Caliper turns them into one connected, encrypted ledger — and makes <b style="color:var(--ink)">labor cost per door</b> a number you can finally trust.</p>
+      <p class="lede reveal" style="margin-top:22px">Property-maintenance companies run on hand-kept pay logs, rent rolls, and P&amp;L sheets that never agree. Round24 turns them into one connected, encrypted ledger — and makes <b style="color:var(--ink)">labor cost per door</b> a number you can finally trust.</p>
     </div>
     <div class="status-card reveal">
       <div class="status-head"><span class="dot"></span><span class="kbd-label">Live · in production</span></div>
@@ -281,7 +278,7 @@
       </ul>
     </div>
     <div class="plate pos reveal">
-      <h3>How Caliper does it</h3>
+      <h3>How Round24 does it</h3>
       <ul>
         <li><span class="m">→</span> One ledger. Every timer, receipt, lease, and building expense in the same system.</li>
         <li><span class="m">→</span> Hours self-allocate to the doors they were spent on — in the field, as they happen.</li>
@@ -372,7 +369,7 @@
     <div class="reveal">
       <span class="eyebrow">04 — Proof</span>
       <h2 style="margin:14px 0 16px">A full property-maintenance operation, ported from Excel to live.</h2>
-      <p class="lede">A real multi-building maintenance company runs Caliper in production. Its entire hand-kept workflow — rent roll, labor spine, and per-building P&amp;L — was interpreted straight from spreadsheets and stood up live, with every hour reconciled to the door it was worked on.</p>
+      <p class="lede">A real multi-building maintenance company runs Round24 in production. Its entire hand-kept workflow — rent roll, labor spine, and per-building P&amp;L — was interpreted straight from spreadsheets and stood up live, with every hour reconciled to the door it was worked on.</p>
     </div>
     <div class="receipt reveal">
       <div class="rhead"><span>PER-DOOR LABOR</span><span class="mono">illustrative</span></div>
@@ -393,7 +390,7 @@
   </div>
   <div class="moat">
     <div class="m reveal"><div class="h"><span>±</span>The allocation engine</div><p>Turning raw hours and dollars into per-door truth — across a dozen spreadsheet shapes — is the defensible core. It exists, on real data, today.</p></div>
-    <div class="m reveal"><div class="h"><span>⇄</span>Meets shops where they are</div><p>Caliper imports the exact spreadsheets companies already keep. No rip-and-replace, no data-entry wall — the reason maintenance software usually never gets adopted.</p></div>
+    <div class="m reveal"><div class="h"><span>⇄</span>Meets shops where they are</div><p>Round24 imports the exact spreadsheets companies already keep. No rip-and-replace, no data-entry wall — the reason maintenance software usually never gets adopted.</p></div>
     <div class="m reveal"><div class="h"><span>▤</span>Mobile-first for the crew</div><p>The people creating the cost — the crew in the field — are the ones who never had a tool. Win the field, and the office data follows for free.</p></div>
   </div>
 </section>
@@ -403,10 +400,10 @@
 <section class="wrap">
   <p class="eyebrow reveal">06 — The market</p>
   <h2 class="reveal" style="margin-top:14px">Fragmented, spreadsheet-bound, and priced per door.</h2>
-  <p class="lede reveal" style="margin-top:18px">The wedge is labor — the largest controllable cost in maintenance, and the one nobody can currently see per door. Caliper prices to the door, so the model <em>is</em> the market: every door under management is a unit of revenue.</p>
+  <p class="lede reveal" style="margin-top:18px">The wedge is labor — the largest controllable cost in maintenance, and the one nobody can currently see per door. Round24 prices to the door, so the model <em>is</em> the market: every door under management is a unit of revenue.</p>
   <div class="moat" style="margin-top:30px">
     <div class="m reveal"><div class="h"><span>◱</span>Who it's for</div><p>Small-to-mid property-management companies that run their own in-house maintenance crews — past the spreadsheet, below the enterprise platforms built for institutional multifamily.</p></div>
-    <div class="m reveal"><div class="h"><span>$</span>Priced per door</div><p>Published, not quoted. Nobody in this category posts pricing; Caliper does — set below the labor leakage the allocation engine surfaces in the first month.</p></div>
+    <div class="m reveal"><div class="h"><span>$</span>Priced per door</div><p>Published, not quoted. Nobody in this category posts pricing; Round24 does — set below the labor leakage the allocation engine surfaces in the first month.</p></div>
     <div class="m reveal"><div class="h"><span>⟋</span>Entry point</div><p>The pain begins where the spreadsheet breaks — the moment an operator can no longer hold the allocation in their head. That threshold is the qualifying question and the first filter.</p></div>
   </div>
   <div class="split" style="margin-top:34px">
@@ -414,9 +411,9 @@
       <h3>Where it expands</h3>
       <ul>
         <li><span class="m">→</span><span><strong>Per-seat, upward.</strong> Crew seats land the account; office and owner seats carry the margin.</span></li>
-        <li><span class="m">→</span><span><strong>White-label.</strong> A management company resells Caliper to the owners it serves — a channel, not a customer.</span></li>
+        <li><span class="m">→</span><span><strong>White-label.</strong> A management company resells Round24 to the owners it serves — a channel, not a customer.</span></li>
         <li><span class="m">→</span><span><strong>Enterprise.</strong> Office parks and towers are the same buyer, one layer up — many tenants, many buildings, and a CAM reconciliation that only measured labor can defend.</span></li>
-        <li><span class="m">→</span><span><strong>The benchmark.</strong> Once enough shops run the ledger, Caliper knows what a job <em>should</em> cost — the one asset in this category that compounds.</span></li>
+        <li><span class="m">→</span><span><strong>The benchmark.</strong> Once enough shops run the ledger, Round24 knows what a job <em>should</em> cost — the one asset in this category that compounds.</span></li>
       </ul>
     </div>
     <div class="plate reveal">
@@ -444,7 +441,7 @@
         <tr><td class="who">Coordination tools<span class="sub">Property Meld · Latchel</span></td><td>Managers who outsource repairs</td><td>Vendor dispatch, resident comms</td><td>No in-house crew tools. Spend read from invoices, not the field.</td></tr>
         <tr><td class="who">Enterprise multifamily<span class="sub">AppWork · Accolade</span></td><td>Institutional, centralized portfolios</td><td>Technician productivity, turns</td><td>Labor without materials. Enterprise-only. Quote-based pricing.</td></tr>
         <tr><td class="who">Systems of record<span class="sub">Rent Manager · AppFolio · Yardi</span></td><td>Their installed base</td><td>Accounting, leases, trust</td><td>The field is an afterthought. We integrate — we don't compete.</td></tr>
-        <tr class="us"><td class="who">Caliper</td><td>Small-to-mid operators with in-house crews</td><td>The allocation engine — labor + materials, per door — plus the resident layer</td><td>Published pricing. White-label. Built by the crew, for the crew.</td></tr>
+        <tr class="us"><td class="who">Round24</td><td>Small-to-mid operators with in-house crews</td><td>The allocation engine — labor + materials, per door — plus the resident layer</td><td>Published pricing. White-label. Built by the crew, for the crew.</td></tr>
       </tbody>
     </table>
   </div>
@@ -452,7 +449,7 @@
 
   <div class="plate pos reveal" style="margin-top:32px">
     <h3>The second moat: the building's community, not just its work orders.</h3>
-    <p style="margin:10px 0 0; color:var(--muted); line-height:1.6">Every tool in the table treats residents as ticket submitters. <b>Caliper Community</b> treats the building as a neighborhood. Today, residents report repairs from a QR on their door — no app, no login — straight into the work-order pipeline. Next, verified residents follow their requests to done and reach their neighbors through pseudonymous, accountable messaging, so "can you turn the music down" never has to become a management call. Small frictions resolve peer-to-peer; management sees less noise; residents who feel at home stay longer — and because Pro already measures make-ready labor per door, Caliper is the only system that can show an owner what that retention is worth. A community is also the one thing a competitor can't migrate away: switching software would mean unplugging the building from itself.</p>
+    <p style="margin:10px 0 0; color:var(--muted); line-height:1.6">Every tool in the table treats residents as ticket submitters. <b>Round24 Community</b> treats the building as a neighborhood. Today, residents report repairs from a QR on their door — no app, no login — straight into the work-order pipeline. Next, verified residents follow their requests to done and reach their neighbors through pseudonymous, accountable messaging, so "can you turn the music down" never has to become a management call. Small frictions resolve peer-to-peer; management sees less noise; residents who feel at home stay longer — and because Pro already measures make-ready labor per door, Round24 is the only system that can show an owner what that retention is worth. A community is also the one thing a competitor can't migrate away: switching software would mean unplugging the building from itself.</p>
   </div>
 </section>
 
@@ -461,7 +458,7 @@
 <section class="wrap">
   <p class="eyebrow reveal">08 — The team</p>
   <h2 class="reveal" style="margin-top:14px">Built by the crew that had the problem.</h2>
-  <p class="lede reveal" style="margin-top:18px">Most maintenance software is built by people who have never turned a unit. Caliper started on a maintenance crew — with the spreadsheet that wouldn't reconcile, and founders who decided to fix it.</p>
+  <p class="lede reveal" style="margin-top:18px">Most maintenance software is built by people who have never turned a unit. Round24 started on a maintenance crew — with the spreadsheet that wouldn't reconcile, and founders who decided to fix it.</p>
   <div class="team-grid" style="margin-top:26px">
     <div class="persona reveal">
       <span class="tag">Co-founder</span>
@@ -476,7 +473,7 @@
   </div>
   <div class="backing reveal">
     <h3>Backed by the operation it was built inside</h3>
-    <p>A working multi-building property-management company funded the build, contributed its entire hand-kept workflow, and runs Caliper in production today — the design partner, the proving ground, and the first reference. Not a hypothetical customer; an operating one.</p>
+    <p>A working multi-building property-management company funded the build, contributed its entire hand-kept workflow, and runs Round24 in production today — the design partner, the proving ground, and the first reference. Not a hypothetical customer; an operating one.</p>
   </div>
 </section>
 
@@ -485,7 +482,7 @@
 <section class="wrap close">
   <p class="eyebrow reveal">09 — The ask</p>
   <h2 class="reveal" style="margin-top:14px">From a working product to a paying one.</h2>
-  <p class="lede reveal" style="margin-top:18px">The build risk is behind us — the hard part, the allocation engine, exists and runs on real data. We're raising a pre-seed round to fund distribution: getting Caliper into the hands of the operators still reconciling by hand.</p>
+  <p class="lede reveal" style="margin-top:18px">The build risk is behind us — the hard part, the allocation engine, exists and runs on real data. We're raising a pre-seed round to fund distribution: getting Round24 into the hands of the operators still reconciling by hand.</p>
   <div class="moat" style="margin-top:30px">
     <div class="m reveal"><div class="h"><span>⚙</span>Engineering</div><p>Rent Manager sync to GA, receipt OCR at scale, the pay-period lock, and the reliability a system of record earns the right to be trusted with.</p></div>
     <div class="m reveal"><div class="h"><span>◎</span>Go-to-market</div><p>The first sales motion — design partners to paying operators, the integration marketplace, and a published-pricing page that makes buying a decision, not a negotiation.</p></div>
@@ -501,7 +498,7 @@
   </div>
   <div class="cta-row reveal">
     <a class="btn pri" href="mailto:1800bobrossdotcom@gmail.com">Talk to the founders</a>
-    <a class="btn" href="https://caliper.solutions">caliper.solutions →</a>
+    <a class="btn" href="https://round24.app">round24.app →</a>
   </div>
   <p class="reveal" style="margin-top:22px; color:var(--faint); font-size:0.8rem">Plans and milestones are targets, not guarantees — illustrative of intent, not projections of performance.</p>
 </section>
@@ -509,7 +506,7 @@
 <footer>
   <div class="wrap">
     <div class="foot">
-      <span>CALIPER</span><span>Property maintenance, measured true.</span>
+      <span>ROUND24</span><span>Property maintenance, around the clock.</span>
       <span class="sp">Investor brief</span>
     </div>
     <p class="disc">Figures shown are illustrative examples only and do not represent any customer's data. Product surfaces described are in active production use. Forward-looking statements are illustrative and not a guarantee of future performance.</p>

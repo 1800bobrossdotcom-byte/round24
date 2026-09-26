@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v27: security hardening from the red/blue/white/grey audit
+-- Round24 — schema v27: security hardening from the red/blue/white/grey audit
 --  1. docs storage read must honor visibility (staff-only docs were readable)
 --  2. read-only viewers must not be able to submit purchases
 --  3. workspace_requests insert re-bound (not forgeable / pre-approvable)

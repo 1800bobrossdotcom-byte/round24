@@ -1,46 +1,54 @@
 /* ============================================================
-   CALIPER — design tokens
-   whitelabel theming = swap this token block per tenant.
-   nothing else in the app hardcodes a color.
-   brand language carried from cbuy: black surface, rainbow
-   accent, Space Mono for data, VHS scanline, glitch-settle.
+   ROUND24 — design tokens
+   Black and white, crisp, military-tech. Whitelabel theming =
+   swap this token block per tenant; nothing else hardcodes a color.
+   Brand language: near-black surface, white signal, hairline rules,
+   corner brackets, condensed uppercase headings, mono for every figure,
+   a faint grid + scanline. No hue anywhere — state is carried by
+   inversion, weight, dashes and hatching, never by color.
    ============================================================ */
 
 :root {
   /* surfaces */
-  --bg: #08080a;
-  --surface: #101014;
-  --surface-2: #16161c;
-  --surface-3: #1d1d25;
-  --line: #26262f;
-  --line-soft: #1c1c23;
+  --bg: #050505;
+  --surface: #0a0a0a;
+  --surface-2: #101010;
+  --surface-3: #181818;
+  --line: #2a2a2a;
+  --line-soft: #1a1a1a;
+  --line-strong: #4d4d4d;
 
   /* text */
-  --text: #f4f4f6;
-  --text-dim: #a0a0ad;
-  --text-faint: #63636f;
+  --text: #f2f2f2;
+  --text-dim: #a3a3a3;
+  --text-faint: #6b6b6b;
 
-  /* brand accent — the "caliper" rainbow measurement gradient */
-  --accent: #ff7a18;
-  --accent-2: #ff3d81;
-  --grad: linear-gradient(100deg,#ff3d3d 0%,#ff7a18 22%,#ffd21a 42%,#4ade80 62%,#38bdf8 80%,#a855f7 100%);
-  --grad-soft: linear-gradient(100deg,#ff7a1833,#a855f733);
+  /* signal — white on black. --ink-on-accent is the text color ON an accent fill */
+  --accent: #ffffff;
+  --accent-2: #cfcfcf;
+  --ink-on-accent: #050505;
+  --grad: linear-gradient(100deg, #ffffff 0%, #bdbdbd 100%);
+  --grad-soft: linear-gradient(100deg, #ffffff14, #ffffff08);
 
-  /* semantic */
-  --money: #4ade80;
-  --money-dim: #4ade8022;
-  --warn: #ffb020;
-  --danger: #ff5a5a;
-  --info: #38bdf8;
+  /* semantic — same ink; components add inversion / dashes / hatching */
+  --money: #ffffff;
+  --money-dim: #ffffff12;
+  --warn: #d9d9d9;
+  --danger: #ffffff;
+  --info: #bdbdbd;
+
+  /* hatching for "urgent" / "stop" surfaces */
+  --hatch: repeating-linear-gradient(135deg, color-mix(in srgb, var(--text) 16%, transparent) 0 6px, transparent 6px 14px);
 
   /* type */
-  --font: 'Raleway', system-ui, sans-serif;
-  --mono: 'Space Mono', ui-monospace, monospace;
+  --font: 'Barlow', system-ui, sans-serif;
+  --font-cond: 'Barlow Condensed', 'Barlow', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
 
-  /* geometry */
-  --r-sm: 8px;
-  --r: 14px;
-  --r-lg: 20px;
+  /* geometry — crisp */
+  --r-sm: 2px;
+  --r: 3px;
+  --r-lg: 4px;
   --gap: 16px;
   --pad: 18px;
 
@@ -53,35 +61,38 @@
 
   /* persistent top strip height */
   --strip-h: 26px;
-  --strip-bg: #08080b;
+  --strip-bg: #050505;
 }
 
-/* ---- light mode: crisp off-white ---- */
+/* ---- paper mode: the same system, inverted ---- */
 :root[data-theme="light"] {
-  --bg: #f4f5f2;
+  --bg: #f2f2f2;
   --surface: #ffffff;
-  --surface-2: #f0f1ed;
-  --surface-3: #e7e9e3;
-  --line: #e0e2db;
-  --line-soft: #edeee9;
+  --surface-2: #ececec;
+  --surface-3: #e0e0e0;
+  --line: #c8c8c8;
+  --line-soft: #e2e2e2;
+  --line-strong: #8a8a8a;
 
-  --text: #14171a;
-  --text-dim: #586069;
-  --text-faint: #8b929b;
+  --text: #0a0a0a;
+  --text-dim: #4a4a4a;
+  --text-faint: #7a7a7a;
 
-  --accent: #e5670c;
-  --accent-2: #dc2f77;
-  --grad-soft: linear-gradient(100deg,#ff7a181f,#a855f71f);
+  --accent: #0a0a0a;
+  --accent-2: #3a3a3a;
+  --ink-on-accent: #ffffff;
+  --grad: linear-gradient(100deg, #0a0a0a 0%, #3d3d3d 100%);
+  --grad-soft: linear-gradient(100deg, #0a0a0a12, #0a0a0a06);
 
-  --money: #1a9b66;
-  --money-dim: #1a9b661a;
-  --warn: #b1720d;
-  --danger: #c53a24;
-  --info: #2a72a6;
+  --money: #0a0a0a;
+  --money-dim: #0a0a0a10;
+  --warn: #2a2a2a;
+  --danger: #0a0a0a;
+  --info: #3d3d3d;
 
   --strip-bg: #ffffff;
 }
-/* the VHS scanline is a dark-mode signature — off in light */
+/* the scanline is a night-mode signature — off on paper */
 :root[data-theme="light"] body::after { display: none; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -93,29 +104,31 @@ body {
   font-weight: 500;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
+  /* faint engineering grid under everything */
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--text) 3.5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--text) 3.5%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-attachment: fixed;
 }
 
-/* VHS scanline texture overlay — the cbuy signature, dialed subtle */
+/* scanline texture overlay — dialed subtle */
 body::after {
   content: "";
   position: fixed; inset: 0;
   pointer-events: none;
   z-index: 9999;
   background: repeating-linear-gradient(
-    0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px);
+    0deg, rgba(255,255,255,.014) 0 1px, transparent 1px 3px);
   mix-blend-mode: overlay;
   opacity: .5;
 }
 
 /* data / numbers always mono */
-.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 
-/* the rainbow gradient text — reserved for hero figures */
-.grad-text {
-  background: var(--grad);
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent; color: transparent;
-}
+/* hero figures: plain ink, heavy — no gradient text in a monochrome system */
+.grad-text { color: var(--text); }
 
 /* glitch-settle: figures resolve on mount */
 @keyframes settle {
@@ -131,4 +144,4 @@ body::after {
 
 /* scrollbars */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 8px; }
+::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 2px; }

@@ -9,17 +9,18 @@ export function applyTheme(t) {
   const v = norm(t);
   document.documentElement.setAttribute('data-theme', v);
   try { localStorage.setItem(KEY, v); } catch { /* ignore */ }
-  const m = meta(); if (m) m.setAttribute('content', v === 'light' ? '#f4f5f2' : '#08080a');
+  const m = meta(); if (m) m.setAttribute('content', v === 'light' ? '#f2f2f2' : '#050505');
+  window.dispatchEvent(new Event('r24-theme'));   // charts re-read their ink
 }
 
 export function initTheme() {
-  let t = 'light'; // light is the default; a saved choice overrides it
-  try { t = localStorage.getItem(KEY) || 'light'; } catch { /* ignore */ }
+  let t = 'dark'; // night mode is the default; a saved choice overrides it
+  try { t = localStorage.getItem(KEY) || 'dark'; } catch { /* ignore */ }
   const v = norm(t);
   document.documentElement.setAttribute('data-theme', v);
-  const m = meta(); if (m) m.setAttribute('content', v === 'light' ? '#f4f5f2' : '#08080a');
+  const m = meta(); if (m) m.setAttribute('content', v === 'light' ? '#f2f2f2' : '#050505');
 }
 
 export function getTheme() {
-  return document.documentElement.getAttribute('data-theme') || 'light';
+  return document.documentElement.getAttribute('data-theme') || 'dark';
 }

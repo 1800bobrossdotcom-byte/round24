@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v57: Web Push.
+-- Round24 — schema v57: Web Push.
 --   push_subscriptions — one row per device endpoint, owned by its user (RLS)
 --   push_config        — where the push-send function lives + the shared secret
 --                        (definer-only: no policies, read by the trigger below)

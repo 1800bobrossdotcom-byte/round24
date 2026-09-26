@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v1
+-- Round24 — schema v1
 -- multi-tenant, row-level security, encrypted sensitive fields.
 -- sensitive columns (rates, PII, RM creds) are stored as ciphertext
 -- (bytea) — encrypted client-side before insert, decrypted after read.

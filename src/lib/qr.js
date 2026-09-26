@@ -1,11 +1,11 @@
 import qrcode from 'qrcode-generator';
 
-// Caliper's brand spectrum (matches --grad)
-const SPECTRUM = ['#ff3d3d', '#ff7a18', '#ffd21a', '#4ade80', '#38bdf8', '#a855f7'];
+// Round24's brand spectrum (matches --grad)
+const SPECTRUM = ['#111111', '#111111', '#111111', '#111111', '#111111', '#111111'];
 
 // render a QR for `text` onto a fresh canvas and return a PNG data URL.
 // High error-correction ('H') so a logo/overlay or a smudged print still scans.
-export function qrDataUrl(text, { size = 640, margin = 4, dark = '#0C1312', light = '#ffffff' } = {}) {
+export function qrDataUrl(text, { size = 640, margin = 4, dark = '#050505', light = '#ffffff' } = {}) {
   const qr = qrcode(0, 'H');
   qr.addData(text);
   qr.make();
@@ -52,23 +52,23 @@ export function qrPosterDataUrl(text, { building = '', heading = 'Report a maint
   ctx.textAlign = 'center';
 
   // wordmark
-  ctx.fillStyle = '#0C1312';
+  ctx.fillStyle = '#050505';
   ctx.font = '800 46px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
-  ctx.fillText('Caliper', cx, 100);
+  ctx.fillText('Round24', cx, 100);
 
   // heading (may wrap to two lines) — flow everything below off its real bottom
-  ctx.fillStyle = '#0C1312';
+  ctx.fillStyle = '#050505';
   ctx.font = '800 60px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
   let y = wrap(ctx, heading, cx, 200, 840, 68);
 
   // sub-instruction
-  ctx.fillStyle = '#5b6b68';
+  ctx.fillStyle = '#6b6b6b';
   ctx.font = '400 29px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
   y = wrap(ctx, 'Scan with your phone camera to send a photo and description straight to the maintenance office. No app, no login.', cx, y + 62, 800, 40);
 
   // building chip
   if (building) {
-    ctx.fillStyle = '#0C1312';
+    ctx.fillStyle = '#050505';
     ctx.font = '700 36px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
     y += 66; ctx.fillText(building, cx, y);
   }
@@ -87,7 +87,7 @@ export function qrPosterDataUrl(text, { building = '', heading = 'Report a maint
 
       // footer: the URL — shrink to fit, fall back to the bare host if the full
       // link (org UUID + building) is still too wide for the poster
-      ctx.fillStyle = '#5b6b68';
+      ctx.fillStyle = '#6b6b6b';
       const maxW = W - 80;
       let label = text.replace(/^https?:\/\//, '');
       let fs = 26;
@@ -98,7 +98,7 @@ export function qrPosterDataUrl(text, { building = '', heading = 'Report a maint
       ctx.fillText(label, cx, qrTop + qs + 74);
       ctx.fillStyle = '#9aa8a5';
       ctx.font = '400 22px system-ui, sans-serif';
-      ctx.fillText('Powered by Caliper', cx, H - 40);
+      ctx.fillText('Powered by Round24', cx, H - 40);
 
       resolve(c.toDataURL('image/png'));
     };

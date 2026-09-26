@@ -1,4 +1,4 @@
-/* Caliper service worker — Web Push only (no caching yet; the offline queue
+/* Round24 service worker — Web Push only (no caching yet; the offline queue
    lives in the app). Shows a system notification for each push and opens the
    app at the right tab when it's tapped. Payload shape (from the push-send
    edge function): { title, body, tag, url, tab, priority }. */
@@ -8,7 +8,7 @@ self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim(
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; }
-  catch { data = { title: 'Caliper', body: event.data ? event.data.text() : '' }; }
+  catch { data = { title: 'Round24', body: event.data ? event.data.text() : '' }; }
   const urgent = data.priority === 'urgent';
   const options = {
     body: data.body || '',
@@ -27,7 +27,7 @@ self.addEventListener('push', (event) => {
       const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       if (wins.some((c) => c.visibilityState === 'visible' && c.focused)) return;
     }
-    await self.registration.showNotification(data.title || 'Caliper', options);
+    await self.registration.showNotification(data.title || 'Round24', options);
   })());
 });
 

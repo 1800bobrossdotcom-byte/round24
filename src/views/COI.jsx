@@ -18,7 +18,7 @@ const COVERAGE_TYPES = [
   ['workers_comp', "Workers' comp"], ['umbrella', 'Umbrella'], ['professional', 'Professional'],
 ];
 
-const inp = { width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 9 };
+const inp = { width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 3 };
 
 // Certificate of Insurance tracking — vendors (Pro's subs) + tenants (Enterprise).
 // The "risk management" surface: who's insured, for how much, and what's lapsing.
@@ -160,7 +160,7 @@ export default function COI({ store }) {
         </div>
       </div>
 
-      <p className="note">Certificates cover your approved vendors and commercial tenants. Caliper flags anything lapsed or within 30 days of expiring, so a contractor with no current insurance never quietly ends up on your property.</p>
+      <p className="note">Certificates cover your approved vendors and commercial tenants. Round24 flags anything lapsed or within 30 days of expiring, so a contractor with no current insurance never quietly ends up on your property.</p>
     </div>
   );
 }

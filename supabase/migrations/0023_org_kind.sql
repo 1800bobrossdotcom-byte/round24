@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v23: org kind (company vs owner)
+-- Round24 — schema v23: org kind (company vs owner)
 -- Two personas share one secure backend:
 --   'company' — office + crews (Evolution24): full operations suite
 --   'owner'   — a landlord with a handful of properties: a streamlined

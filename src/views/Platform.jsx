@@ -4,7 +4,7 @@ import { IcBuilding, IcCheck, IcX, IcCopy } from '../components/ui.jsx';
 
 const inputStyle = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 10, borderRadius: 10,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 10, borderRadius: 3,
 };
 const linkFor = (code) => `${window.location.origin}/?invite=${code}`;
 
@@ -76,7 +76,7 @@ export default function Platform() {
         {err && <p className="note" style={{ color: 'var(--danger)', marginTop: 6 }}>{err}</p>}
         <button className="btn grad" style={{ marginTop: 12 }} onClick={create} disabled={busy || !name.trim()}>{busy ? 'Creating…' : 'Create workspace + invite'}</button>
         {made && (
-          <div className="card" style={{ marginTop: 12, borderColor: '#4ade8033', background: 'var(--money-dim)' }}>
+          <div className="card" style={{ marginTop: 12, borderColor: 'color-mix(in srgb, var(--money) 20%, transparent)', background: 'var(--money-dim)' }}>
             <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><IcCheck width={14} height={14} /> {made.name} created</div>
             <div className="note" style={{ margin: '4px 0 8px' }}>{made.emailed ? 'We emailed the owner their invite. Here’s the link too, in case you want to send it directly — ' : 'Send the owner this invite link — '}they create their account through it and land as admin.</div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -89,7 +89,7 @@ export default function Platform() {
 
       {/* pending requests */}
       {pending.length > 0 && (
-        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: '#ffb02033' }}>
+        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'color-mix(in srgb, var(--warn) 20%, transparent)' }}>
           <span className="field-label" style={{ color: 'var(--warn)' }}>Workspace requests ({pending.length})</span>
           {pending.map((r) => (
             <div className="row" key={r.id}>

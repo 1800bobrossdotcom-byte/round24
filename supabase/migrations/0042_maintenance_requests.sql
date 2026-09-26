@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v42: resident maintenance requests → work-order pipeline
+-- Round24 — schema v42: resident maintenance requests → work-order pipeline
 -- A tenant submits a request (with a photo) from a public link; it lands in the
 -- office queue, where one tap turns it into a work order that feeds the crew +
 -- timer. The resident side is intentionally unauthenticated for now (a posted

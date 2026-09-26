@@ -1,6 +1,6 @@
-# Caliper — backend setup (auth + encryption)
+# Round24 — backend setup (auth + encryption)
 
-This turns Caliper from a demo into a real, secure app: real logins,
+This turns Round24 from a demo into a real, secure app: real logins,
 per-tenant data isolation, and AES-256 encryption of sensitive fields.
 
 The app is built so it **still runs in demo mode** (sample data, no login)
@@ -72,7 +72,7 @@ ships to the browser. For now, to test encryption end-to-end:
 
 ## Step 6 — Web Push (optional, ~10 min)
 
-Lock-screen notifications on phones even when Caliper is closed. The code is
+Lock-screen notifications on phones even when Round24 is closed. The code is
 in the repo; the keys, secrets and function deploy are one-time steps in
 **[docs/PUSH-SETUP.md](docs/PUSH-SETUP.md)**. Without it, the bell, feed and
 in-app toasts still work.

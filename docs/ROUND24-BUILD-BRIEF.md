@@ -1,19 +1,19 @@
-# CALIPER — Build Brief & Handoff
+# ROUND24 — Build Brief & Handoff
 *Master context doc for continued development in Claude Code. Last updated July 6, 2026.*
 
 ---
 
-## 0. What Caliper is (one paragraph)
+## 0. What Round24 is (one paragraph)
 
-Caliper is a mobile-first field app + desktop analytics portal that runs the
+Round24 is a mobile-first field app + desktop analytics portal that runs the
 maintenance side of a property-management company: labor timing, work orders,
 equipment history, receipts, and **true cost per unit / property / project**.
 It integrates with Rent Manager (RM stays the accounting system of record;
-Caliper owns everything maintenance) and is built multi-tenant + whitelabel from
-day one. Positioning: *everyone else coordinates vendors — Caliper accounts for
+Round24 owns everything maintenance) and is built multi-tenant + whitelabel from
+day one. Positioning: *everyone else coordinates vendors — Round24 accounts for
 in-house crews and tells you what maintenance truly costs.*
 
-**Live:** caliper.solutions (Vercel + Cloudflare, encrypted). Stack: Vite +
+**Live:** round24.app (Vercel + Cloudflare, encrypted). Stack: Vite +
 React + vanilla CSS. Backend: Supabase (Postgres + auth + RLS), AES-256-GCM
 field encryption, AWS KMS envelope keys.
 
@@ -21,7 +21,7 @@ field encryption, AWS KMS envelope keys.
 
 ## 1. Current state (as built)
 
-**Deployed & live:** caliper.solutions — Vite/React/vanilla-CSS frontend,
+**Deployed & live:** round24.app — Vite/React/vanilla-CSS frontend,
 Supabase backend, AES-256 encryption active, auth gate live.
 
 **Views shipped:**
@@ -129,11 +129,11 @@ cryptographic shredding on offboard), fail-closed, RLS deny-by-default.
 
 ## 4. Market analysis
 
-### The gap Caliper exploits
+### The gap Round24 exploits
 Every competitor is **vendor-dispatch centric** (built for PMs who outsource
 repairs) OR **enterprise-multifamily** (centralized 500+ unit portfolios).
 Nobody owns the **in-house-crew, small/mid, mixed-portfolio** operator — which
-is most owner-operators. Caliper's wedge: true job cost (labor + materials),
+is most owner-operators. Round24's wedge: true job cost (labor + materials),
 whitelabel, transparent pricing, built for W2 maintenance staff.
 
 ### Competitor map
@@ -156,14 +156,14 @@ whitelabel, transparent pricing, built for W2 maintenance staff.
   suggests a rebrand).
 - **AppWork** — multifamily maintenance, technician productivity, backlog
   elimination. Raised ~$20M ($13M Series A 2025 + ~$7M). RM integration. Watch
-  for materials-cost capture — if they ship it, Caliper's window narrows.
+  for materials-cost capture — if they ship it, Round24's window narrows.
 
 **Adjacent / RM ecosystem:** NetVendor (vendor compliance, 7 PMS), zInspector,
 Breezeway (inspections). **RM native:** rmAppSuite Pro (tech check-in/out, Make
 Ready Boards) — the incumbent inside RM's base.
 
 ### Positioning line
-*"Accolade centralizes the enterprise. AppWork speeds up techs. Caliper tells
+*"Accolade centralizes the enterprise. AppWork speeds up techs. Round24 tells
 you what every unit truly costs — and finds the money you're leaving on the
 table."* Target: small/mid operators + owner-operators on Rent Manager, mixed
 portfolios (incl. scattered single-family the enterprise players ignore).
@@ -200,7 +200,7 @@ integration marketplace = installed base to sell into without a rip-and-replace.
 ## 6. Key decisions locked (don't relitigate)
 - **RM as connector, not foundation** — schema doesn't assume RM exists;
   `external_source` field keeps native-mode door open.
-- **Conflict rules:** RM wins on properties/units; Caliper wins on work orders.
+- **Conflict rules:** RM wins on properties/units; Round24 wins on work orders.
   One direction of truth per entity, no merge logic.
 - **RM push is post-launch** — read-only integration first de-risks the RM
   dependency.
@@ -213,8 +213,8 @@ integration marketplace = installed base to sell into without a rip-and-replace.
 - **Location tracking: clocked-in only** — compliance + retention; needs signed
   policy per state.
 - **Parts intelligence: consent architecture before the feature.**
-- **Brand:** name = Caliper (precision/measurement = the thesis). Domain
-  caliper.solutions. Design = cbuy language (black, rainbow gradient, Space
+- **Brand:** name = Round24 (precision/measurement = the thesis). Domain
+  round24.app. Design = cbuy language (black, rainbow gradient, Space
   Mono, VHS scanline, glitch-settle); all tokens swappable for whitelabel.
 
 ---
@@ -227,7 +227,7 @@ Built from Evolution24 Property Management's actual workbook (44 sheets):
 - Real pain observed: labor hand-allocated across properties in spreadsheet
   grids, reconciliation drift ("overpay," negative balances), "PAID BY BRENT"
   off-sheet reconciliation, 44 tangled tabs mixing pay logs / P&Ls / service
-  logs / inventories. This IS the problem Caliper solves.
+  logs / inventories. This IS the problem Round24 solves.
 
 ---
 
@@ -238,4 +238,4 @@ Built from Evolution24 Property Management's actual workbook (44 sheets):
 - Location-tracking policy per operating state (legal review before dispatch map)
 - Native-mode pricing (tier or included for non-RM shops)
 - Dispute remedy when escrow/direct-transfer (from cbuy pattern — N/A unless
-  Caliper adds payments)
+  Round24 adds payments)

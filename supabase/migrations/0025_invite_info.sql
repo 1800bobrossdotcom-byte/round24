@@ -1,7 +1,7 @@
 -- ============================================================
--- Caliper — schema v25: pre-auth invite lookup
+-- Round24 — schema v25: pre-auth invite lookup
 -- Lets the login screen brand itself correctly BEFORE sign-in: an invite to an
--- owner workspace shows "Caliper Portfolio", a company one shows "Caliper Pro".
+-- owner workspace shows "Round24 Portfolio", a company one shows "Round24 Pro".
 -- Returns only a workspace's kind + name for a still-valid invite code — no PII,
 -- no membership data — so it's safe to expose to anon. SECURITY DEFINER because
 -- invites/orgs are otherwise unreadable pre-auth.

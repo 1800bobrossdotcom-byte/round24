@@ -100,7 +100,7 @@ export const byPriority = (a, b) =>
 
 const inputStyle = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 11, borderRadius: 10,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 11, borderRadius: 3,
 };
 
 export default function WorkOrders({ store, focus }) {
@@ -224,7 +224,7 @@ export default function WorkOrders({ store, focus }) {
       {woBackend === 'local' && isConfigured() && (
         <div className="offline">◐ Stored on this device — syncs to the cloud once the work-orders migration is applied.</div>
       )}
-      {voiceErr && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{voiceErr}</div>}
+      {voiceErr && <div className="offline" style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 20%, transparent)', background: 'color-mix(in srgb, var(--danger) 7%, transparent)' }}>{voiceErr}</div>}
 
       {/* ---- create ---- */}
       {isStaff && !draft && (
@@ -357,8 +357,8 @@ export default function WorkOrders({ store, focus }) {
           {/* photo — required on a field report (a picture is the whole point of reporting) */}
           <div className="field-label" style={{ marginTop: 12 }}>Photo {draft.report ? <span style={{ color: 'var(--danger)' }}>· required</span> : '(optional)'}</div>
           {draft.photoFile ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '8px 10px' }}>
-              <img src={draft.photoPreview} alt="attachment" style={{ width: 46, height: 46, objectFit: 'cover', borderRadius: 8 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 3, padding: '8px 10px' }}>
+              <img src={draft.photoPreview} alt="attachment" style={{ width: 46, height: 46, objectFit: 'cover', borderRadius: 3 }} />
               <span className="s" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{draft.photoFile.name || 'photo attached'}</span>
               <button className="btn ghost sm" onClick={() => { if (draft.photoPreview) URL.revokeObjectURL(draft.photoPreview); setDraft({ ...draft, photoFile: null, photoPreview: null }); }}>Remove</button>
             </div>
@@ -491,7 +491,7 @@ function WoRow({ w, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, isS
               value={w.priority ?? 3}
               onChange={(e) => setWoPriority(w.id, Number(e.target.value))}
               style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', color: pr.color,
-                fontFamily: 'var(--font)', fontWeight: 700, fontSize: 11, padding: '5px 6px', borderRadius: 8 }}>
+                fontFamily: 'var(--font)', fontWeight: 700, fontSize: 11, padding: '5px 6px', borderRadius: 3 }}>
               {Object.entries(WO_PRIORITIES).map(([v, p]) => <option key={v} value={v}>{p.label}</option>)}
             </select>
           ) : !done && (
@@ -506,11 +506,11 @@ function WoRow({ w, setWoStatus, setWoPriority, setWoAssignee, setWoBilling, isS
 
       {/* office triage of a field report: confirm the vendor, then approve → open */}
       {isStaff && w.status === 'pending' && (
-        <div style={{ marginTop: 8, padding: 10, background: 'var(--surface-2)', borderRadius: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ marginTop: 8, padding: 10, background: 'var(--surface-2)', borderRadius: 3, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {w.detail && <div className="s" style={{ width: '100%', color: 'var(--text-dim)', marginBottom: 2 }}>“{w.detail}”</div>}
           {setWoAssignee && (
             <select value={w.assigneeLabel || ''} onChange={(e) => setWoAssignee(w.id, e.target.value || null)}
-              style={{ background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 12, padding: '6px 8px', borderRadius: 8, flex: 1, minWidth: 150 }}>
+              style={{ background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 12, padding: '6px 8px', borderRadius: 3, flex: 1, minWidth: 150 }}>
               <option value="">— assign a vendor / crew —</option>
               {(() => {
                 const want = w.category === 'painting' ? 'paint' : w.category;
@@ -602,14 +602,14 @@ function WoChecklist({ checklist, templates = [], canCheck, canEdit, onChange })
         {items.length > 0 && <span className="mono" style={{ fontSize: 11, color: pct === 100 ? 'var(--money)' : 'var(--text-dim)' }}>{pct}%</span>}
         {canEdit && relevant.length > 0 && (
           <select onChange={(e) => { const t = relevant.find((x) => x.id === e.target.value); applyTemplate(t); e.target.value = ''; }} defaultValue=""
-            style={{ marginLeft: 'auto', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 12, padding: '5px 7px', borderRadius: 8 }}>
+            style={{ marginLeft: 'auto', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 12, padding: '5px 7px', borderRadius: 3 }}>
             <option value="" disabled>+ Apply template…</option>
             {relevant.map((t) => <option key={t.id} value={t.id}>{t.name} ({(t.items || []).length})</option>)}
           </select>
         )}
       </div>
       {items.length > 0 && (
-        <div style={{ height: 4, background: 'var(--surface-2)', borderRadius: 3, overflow: 'hidden', marginBottom: 10 }}>
+        <div style={{ height: 4, background: 'var(--surface-2)', borderRadius: 2, overflow: 'hidden', marginBottom: 10 }}>
           <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? 'var(--money)' : 'var(--accent)', transition: 'width .2s' }} />
         </div>
       )}
@@ -624,7 +624,7 @@ function WoChecklist({ checklist, templates = [], canCheck, canEdit, onChange })
       {canEdit && (
         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
           <input value={adding} onChange={(e) => setAdding(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addItem(); }} placeholder="Add a step…"
-            style={{ flex: 1, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, padding: 8, borderRadius: 8 }} />
+            style={{ flex: 1, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, padding: 8, borderRadius: 3 }} />
           <button className="btn ghost sm" onClick={addItem} disabled={!adding.trim()}>Add</button>
         </div>
       )}
@@ -634,7 +634,7 @@ function WoChecklist({ checklist, templates = [], canCheck, canEdit, onChange })
 
 // tenant billing on a work order — replaces the spreadsheet Service Log columns:
 // what we charge (service fee), what it cost (repair cost), and billed state.
-const billInput = { width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--mono)', fontSize: 14, padding: 8, borderRadius: 8 };
+const billInput = { width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--mono)', fontSize: 14, padding: 8, borderRadius: 3 };
 function WoBilling({ w, matTotal = 0, onSave }) {
   const [fee, setFee] = useState(w.serviceFee ?? '');
   const [cost, setCost] = useState(w.repairCost ?? '');

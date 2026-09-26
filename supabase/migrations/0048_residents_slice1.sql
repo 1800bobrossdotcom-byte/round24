@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v48: Community Slice 1 ("Community Core")
+-- Round24 — schema v48: Community Slice 1 ("Community Core")
 -- Resident accounts bound to org + building + unit, an office verify queue,
 -- resident-owned maintenance requests with live status, and read-only
 -- announcements. Residents are a NEW auth audience with a hard wall: they can

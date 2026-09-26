@@ -24,7 +24,7 @@ function resizePhoto(file, maxDim = 1000, quality = 0.7) {
 
 const inp = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 16, padding: 12, borderRadius: 10,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 16, padding: 12, borderRadius: 3,
 };
 
 // public, unauthenticated resident maintenance-request form. orgId (+ optional
@@ -48,7 +48,7 @@ export default function ResidentRequest({ orgId, building = '' }) {
   useEffect(() => { let on = true; getOrgBranding(orgId).then((b) => { if (on) setBrand(b); }).catch(() => {}); return () => { on = false; }; }, [orgId]);
 
   // the org's real buildings → a dropdown, so requests land on a known property.
-  // "__other__" reveals a free-text field for anything not yet in Caliper.
+  // "__other__" reveals a free-text field for anything not yet in Round24.
   const [props, setProps] = useState(null);   // null = loading, [] = none/unavailable
   const [otherMode, setOtherMode] = useState(false);
   useEffect(() => {
@@ -114,7 +114,7 @@ export default function ResidentRequest({ orgId, building = '' }) {
       <div style={{ width: '100%', maxWidth: 440, padding: '28px 20px 60px' }}>
         <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'center' }}>
           <OrgLogo logo={brand?.logo} name={brand?.name} height={92} poweredBy centered
-            fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 9 }}><Mark className="mark" /><span style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.02em' }}>Caliper</span></span>} />
+            fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 9 }}><Mark className="mark" /><span style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.02em' }}>Round24</span></span>} />
         </div>
 
         {done ? (
@@ -151,7 +151,7 @@ export default function ResidentRequest({ orgId, building = '' }) {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div className="field-label">What's wrong?</div>
                   <button type="button" onClick={toggleDictation}
-                    style={{ border: '1px solid var(--line)', background: dictating ? 'var(--danger)' : 'var(--surface-2)', color: dictating ? '#fff' : 'var(--text)', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 700, padding: '5px 10px', borderRadius: 8, cursor: 'pointer' }}>
+                    style={{ border: '1px solid var(--line)', background: dictating ? 'var(--danger)' : 'var(--surface-2)', color: dictating ? '#fff' : 'var(--text)', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 700, padding: '5px 10px', borderRadius: 3, cursor: 'pointer' }}>
                     {dictating ? '● Listening… tap to stop' : '🎙 Speak'}
                   </button>
                 </div>
@@ -165,9 +165,9 @@ export default function ResidentRequest({ orgId, building = '' }) {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 8 }}>
                     {photos.map((p, i) => (
                       <div key={i} style={{ position: 'relative' }}>
-                        <img src={p} alt={`issue ${i + 1}`} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 10, border: '1px solid var(--line)' }} />
+                        <img src={p} alt={`issue ${i + 1}`} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 3, border: '1px solid var(--line)' }} />
                         <button onClick={() => removePhoto(i)} aria-label="Remove photo"
-                          style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11, border: 'none', background: '#000a', color: '#fff', fontSize: 13, lineHeight: '22px', cursor: 'pointer' }}>×</button>
+                          style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 3, border: 'none', background: '#000a', color: '#fff', fontSize: 13, lineHeight: '22px', cursor: 'pointer' }}>×</button>
                       </div>
                     ))}
                   </div>
@@ -190,7 +190,7 @@ export default function ResidentRequest({ orgId, building = '' }) {
               <p className="note" style={{ textAlign: 'center', fontSize: 13, margin: '4px 0 0' }}>
                 Want to follow your request to done? <a href={`/?join=${encodeURIComponent(orgId)}${bld.trim() ? `&b=${encodeURIComponent(bld.trim())}` : ''}`} style={{ color: 'var(--info)', fontWeight: 700 }}>Join your building →</a>
               </p>
-              <p className="note" style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: 12 }}>Powered by Caliper · your info is only shared with your maintenance office.</p>
+              <p className="note" style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: 12 }}>Powered by Round24 · your info is only shared with your maintenance office.</p>
             </div>
           </>
         )}

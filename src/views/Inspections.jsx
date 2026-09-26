@@ -4,7 +4,7 @@ import { todayISO } from '../lib/dates.js';
 import { useAuth } from '../components/AuthGate.jsx';
 import { IcClip, IcCheck, IcX } from '../components/ui.jsx';
 
-const inp = { width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 9 };
+const inp = { width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 3 };
 const isLand = (u) => u.type === 'land' || u.status === 'held';
 const fmtDate = (d) => (!d ? '—' : new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }));
 const ST = { pass: { c: 'var(--money)', l: 'Pass' }, fail: { c: 'var(--danger)', l: 'Fail' }, na: { c: 'var(--text-faint)', l: 'N/A' } };
@@ -61,7 +61,7 @@ export default function Inspections({ store }) {
                   <div style={{ display: 'flex', gap: 4 }}>
                     {['pass', 'fail', 'na'].map((v) => (
                       <button key={v} onClick={() => persist({ items: draft.items.map((x, j) => (j === i ? { ...x, status: x.status === v ? '' : v } : x)) })}
-                        style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--line)', cursor: 'pointer', font: 'inherit', fontSize: 12, fontWeight: 700, background: it.status === v ? ST[v].c : 'transparent', color: it.status === v ? '#fff' : 'var(--text-dim)' }}>{ST[v].l}</button>
+                        style={{ padding: '5px 10px', borderRadius: 3, border: '1px solid var(--line)', cursor: 'pointer', font: 'inherit', fontSize: 12, fontWeight: 700, background: it.status === v ? ST[v].c : 'transparent', color: it.status === v ? '#fff' : 'var(--text-dim)' }}>{ST[v].l}</button>
                     ))}
                   </div>
                 )}

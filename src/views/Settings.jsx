@@ -11,14 +11,14 @@ import VoiceCommandGuide from '../components/VoiceCommandGuide.jsx';
 
 const inputStyle = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 10, borderRadius: 10,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 10, borderRadius: 3,
 };
 const ROLE_LABEL = { admin: 'Office · Admin', manager: 'Office · Manager', tech: 'Contractor', viewer: 'Viewer' };
 
 function Toggle({ on, onChange }) {
   return (
     <button onClick={() => onChange(!on)} aria-pressed={on} style={{
-      width: 42, height: 24, borderRadius: 999, border: '1px solid var(--line)', flex: 'none',
+      width: 42, height: 24, borderRadius: 2, border: '1px solid var(--line)', flex: 'none',
       background: on ? 'var(--money)' : 'var(--surface-2)', position: 'relative', cursor: 'pointer', transition: 'background .15s',
     }}>
       <span style={{ position: 'absolute', top: 2, left: on ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .15s' }} />
@@ -214,7 +214,7 @@ export default function Settings({ store }) {
           <button className="btn ghost sm" onClick={async () => {
             const data = await exportMyData(orgId);
             const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-            const a = document.createElement('a'); a.href = url; a.download = 'caliper-my-data.json'; a.click(); URL.revokeObjectURL(url);
+            const a = document.createElement('a'); a.href = url; a.download = 'round24-my-data.json'; a.click(); URL.revokeObjectURL(url);
             store.audit && store.audit('export_data', 'my personal data');
           }}><IcDoc width={13} height={13} /> Export</button>
         </Row>
@@ -263,7 +263,7 @@ function DangerZone({ store }) {
       {!open ? (
         <button className="btn ghost sm" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => setOpen(true)}>Clear test data…</button>
       ) : (
-        <div style={{ background: 'var(--surface-2)', padding: 12, borderRadius: 10 }}>
+        <div style={{ background: 'var(--surface-2)', padding: 12, borderRadius: 3 }}>
           <Row label="Also clear rent roll &amp; vendors" hint="Off = keep your imported portfolio, wipe only operational test data">
             <Toggle on={includePortfolio} onChange={setIncludePortfolio} />
           </Row>
@@ -321,7 +321,7 @@ function TwoFactor() {
           <p className="note" style={{ margin: 0 }}>Scan this with your authenticator app (Google Authenticator, Authy, 1Password), then enter the 6-digit code. Can’t scan? Type the key below.</p>
           {enroll.qr && (
             <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0' }}>
-              <div style={{ background: '#fff', padding: 10, borderRadius: 10, width: 172, height: 172, display: 'grid', placeItems: 'center' }}>
+              <div style={{ background: '#fff', padding: 10, borderRadius: 3, width: 172, height: 172, display: 'grid', placeItems: 'center' }}>
                 {enroll.qr.startsWith('data:')
                   ? <img src={enroll.qr} alt="2FA QR code" style={{ width: '100%', height: '100%' }} />
                   : <div style={{ width: '100%', height: '100%' }} dangerouslySetInnerHTML={{ __html: enroll.qr }} />}
@@ -375,7 +375,7 @@ function Certifications({ certs, onChange }) {
 }
 
 // Workspace branding — the org's own name + logo. Replaces any hardcoded brand:
-// each workspace shows ITS logo (or the Caliper fallback), never another tenant's.
+// each workspace shows ITS logo (or the Round24 fallback), never another tenant's.
 function WorkspaceBranding({ store, orgName, flash }) {
   const [name, setName] = useState(orgName || '');
   const [busy, setBusy] = useState(false);
@@ -412,10 +412,10 @@ function WorkspaceBranding({ store, orgName, flash }) {
 
       <div className="field-label" style={{ marginTop: 14 }}>Logo</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-        <div style={{ height: 56, minWidth: 120, display: 'flex', alignItems: 'center', padding: '0 12px', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10 }}>
+        <div style={{ height: 56, minWidth: 120, display: 'flex', alignItems: 'center', padding: '0 12px', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 3 }}>
           {logo
             ? <img src={logo} alt="Workspace logo" style={{ maxHeight: 44, maxWidth: 200, objectFit: 'contain' }} />
-            : <span className="s" style={{ color: 'var(--text-faint)' }}>Caliper (default)</span>}
+            : <span className="s" style={{ color: 'var(--text-faint)' }}>Round24 (default)</span>}
         </div>
         <label className="btn ghost sm" style={{ width: 'auto', cursor: 'pointer' }}>
           {logo ? 'Replace logo' : 'Upload logo'}

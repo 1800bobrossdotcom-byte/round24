@@ -1,5 +1,5 @@
 // ============================================================
-// Caliper rent-roll interpreter — reads a rent roll out of almost any shape.
+// Round24 rent-roll interpreter — reads a rent roll out of almost any shape.
 //
 // Two engines, best-coverage wins:
 //   legacy  — Evolution24's per-building lease worksheets (one tab per building,

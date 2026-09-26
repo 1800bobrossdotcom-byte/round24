@@ -166,7 +166,7 @@ export default function Import({ store }) {
         ))}
       </div>
 
-      {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{err}</div>}
+      {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 20%, transparent)', background: 'color-mix(in srgb, var(--danger) 7%, transparent)' }}>{err}</div>}
 
       {/* STEP 0 — upload */}
       {step === 0 && (
@@ -184,7 +184,7 @@ export default function Import({ store }) {
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input value={clearText} onChange={(e) => setClearText(e.target.value)} placeholder="CLEAR" autoFocus
-                      style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, padding: '7px 10px', borderRadius: 8, width: 120 }} />
+                      style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, padding: '7px 10px', borderRadius: 3, width: 120 }} />
                     <button className="btn stop sm" disabled={clearText.trim().toUpperCase() !== 'CLEAR'}
                       onClick={() => { store.clearImported(); setConfirmClear(false); setClearText(''); }}>Clear all</button>
                     <button className="btn ghost sm" onClick={() => { setConfirmClear(false); setClearText(''); }}>Cancel</button>
@@ -258,7 +258,7 @@ export default function Import({ store }) {
           </div>
 
           {alloc.newBuildings.length > 0 && (
-            <div className="offline" style={{ color: 'var(--info)', borderColor: '#38bdf833', background: '#38bdf812' }}>
+            <div className="offline" style={{ color: 'var(--info)', borderColor: 'color-mix(in srgb, var(--info) 20%, transparent)', background: 'color-mix(in srgb, var(--info) 7%, transparent)' }}>
               {alloc.newBuildings.length} new building{alloc.newBuildings.length > 1 ? 's' : ''} will be created: {alloc.newBuildings.slice(0, 4).join(', ')}{alloc.newBuildings.length > 4 ? '…' : ''}
             </div>
           )}
@@ -324,11 +324,11 @@ export default function Import({ store }) {
             <p className="note" style={{ textAlign: 'center' }}>{result.newBuildings} new building{result.newBuildings > 1 ? 's' : ''} created from your sheet.</p>
           )}
           {result.unallocated > 0 && (
-            <div className="offline" style={{ marginTop: 'var(--gap)', color: 'var(--info)', borderColor: '#38bdf833', background: '#38bdf812' }}>
+            <div className="offline" style={{ marginTop: 'var(--gap)', color: 'var(--info)', borderColor: 'color-mix(in srgb, var(--info) 20%, transparent)', background: 'color-mix(in srgb, var(--info) 7%, transparent)' }}>
               {result.unallocated.toLocaleString()} days couldn't be matched to a building — they're in the <b>Unallocated</b> bucket, kept out of your true-cost charts. Open <b>Properties → Unallocated</b> to assign them.
             </div>
           )}
-          <div className="offline" style={{ marginTop: 'var(--gap)', color: 'var(--money)', borderColor: '#4ade8033', background: '#4ade8012' }}>
+          <div className="offline" style={{ marginTop: 'var(--gap)', color: 'var(--money)', borderColor: 'color-mix(in srgb, var(--money) 20%, transparent)', background: 'color-mix(in srgb, var(--money) 7%, transparent)' }}>
             <IcCheck width={14} height={14} /> {result.mode === 'add' ? 'Added to your existing data' : 'Replaced your previous import'} — {result.allocated.toLocaleString()} allocated across {result.propCount} buildings. Check Dashboard, Calendar, and Properties.
           </div>
           <div className="wizard-actions">

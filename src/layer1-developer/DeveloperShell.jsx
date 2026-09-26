@@ -141,7 +141,7 @@ export default function DeveloperShell({ onExit }) {
               : 'Restricted to platform admins.'}
           </p>
           {!signedIn && <DevSignIn onSignedIn={recheck} />}
-          <button className="btn ghost sm" style={{ marginTop: 16 }} onClick={onExit}>Back to Caliper</button>
+          <button className="btn ghost sm" style={{ marginTop: 16 }} onClick={onExit}>Back to Round24</button>
         </div>
       </div>
     );
@@ -158,15 +158,15 @@ export default function DeveloperShell({ onExit }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Mark />
-          <span style={{ fontFamily: 'var(--font)', fontWeight: 700, color: 'var(--text)' }}>Caliper</span>
+          <span style={{ fontFamily: 'var(--font)', fontWeight: 700, color: 'var(--text)' }}>Round24</span>
           <span style={{
             fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-faint)',
-            border: '1px solid var(--line)', borderRadius: 999, padding: '2px 8px',
+            border: '1px solid var(--line)', borderRadius: 2, padding: '2px 8px',
           }}>
             DEVELOPER
           </span>
         </div>
-        <button className="btn ghost sm" onClick={onExit}>Exit to Caliper</button>
+        <button className="btn ghost sm" onClick={onExit}>Exit to Round24</button>
       </header>
 
       <nav style={{ padding: '16px 24px 0' }}>

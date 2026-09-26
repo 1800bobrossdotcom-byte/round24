@@ -6,7 +6,7 @@ import { IcCheck } from './ui.jsx';
 
 // One "notifications on this device" control, shared by the bell footer and
 // Settings so the two never disagree. States (see lib/notify.js):
-//   off · local (system pings while Caliper is open) · push (even when closed)
+//   off · local (system pings while Round24 is open) · push (even when closed)
 //   denied · unsupported
 export function useNotifyState() {
   const { orgId } = useAuth();
@@ -24,11 +24,11 @@ export function useNotifyState() {
 }
 
 export function notifyHint({ state, canPush, iosInstall }) {
-  if (state === 'push') return 'On for this device — even when Caliper is closed';
-  if (state === 'local') return canPush ? 'On while Caliper is open — enable push to get pinged when it’s closed' : 'On while Caliper is open';
+  if (state === 'push') return 'On for this device — even when Round24 is closed';
+  if (state === 'local') return canPush ? 'On while Round24 is open — enable push to get pinged when it’s closed' : 'On while Round24 is open';
   if (state === 'denied') return 'Blocked for this site — allow notifications in your browser settings';
   if (state === 'unsupported') return iosInstall ? 'On iPhone: Share → Add to Home Screen, then enable from the installed app' : 'Not available in this browser';
-  return canPush ? 'Get pinged on this device, even when Caliper is closed' : 'Get pinged when Caliper is in the background';
+  return canPush ? 'Get pinged on this device, even when Round24 is closed' : 'Get pinged when Round24 is in the background';
 }
 
 // inline flavour for the bell footer

@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v44: resident requests get multiple photos + a voice note
+-- Round24 — schema v44: resident requests get multiple photos + a voice note
 -- A resident can attach several photos (now required — a picture is the point of
 -- reporting) and optionally record a voice note describing the issue. Stored as
 -- data URLs on the row (the intake is unauthenticated, same as the single photo).

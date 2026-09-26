@@ -1,5 +1,5 @@
 // ============================================================
-// Salaried labor — enter a fixed salary once, and Caliper disperses it across
+// Salaried labor — enter a fixed salary once, and Round24 disperses it across
 // the properties the person actually worked, by their logged-hours share. A
 // salaried tech's cost still lands on the right doors in the per-door P&L,
 // instead of vanishing into overhead.

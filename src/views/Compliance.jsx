@@ -74,7 +74,7 @@ export default function Compliance() {
 
       {/* missing contractor paperwork */}
       {missing.length > 0 && (
-        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: '#ffb02033' }}>
+        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'color-mix(in srgb, var(--warn) 20%, transparent)' }}>
           <span className="field-label" style={{ color: 'var(--warn)' }}>Contractor paperwork needed ({missing.length})</span>
           {missing.map((m) => (
             <div className="row" key={m.email}>

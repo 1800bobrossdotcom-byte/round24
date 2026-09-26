@@ -10,7 +10,7 @@ import OrgLogo from '../components/OrgLogo.jsx';
 
 const inp = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 16, padding: 12, borderRadius: 10,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 16, padding: 12, borderRadius: 3,
 };
 
 // downscale a photo client-side (same approach as the anonymous request form)
@@ -43,7 +43,7 @@ function statusChip(r) {
 }
 const fmtWhen = (iso) => (iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '');
 
-// Caliper Community — the signed-in resident's home. Their identity (building +
+// Round24 Community — the signed-in resident's home. Their identity (building +
 // unit) comes from the verified residency, so reporting an issue is 2 fields.
 // `embedded` renders it inside the staff shell (dual-hat: a founder/crew member
 // who also lives in a building) — no logo header or sign-out, the shell has both.
@@ -142,7 +142,7 @@ export default function ResidentHome({ resident, embedded = false }) {
         {!embedded && (
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
             <OrgLogo logo={brand?.logo} name={brand?.name} height={64} poweredBy centered
-              fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 9 }}><Mark className="mark" /><span style={{ fontWeight: 800, fontSize: 19 }}>Caliper</span></span>} />
+              fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 9 }}><Mark className="mark" /><span style={{ fontWeight: 800, fontSize: 19 }}>Round24</span></span>} />
           </div>
         )}
 
@@ -168,7 +168,7 @@ export default function ResidentHome({ resident, embedded = false }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span className="field-label" style={{ margin: 0 }}>What's wrong?</span>
               <button type="button" onClick={toggleDictation}
-                style={{ border: '1px solid var(--line)', background: dictating ? 'var(--danger)' : 'var(--surface-2)', color: dictating ? '#fff' : 'var(--text)', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 700, padding: '5px 10px', borderRadius: 8, cursor: 'pointer' }}>
+                style={{ border: '1px solid var(--line)', background: dictating ? 'var(--danger)' : 'var(--surface-2)', color: dictating ? '#fff' : 'var(--text)', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 700, padding: '5px 10px', borderRadius: 3, cursor: 'pointer' }}>
                 {dictating ? '● Listening…' : '🎙 Speak'}
               </button>
             </div>
@@ -178,9 +178,9 @@ export default function ResidentHome({ resident, embedded = false }) {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, margin: '4px 0 8px' }}>
                 {photos.map((p, i) => (
                   <div key={i} style={{ position: 'relative' }}>
-                    <img src={p} alt={`issue ${i + 1}`} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 10, border: '1px solid var(--line)' }} />
+                    <img src={p} alt={`issue ${i + 1}`} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 3, border: '1px solid var(--line)' }} />
                     <button onClick={() => setPhotos((x) => x.filter((_, idx) => idx !== i))} aria-label="Remove photo"
-                      style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11, border: 'none', background: '#000a', color: '#fff', fontSize: 13, lineHeight: '22px', cursor: 'pointer' }}>×</button>
+                      style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 3, border: 'none', background: '#000a', color: '#fff', fontSize: 13, lineHeight: '22px', cursor: 'pointer' }}>×</button>
                   </div>
                 ))}
               </div>
@@ -250,9 +250,9 @@ export default function ResidentHome({ resident, embedded = false }) {
                 </div>
                 {bkForm?.amenityId === a.id && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8, alignItems: 'flex-end' }}>
-                    <label style={{ flex: '1 1 130px' }}><span className="s">Date</span><input type="date" value={bkForm.date} onChange={(e) => setBkForm((f) => ({ ...f, date: e.target.value }))} style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 8, borderRadius: 8 }} /></label>
-                    <label style={{ flex: '1 1 90px' }}><span className="s">From</span><input type="time" value={bkForm.start} onChange={(e) => setBkForm((f) => ({ ...f, start: e.target.value }))} style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 8, borderRadius: 8 }} /></label>
-                    <label style={{ flex: '1 1 90px' }}><span className="s">To</span><input type="time" value={bkForm.end} onChange={(e) => setBkForm((f) => ({ ...f, end: e.target.value }))} style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 8, borderRadius: 8 }} /></label>
+                    <label style={{ flex: '1 1 130px' }}><span className="s">Date</span><input type="date" value={bkForm.date} onChange={(e) => setBkForm((f) => ({ ...f, date: e.target.value }))} style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 8, borderRadius: 3 }} /></label>
+                    <label style={{ flex: '1 1 90px' }}><span className="s">From</span><input type="time" value={bkForm.start} onChange={(e) => setBkForm((f) => ({ ...f, start: e.target.value }))} style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 8, borderRadius: 3 }} /></label>
+                    <label style={{ flex: '1 1 90px' }}><span className="s">To</span><input type="time" value={bkForm.end} onChange={(e) => setBkForm((f) => ({ ...f, end: e.target.value }))} style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 8, borderRadius: 3 }} /></label>
                     <button className="btn grad sm" style={{ width: 'auto' }} disabled={!bkForm.date}
                       onClick={async () => {
                         const b = { amenityId: a.id, residentId: resident.id, bookedBy: resident.name, building: resident.propLabel, unit: resident.unit, date: bkForm.date, startTime: bkForm.start || null, endTime: bkForm.end || null, status: 'pending' };
@@ -304,7 +304,7 @@ export default function ResidentHome({ resident, embedded = false }) {
             <button className="btn ghost sm" style={{ width: 'auto' }} onClick={async () => { await signOut().catch(() => {}); window.location.href = '/'; }}>Sign out</button>
           </div>
         )}
-        <p className="note" style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: 12, marginTop: 16 }}>Powered by Caliper Community</p>
+        <p className="note" style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: 12, marginTop: 16 }}>Powered by Round24 Community</p>
       </div>
     </div>
   );

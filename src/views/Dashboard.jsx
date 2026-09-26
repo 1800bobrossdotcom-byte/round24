@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip, Cell, PieChart, Pie } from 'recharts';
+import { useChartInk, tooltipStyle } from '../lib/chartInk.js';
 import { totals, byPeriod, byProp, byTech, fmtMoney, fmtHrs } from '../lib/rollups.js';
 import { Stat, Avatar, IcBuilding, IcChevron } from '../components/ui.jsx';
 import AllocateModal from '../components/AllocateModal.jsx';
@@ -7,6 +8,7 @@ import AllocateModal from '../components/AllocateModal.jsx';
 const GRAIN = ['week', 'month'];
 
 export default function Dashboard({ store, navigate }) {
+  const ink = useChartInk();
   const [grain, setGrain] = useState('week');
   const [showUnalloc, setShowUnalloc] = useState(false);
   const [seeding, setSeeding] = useState(false);
@@ -49,7 +51,7 @@ export default function Dashboard({ store, navigate }) {
     return (
       <div>
         <div className="view-head">
-          <h1>Labor, measured true</h1>
+          <h1>Every door, every round</h1>
           <p>{meta.org} · every hour allocated to a property and unit</p>
         </div>
         <div className="card" style={{ textAlign: 'center', padding: 40 }}>
@@ -71,7 +73,7 @@ export default function Dashboard({ store, navigate }) {
   return (
     <div>
       <div className="view-head">
-        <h1>Labor, measured true</h1>
+        <h1>Every door, every round</h1>
         <p>{meta.org} · every hour allocated to a property and unit</p>
       </div>
 
@@ -99,13 +101,14 @@ export default function Dashboard({ store, navigate }) {
       )}
 
       {un.count > 0 && (
-        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: '#ffb02033', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'color-mix(in srgb, var(--warn) 20%, transparent)', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ width: 96, height: 96, flex: 'none', position: 'relative' }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={splitData} dataKey="value" innerRadius={30} outerRadius={46} paddingAngle={2} stroke="none" startAngle={90} endAngle={-270} />
-                <Tooltip contentStyle={{ background: '#16161c', border: '1px solid #26262f', borderRadius: 10, fontFamily: 'Space Mono', fontSize: 12 }}
-                  formatter={(v, n) => [fmtMoney(v), n]} />
+                <Pie data={splitData} dataKey="value" innerRadius={30} outerRadius={46} paddingAngle={2} stroke="none" startAngle={90} endAngle={-270} isAnimationActive={false}>
+                  {splitData.map((d, i) => <Cell key={d.name || i} fill={i === 0 ? ink.ink : 'url(#r24hatch)'} />)}
+                </Pie>
+                <Tooltip contentStyle={tooltipStyle} formatter={(v, n) => [fmtMoney(v), n]} />
               </PieChart>
             </ResponsiveContainer>
             <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
@@ -140,20 +143,22 @@ export default function Dashboard({ store, navigate }) {
           </div>
         </div>
         <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={series} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
-            <XAxis dataKey="label" tick={{ fill: '#63636f', fontSize: 10, fontFamily: 'Space Mono' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-            <Tooltip cursor={{ fill: '#ffffff08' }} contentStyle={{ background: '#16161c', border: '1px solid #26262f', borderRadius: 10, fontFamily: 'Space Mono', fontSize: 12 }}
-              formatter={(v) => [fmtMoney(v), 'labor']} labelStyle={{ color: '#a0a0ad' }} />
-            <Bar dataKey="cost" radius={[5, 5, 0, 0]} cursor="pointer"
+          <BarChart data={series} margin={{ top: 4, right: 0, bottom: 0, left: 0 }} barCategoryGap="28%">
+            <XAxis dataKey="label" tick={{ fill: ink.faint, fontSize: 10, fontFamily: ink.mono }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+            <Tooltip cursor={{ fill: ink.line, fillOpacity: .35 }} contentStyle={tooltipStyle}
+              formatter={(v) => [fmtMoney(v), 'labor']} labelStyle={{ color: 'var(--text-dim)' }} />
+            {/* outlined marks: ink edge, ink at 18% inside — a HUD bar, not a slab */}
+            <Bar dataKey="cost" radius={0} cursor="pointer" fill={ink.ink} fillOpacity={0.18} stroke={ink.ink} strokeWidth={1} isAnimationActive={false}
               onClick={(d) => { const k = d?.key || d?.payload?.key; if (k) go('cal', { month: k.slice(0, 7) }); }}>
-              {series.map((_, i) => <Cell key={i} fill="url(#barGrad)" />)}
+              {series.map((_, i) => <Cell key={i} fill={ink.ink} fillOpacity={0.18} stroke={ink.ink} />)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
-        <svg width="0" height="0"><defs>
-          <linearGradient id="barGrad" x1="0" y1="1" x2="0" y2="0">
-            <stop offset="0" stopColor="#ff7a18" stopOpacity=".5" /><stop offset="1" stopColor="#a855f7" stopOpacity=".9" />
-          </linearGradient>
+        {/* one ink; the second category is the same ink, hatched (see the pie above) */}
+        <svg width="0" height="0" aria-hidden="true"><defs>
+          <pattern id="r24hatch" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+            <rect width="6" height="6" fill={ink.surface} /><rect width="2" height="6" fill={ink.ink} />
+          </pattern>
         </defs></svg>
       </div>
 

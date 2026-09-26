@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v4: purchases (receipts) + documents + storage
+-- Round24 — schema v4: purchases (receipts) + documents + storage
 -- Crew submits material purchases with receipt photos; office
 -- reviews/approves. Documents shared org-wide or staff-only.
 -- ============================================================

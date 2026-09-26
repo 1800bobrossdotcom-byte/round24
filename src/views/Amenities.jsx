@@ -4,7 +4,7 @@ import { sortBookings, bookingSummary } from '../lib/amenity.js';
 import { useAuth } from '../components/AuthGate.jsx';
 import { IcBuilding, IcCheck, IcX } from '../components/ui.jsx';
 
-const inp = { width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 9 };
+const inp = { width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 3 };
 const isLand = (u) => u.type === 'land' || u.status === 'held';
 const fmtDate = (d) => (!d ? '' : new Date(d + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }));
 const fmtTime = (t) => (!t ? '' : (() => { const [h, m] = t.split(':').map(Number); const ap = h < 12 ? 'a' : 'p'; const hh = h % 12 || 12; return `${hh}:${String(m).padStart(2, '0')}${ap}`; })());

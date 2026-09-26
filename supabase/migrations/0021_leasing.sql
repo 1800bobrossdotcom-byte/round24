@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v21: the leasing spine (replaces the lease spreadsheet)
+-- Round24 — schema v21: the leasing spine (replaces the lease spreadsheet)
 -- Extends the existing `units` table (from RM-sync scaffolding) with the
 -- fields the lease worksheet carries, and adds `leases`: a unit has at most
 -- one active lease with tenant, rent, fees, deposit, term, renewal status.

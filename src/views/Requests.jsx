@@ -24,11 +24,11 @@ export default function Requests({ store, navigate }) {
   const [qrImg, setQrImg] = useState('');
   const [posterBusy, setPosterBusy] = useState(false);
   useEffect(() => { try { setQrImg(qrDataUrl(qrLink, { size: 480, margin: 3 })); } catch { setQrImg(''); } }, [qrLink]);
-  const slug = (bld.trim() || 'caliper').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const dlQr = () => downloadDataUrl(qrDataUrl(qrLink, { size: 1024, margin: 4 }), `caliper-request-qr-${slug}.png`);
+  const slug = (bld.trim() || 'round24').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const dlQr = () => downloadDataUrl(qrDataUrl(qrLink, { size: 1024, margin: 4 }), `round24-request-qr-${slug}.png`);
   const dlPoster = async () => {
     setPosterBusy(true);
-    try { const png = await qrPosterDataUrl(qrLink, { building: bld.trim() }); downloadDataUrl(png, `caliper-request-poster-${slug}.png`); }
+    try { const png = await qrPosterDataUrl(qrLink, { building: bld.trim() }); downloadDataUrl(png, `round24-request-poster-${slug}.png`); }
     finally { setPosterBusy(false); }
   };
 
@@ -52,8 +52,8 @@ export default function Requests({ store, navigate }) {
         {pics[0] && (
           <div style={{ position: 'relative', flex: 'none' }}>
             <img src={pics[0]} alt="issue" onClick={() => setPhoto(pics[0])}
-              style={{ width: 76, height: 76, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)', cursor: 'zoom-in' }} />
-            {pics.length > 1 && <span style={{ position: 'absolute', bottom: 3, right: 3, background: '#000b', color: '#fff', fontSize: 11, padding: '1px 5px', borderRadius: 6 }}>+{pics.length - 1}</span>}
+              style={{ width: 76, height: 76, objectFit: 'cover', borderRadius: 3, border: '1px solid var(--line)', cursor: 'zoom-in' }} />
+            {pics.length > 1 && <span style={{ position: 'absolute', bottom: 3, right: 3, background: '#000b', color: '#fff', fontSize: 11, padding: '1px 5px', borderRadius: 2 }}>+{pics.length - 1}</span>}
           </div>
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -68,7 +68,7 @@ export default function Requests({ store, navigate }) {
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '6px 0' }}>
               {pics.slice(1).map((p, i) => (
                 <img key={i} src={p} alt={`issue ${i + 2}`} onClick={() => setPhoto(p)}
-                  style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--line)', cursor: 'zoom-in' }} />
+                  style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 2, border: '1px solid var(--line)', cursor: 'zoom-in' }} />
               ))}
             </div>
           )}
@@ -101,7 +101,7 @@ export default function Requests({ store, navigate }) {
         <p className="note" style={{ margin: '0 0 10px' }}>Post this link (or a QR of it) in buildings and on notices. Residents open it, describe the issue, snap a photo — no login needed. Requests land here.</p>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <input readOnly value={link} onFocus={(e) => e.target.select()} className="mono"
-            style={{ flex: 1, minWidth: 220, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 13, padding: 10, borderRadius: 9 }} />
+            style={{ flex: 1, minWidth: 220, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 13, padding: 10, borderRadius: 3 }} />
           <button className="btn ghost sm" onClick={copyLink}>{copied ? 'Copied ✓' : 'Copy link'}</button>
           <a className="btn ghost sm" href={link} target="_blank" rel="noreferrer">Preview</a>
         </div>
@@ -109,13 +109,13 @@ export default function Requests({ store, navigate }) {
 
         {/* QR: download a printable code / poster to drop into notices, lease packets, doors */}
         <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)', flexWrap: 'wrap' }}>
-          {qrImg && <img src={qrImg} alt="Resident request QR code" style={{ width: 200, height: 200, borderRadius: 10, border: '1px solid var(--line)', background: '#fff', padding: 6, flex: 'none' }} />}
+          {qrImg && <img src={qrImg} alt="Resident request QR code" style={{ width: 200, height: 200, borderRadius: 3, border: '1px solid var(--line)', background: '#fff', padding: 6, flex: 'none' }} />}
           <div style={{ flex: 1, minWidth: 220 }}>
             <span className="field-label" style={{ display: 'block', marginBottom: 4 }}>Printable QR code</span>
             <p className="note" style={{ margin: '0 0 8px' }}>Residents scan with their phone camera — straight to the request form. Drop it in notices, lease packets, or on each door.</p>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <input value={bld} onChange={(e) => setBld(e.target.value)} placeholder="Building for this code (optional)"
-                style={{ flex: 1, minWidth: 160, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, padding: 9, borderRadius: 9 }} />
+                style={{ flex: 1, minWidth: 160, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, padding: 9, borderRadius: 3 }} />
               <button className="btn ghost sm" onClick={dlQr}>Download QR (PNG)</button>
               <button className="btn grad sm" onClick={dlPoster} disabled={posterBusy}>{posterBusy ? 'Building…' : 'Download poster'}</button>
             </div>
@@ -142,7 +142,7 @@ export default function Requests({ store, navigate }) {
 
       {photo && (
         <div onClick={() => setPhoto(null)} style={{ position: 'fixed', inset: 0, background: '#000c', display: 'grid', placeItems: 'center', zIndex: 200, padding: 20, cursor: 'zoom-out' }}>
-          <img src={photo} alt="issue" style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 10 }} />
+          <img src={photo} alt="issue" style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 3 }} />
         </div>
       )}
     </div>

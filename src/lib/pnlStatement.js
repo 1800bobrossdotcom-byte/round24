@@ -2,7 +2,7 @@
 // P&L statement generator — assembles a per-property monthly P&L in the exact
 // shape of Evolution24's sheets (Income → Operating Expenses → NOI → DSCR).
 //
-// Three lines come straight from Caliper's connected data and can't be forgotten
+// Three lines come straight from Round24's connected data and can't be forgotten
 // or fudged:  Rent (rent roll) · Maintenance Labor (the crew's timers) ·
 // Repairs & Supplies (approved receipts).  Management/Payroll is a % of gross.
 // The rest (utilities, insurance, taxes, debt service, short-term income) are

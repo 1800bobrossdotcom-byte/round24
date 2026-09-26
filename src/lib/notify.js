@@ -9,8 +9,8 @@ import { isConfigured, savePushSubscription, deletePushSubscription } from './ba
 
 // What the controls show for THIS device:
 //   'unsupported' · 'denied' · 'off' (not enabled yet)
-//   'local'  — system notifications while Caliper is open (no push endpoint)
-//   'push'   — this device receives pushes even with Caliper closed
+//   'local'  — system notifications while Round24 is open (no push endpoint)
+//   'push'   — this device receives pushes even with Round24 closed
 export async function notificationState() {
   const perm = browserPermission();
   if (perm === 'unsupported' || perm === 'denied') return perm;

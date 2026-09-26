@@ -1,31 +1,32 @@
 /* ==========================================================================
-   CALIPER — deck system
+   ROUND24 — deck system
    One 1280x720 slide per page. Print-first: these files exist to be rendered
    to PDF by scripts/render-decks.mjs, and to be opened in a browser as-is.
 
-   Brand language, carried from the app and the investor brief:
-     · paper surface + measurement-green accent (print legible, ink-cheap)
-     · Space Mono on every figure and label; Raleway on prose
-     · machinist rule + dimension lines as the structural motif
-     · the rainbow measurement gradient reserved for cover/close only
+   Brand language, carried from the app:
+     · black and white only — paper slides in ink, cover/close on night
+     · IBM Plex Mono on every figure and label; Barlow on prose; Barlow
+       Condensed on titles
+     · hairline rules + dimension lines as the structural motif
    All colour lives in this block. Whitelabel = swap the tokens.
    ========================================================================== */
 @import url('fonts.css');
 
 :root {
-  --paper:#F1F3EF; --surface:#FBFCFA; --surface-2:#EAEDE7;
-  --ink:#16211E; --muted:#586863; --faint:#8A968F;
-  --line:#D6DBD2; --tick:#C4CABF; --tick-major:#9FA89E;
-  --accent:#0C9C6B; --accent-ink:#0A7A54; --accent-soft:#0c9c6b16;
-  --brass:#9C7328; --flag:#B3402E;
+  --paper:#F2F2F2; --surface:#FFFFFF; --surface-2:#E8E8E8;
+  --ink:#0A0A0A; --muted:#4A4A4A; --faint:#7A7A7A;
+  --line:#CFCFCF; --tick:#BDBDBD; --tick-major:#8A8A8A;
+  --accent:#0A0A0A; --accent-ink:#000000; --accent-soft:#0a0a0a12;
+  --brass:#3A3A3A; --flag:#0A0A0A;
 
-  --night:#0C1312; --night-2:#111B19; --night-line:#233330;
-  --night-ink:#E9EEEA; --night-muted:#93A29C; --night-faint:#63726C;
-  --night-accent:#2ED08C;
+  --night:#050505; --night-2:#0F0F0F; --night-line:#2A2A2A;
+  --night-ink:#F2F2F2; --night-muted:#A3A3A3; --night-faint:#6B6B6B;
+  --night-accent:#FFFFFF;
 
-  --grad: linear-gradient(100deg,#ff3d3d 0%,#ff7a18 22%,#ffd21a 42%,#4ade80 62%,#38bdf8 80%,#a855f7 100%);
-  --mono:'Space Mono', ui-monospace, Menlo, Consolas, monospace;
-  --sans:'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --grad: linear-gradient(100deg,#ffffff 0%,#9a9a9a 100%);
+  --mono:'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  --sans:'Barlow', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --cond:'Barlow Condensed', 'Barlow', sans-serif;
 
   --W:1280px; --H:720px; --pad:70px;
 }
@@ -33,7 +34,7 @@
 * { box-sizing:border-box; }
 html, body { margin:0; padding:0; }
 body {
-  font-family:var(--sans); color:var(--ink); background:#9AA29C;
+  font-family:var(--sans); color:var(--ink); background:#6B6B6B;
   -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
   font-variant-ligatures:none;
 }
@@ -195,7 +196,7 @@ table.cmp { width:100%; border-collapse:collapse; font-size:12.5px; }
 
 /* --- screenshot frames --------------------------------------------------- */
 .shot { border:1px solid var(--line); border-radius:5px; overflow:hidden; background:var(--surface-2);
-        box-shadow:0 22px 44px -28px rgba(22,33,30,.55); }
+        box-shadow:0 22px 44px -28px rgba(28,28,28,.55); }
 .shot .bar2 { height:24px; display:flex; align-items:center; gap:5px; padding:0 10px;
               background:var(--surface-2); border-bottom:1px solid var(--line); }
 .shot .bar2 i { width:7px; height:7px; border-radius:50%; background:var(--tick); display:block; }
@@ -206,7 +207,7 @@ table.cmp { width:100%; border-collapse:collapse; font-size:12.5px; }
 .shot.h460 img { height:460px; }
 
 .phone { width:196px; padding:6px; background:var(--surface-2); border:1px solid var(--line);
-         border-radius:22px; box-shadow:0 22px 44px -26px rgba(22,33,30,.6); flex:none; }
+         border-radius:22px; box-shadow:0 22px 44px -26px rgba(28,28,28,.6); flex:none; }
 .phone img { display:block; width:100%; height:340px; object-fit:cover; object-position:top center; border-radius:17px; }
 
 .cap { font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase;
@@ -234,7 +235,7 @@ table.cmp { width:100%; border-collapse:collapse; font-size:12.5px; }
 .slide--night .rule::before { background-image:repeating-linear-gradient(90deg, var(--night-line) 0 1px, transparent 1px 9px); }
 .slide--night .rule::after {
   background-image:linear-gradient(0deg, var(--night-line) 0 1px, transparent 1px),
-                   repeating-linear-gradient(90deg, #3A4E48 0 1px, transparent 1px 45px);
+                   repeating-linear-gradient(90deg, #2A2A2A 0 1px, transparent 1px 45px);
 }
 .grad-text { background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
 .grad-bar { height:3px; background:var(--grad); border-radius:2px; }
@@ -255,7 +256,7 @@ table.cmp { width:100%; border-collapse:collapse; font-size:12.5px; }
 .cover .meta .k { font-family:var(--mono); font-size:9.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--night-faint); }
 .cover .meta .v { font-family:var(--mono); font-size:12.5px; color:var(--night-ink); margin-top:6px; font-weight:700; }
 .cover .glow { position:absolute; right:-140px; top:-120px; width:620px; height:620px; opacity:.5;
-               background:radial-gradient(circle at 50% 50%, rgba(46,208,140,.30), transparent 62%); }
+               background:radial-gradient(circle at 50% 50%, rgba(131,131,131,.30), transparent 62%); }
 
 /* --- misc ---------------------------------------------------------------- */
 .disc { font-family:var(--sans); font-size:10.5px; line-height:1.4; color:var(--faint); }

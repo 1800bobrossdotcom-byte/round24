@@ -56,7 +56,7 @@ export default function Team({ store, focus, navigate }) {
       <div className="card" key={r.key} ref={(el) => { cardRefs.current[r.key] = el; }}
         style={{ marginBottom: 'var(--gap)', transition: 'border-color .3s, box-shadow .3s',
           ...(inactive ? { opacity: 0.6 } : null),
-          ...(hl === r.key ? { borderColor: 'var(--accent, #a855f7)', boxShadow: '0 0 0 1px var(--accent, #a855f7)' } : null) }}>
+          ...(hl === r.key ? { borderColor: 'var(--accent, var(--accent-2))', boxShadow: '0 0 0 1px var(--accent, var(--accent-2))' } : null) }}>
         <div className="row" style={{ paddingTop: 0 }}>
           <Avatar name={tech.name} i={i} />
           <div className="lead">
@@ -199,12 +199,12 @@ function FieldAccessRow({ member, seat, onEnable, onDisable }) {
   );
 }
 
-const salInput = { background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 9 };
+const salInput = { background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 3 };
 function RateEditor({ initial, onSave, onCancel }) {
   const [rate, setRate] = useState(initial ? String(initial) : '');
   const ok = parseFloat(rate) >= 0 && rate !== '';
   return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--surface-2)', padding: 10, borderRadius: 10 }}>
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--surface-2)', padding: 10, borderRadius: 3 }}>
       <span className="field-label" style={{ margin: 0 }}>Hourly rate</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <span style={{ color: 'var(--text-dim)' }}>$</span>
@@ -221,7 +221,7 @@ function SalaryEditor({ initial, onSave, onCancel }) {
   const [period, setPeriod] = useState(initial?.period || 'year');
   const ok = parseFloat(amount) > 0;
   return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--surface-2)', padding: 10, borderRadius: 10 }}>
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--surface-2)', padding: 10, borderRadius: 3 }}>
       <span className="field-label" style={{ margin: 0 }}>Salary</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <span style={{ color: 'var(--text-dim)' }}>$</span>

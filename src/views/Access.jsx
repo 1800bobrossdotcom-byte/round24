@@ -16,7 +16,7 @@ const ROLE_COLOR = { admin: 'var(--accent)', manager: 'var(--info)', tech: 'var(
 
 const inputStyle = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 10, borderRadius: 10,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 10, borderRadius: 3,
 };
 
 export default function Access({ store }) {

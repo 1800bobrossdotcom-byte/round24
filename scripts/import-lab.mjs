@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Import lab — see exactly what Caliper reads out of a spreadsheet.
+// Import lab — see exactly what Round24 reads out of a spreadsheet.
 //
 //   node scripts/import-lab.mjs                 run the built-in layout corpus (pass/fail)
 //   node scripts/import-lab.mjs path/to/file.xlsx [--rentroll]   interpret a real file

@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v30: verified clock-in (labor, measured true — literally).
+-- Round24 — schema v30: verified clock-in (around the clock — literally).
 -- Buildings get a geofence (lat/lng + radius); a crew timer captures the punch
 -- location and whether it landed inside the building's fence. The verified
 -- minute is the same one that flows to the owner's per-door P&L.

@@ -1,7 +1,7 @@
 // ============================================================
 // P&L sheet interpreter — reads the per-building monthly P&L tabs (e.g.
 // "561 S Main St PL 2026", "301 Central PL 2026") and distills them into the
-// fixed per-building inputs Caliper's P&L statement consumes (PL_INPUTS): a
+// fixed per-building inputs Round24's P&L statement consumes (PL_INPUTS): a
 // representative MONTHLY figure per line, averaged over the months that carry
 // real data. Rent + labor + materials come from the live spine, so those lines
 // are ignored here — this only fills the static overhead (taxes, insurance,
@@ -30,7 +30,7 @@ function num(v) {
 }
 
 // label (col 0) → PL_INPUTS key. Rent/gross/opex/NOI/management/repairs/capex are
-// intentionally NOT mapped — Caliper derives those from the rent roll + labor + purchases.
+// intentionally NOT mapped — Round24 derives those from the rent roll + labor + purchases.
 const LINE_MAP = [
   ['airbnb', /air ?b|short.?term/i],
   ['otherIncome', /^other income/i],

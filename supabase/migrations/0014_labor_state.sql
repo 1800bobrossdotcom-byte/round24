@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v14: cloud labor persistence
+-- Round24 — schema v14: cloud labor persistence
 -- The labor spine (imported pay-log timers + derived operators + discovered
 -- buildings) has lived in the browser. This stores it per org so it follows
 -- the account across devices. It carries rates (pay data), so it is

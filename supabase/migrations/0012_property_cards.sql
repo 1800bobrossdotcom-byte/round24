@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v12: per-property credit cards
+-- Round24 — schema v12: per-property credit cards
 -- Each building has its own card, so a scanned receipt can auto-file to the
 -- right property by matching the card's last 4. Staff manage the mapping;
 -- every org member can read it (so a crew scan can auto-match too).

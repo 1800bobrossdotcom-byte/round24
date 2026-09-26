@@ -48,13 +48,13 @@ export default function PLStatement({ store }) {
     return (
       <div>
         <div className="view-head"><h1>P&amp;L statement</h1><p>Auto-assembled from rent, labor, and receipts.</p></div>
-        <div className="card"><p className="note">Add a rent roll first — then Caliper builds each building's monthly P&amp;L from the connected data.</p></div>
+        <div className="card"><p className="note">Add a rent roll first — then Round24 builds each building's monthly P&amp;L from the connected data.</p></div>
       </div>
     );
   }
 
   const editLine = (key, val) => setPlLine && setPlLine(building, { [key]: val === '' ? 0 : Math.round(parseFloat(val) * 100) / 100 });
-  const cellInput = { width: 96, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--mono)', fontSize: 13, padding: '5px 7px', borderRadius: 7, textAlign: 'right' };
+  const cellInput = { width: 96, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--mono)', fontSize: 13, padding: '5px 7px', borderRadius: 2, textAlign: 'right' };
 
   const Line = ({ l }) => (
     <tr>
@@ -73,7 +73,7 @@ export default function PLStatement({ store }) {
   return (
     <div>
       <div className="view-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-        <div><h1>P&amp;L statement</h1><p>Rent, labor, and receipts fill in automatically. Enter the fixed lines once — Caliper does the math.</p></div>
+        <div><h1>P&amp;L statement</h1><p>Rent, labor, and receipts fill in automatically. Enter the fixed lines once — Round24 does the math.</p></div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button className="btn ghost sm icon-btn" onClick={() => { pickedRef.current = true; setMonth((m) => stepMonth(m, -1)); }} aria-label="Previous month"><IcChevron width={15} height={15} style={{ transform: 'rotate(180deg)' }} /></button>
           <span className="mono" style={{ fontWeight: 700, minWidth: 88, textAlign: 'center' }}>{month ? fmtMonth(month) : '—'}</span>
@@ -84,7 +84,7 @@ export default function PLStatement({ store }) {
       <div className="rangebar" style={{ marginBottom: 'var(--gap)' }}>
         <span className="lbl">Property</span>
         <select className="seg" value={building} onChange={(e) => setBuilding(e.target.value)}
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontWeight: 700, fontSize: 14, padding: '8px 10px', borderRadius: 9 }}>
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontWeight: 700, fontSize: 14, padding: '8px 10px', borderRadius: 3 }}>
           {buildings.map((b) => <option key={b} value={b}>{b}</option>)}
         </select>
       </div>

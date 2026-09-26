@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v24: email unsubscribe list
+-- Round24 — schema v24: email unsubscribe list
 -- Records addresses that opted out of non-transactional email. The send
 -- function honors it for welcome mail; the public /unsubscribe function
 -- records it (one-click from the email footer). Locked table — only the

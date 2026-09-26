@@ -1,4 +1,4 @@
-# Caliper Community — Architecture Spec (v0.3)
+# Round24 Community — Architecture Spec (v0.3)
 
 **The resident product.** A per-building community + maintenance layer that turns
 residents from ticket-submitters into a self-governing community, wired into the
@@ -15,9 +15,9 @@ Three personas, one backend (unchanged decision: **keep Portfolio, add Community
 
 | Product | Who | Pays? | Role in the flywheel |
 |---|---|---|---|
-| **Caliper Pro** | PM company (Office + Crew) | ✅ the buyer | the system of record |
-| **Caliper Portfolio** | individual owners | ✅ (or a Pro role) | owner-facing transparency |
-| **Caliper Community** | **residents** | ❌ free, bundled with Pro | adoption + retention + moat |
+| **Round24 Pro** | PM company (Office + Crew) | ✅ the buyer | the system of record |
+| **Round24 Portfolio** | individual owners | ✅ (or a Pro role) | owner-facing transparency |
+| **Round24 Community** | **residents** | ❌ free, bundled with Pro | adoption + retention + moat |
 
 **Why Community matters (the thesis):** every competitor (AppWork, Property Meld,
 Latchel, RM's own portal) treats the resident as a ticket submitter. None treats
@@ -27,9 +27,9 @@ the building as a *community*. Community is:
   hallway clogged" today escalate to management → a call → sometimes a work order
   → staff cost. Peer-to-peer resolution removes that load. That's the pitch to
   the PM: fewer nuisance tickets, fewer after-hours calls.
-- **A closed loop to Caliper's labor engine.** Buildings with real community have
+- **A closed loop to Round24's labor engine.** Buildings with real community have
   lower turnover → fewer make-readies → less turn labor, which Pro *already
-  measures per door*. Caliper becomes the only company that can tell an owner:
+  measures per door*. Round24 becomes the only company that can tell an owner:
   *"the buildings where residents actually talk cost you $X less in make-ready
   labor last year."* Nobody else has both sides of that equation.
 - **The first resident-side network effect in the category.** Once a building's
@@ -64,7 +64,7 @@ the lease.
    in against their RM tenant record → auto-matched to unit + lease, verified with
    zero office work. *This is where the RM integration pays off twice.*
 2. **Lease-email match (available now).** Resident enters their email; if it
-   matches a tenant email already in Caliper's rent roll (we import these), bind +
+   matches a tenant email already in Round24's rent roll (we import these), bind +
    auto-verify. No manual step.
 3. **Per-unit invite.** Office sends an invite to the lease email (reuse the
    existing invite-code system) → binds directly to that unit, pre-verified.
@@ -99,7 +99,7 @@ The design that makes it safe (and is non-negotiable, day one):
 - The system **always** knows who you are (via `unit_id`). Neighbors see a
   pseudonym + coarse location: *"4th-floor neighbor"*, *"a resident in your
   building"*. Never a name or unit unless the resident chooses to reveal.
-- **The office (and Caliper) can unmask a *reported* message.** This single
+- **The office (and Round24) can unmask a *reported* message.** This single
   property kills ~90% of abuse: bad actors know they aren't actually anonymous.
   Unmasking is office-only and **audited** (reuse `platform_audit`-style logging).
 
@@ -257,7 +257,7 @@ audience* and must be walled off from all Pro data:
 - New **Residents** surface in the office shell: verify queue, moderation queue,
   per-building social on/off, resident roster by unit.
 - Dashboard card tying it back to money: **resident engagement ↔ turnover ↔
-  make-ready cost** — the story only Caliper can tell.
+  make-ready cost** — the story only Round24 can tell.
 - Maintenance already flows resident → office → work order → crew; Community adds
   verified identity + the social layer on top of the pipe that exists.
 
@@ -297,7 +297,7 @@ audience* and must be walled off from all Pro data:
 
 ## 10. One-line pitch
 
-**Caliper Pro measures the true cost of running a building. Caliper Community
+**Round24 Pro measures the true cost of running a building. Round24 Community
 lowers it — by turning residents into a self-governing community that resolves
 its own friction, reports its own problems, and stays longer.** Nobody else in
 the category has both halves.

@@ -14,8 +14,8 @@ export default function VoiceCommandGuide({ compact = false, marketing = false }
     <div className="voice-guide">
       {!compact && (
         <p className="note" style={{ margin: '0 0 12px' }}>
-          Every command starts with the wake word <b>“Caliper.”</b> Say it, then the phrase —
-          you don’t have to touch the phone. Caliper says the result back so you know it landed.
+          Every command starts with the wake word <b>“Round 24.”</b> Say it, then the phrase —
+          you don’t have to touch the phone. Round 24 says the result back so you know it landed.
         </p>
       )}
 
@@ -27,7 +27,7 @@ export default function VoiceCommandGuide({ compact = false, marketing = false }
               <div key={c.intent} style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
                 <span className="voice-say mono" style={{
                   flex: 'none', color: 'var(--accent)', fontWeight: 700, fontSize: 13,
-                  background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 8, padding: '3px 8px',
+                  background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 3, padding: '3px 8px',
                 }}>
                   <IcMic width={11} height={11} style={{ verticalAlign: -1, marginRight: 4, opacity: 0.8 }} />“{c.say}”
                 </span>

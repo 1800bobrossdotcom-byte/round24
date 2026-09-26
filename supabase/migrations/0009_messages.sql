@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v9: team comms (Slack-style) with voice notes
+-- Round24 — schema v9: team comms (Slack-style) with voice notes
 -- Two-way messaging across the org: office↔crew and crew↔crew. Every
 -- org member can read and post to their org's channels. Messages are
 -- typed notes and/or a voice note (audio in the 'voicenotes' bucket).

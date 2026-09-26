@@ -43,12 +43,12 @@ export default function Integrations({ store }) {
     <div>
       <div className="view-head">
         <h1>Integrations</h1>
-        <p>Connect Caliper to the systems you already run on</p>
+        <p>Connect Round24 to the systems you already run on</p>
       </div>
 
       {!isConfigured() && <div className="offline">◐ Connect Supabase to enable integrations.</div>}
-      {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{err}</div>}
-      {msg && <div className="offline" style={{ color: 'var(--money)', borderColor: '#4ade8033', background: '#4ade8012' }}><IcCheck width={15} height={15} /> {msg}</div>}
+      {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 20%, transparent)', background: 'color-mix(in srgb, var(--danger) 7%, transparent)' }}>{err}</div>}
+      {msg && <div className="offline" style={{ color: 'var(--money)', borderColor: 'color-mix(in srgb, var(--money) 20%, transparent)', background: 'color-mix(in srgb, var(--money) 7%, transparent)' }}><IcCheck width={15} height={15} /> {msg}</div>}
 
       <div className="card">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
@@ -86,7 +86,7 @@ export default function Integrations({ store }) {
           <b style={{ color: 'var(--text-dim)' }}>How it works.</b> Preview runs the full pull → map → sync pipeline on
           sample data so you can see exactly what a live sync produces. Live sync activates once an API-enabled
           Rent Manager account is connected (credentials stay server-side, never in the browser). Conflict rule:
-          Rent Manager is the source of truth for properties and units; Caliper owns work orders and cost.
+          Rent Manager is the source of truth for properties and units; Round24 owns work orders and cost.
         </p>
         <p className="note" style={{ marginTop: 6 }}>
           Base URL <span className="mono">evolution.api.rentmanager.com</span> · read-only · one direction of truth per entity.

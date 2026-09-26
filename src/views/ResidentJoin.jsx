@@ -8,10 +8,10 @@ import OrgLogo from '../components/OrgLogo.jsx';
 
 const inp = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 16, padding: 12, borderRadius: 10,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 16, padding: 12, borderRadius: 3,
 };
 
-// Caliper Community — join your building: caliper.solutions/?join=<orgId>[&b=…]
+// Round24 Community — join your building: round24.app/?join=<orgId>[&b=…]
 // Three steps in one page: sign in / create account → claim your unit → pending.
 // The office verifies every claim against the lease, so possession of the link
 // only lets you ASK — verification is the gate.
@@ -66,7 +66,7 @@ export default function ResidentJoin({ orgId, building = '' }) {
       // e.g. a staff/crew member who also lives here — same login works for both
       if (/already registered/i.test(e.message || '')) {
         setMode('signin');
-        setErr('You already have a Caliper account with this email — sign in with your usual password and it works for both.');
+        setErr('You already have a Round24 account with this email — sign in with your usual password and it works for both.');
       } else setErr(e.message || 'Could not sign in.');
     }
     finally { setBusy(false); }
@@ -84,14 +84,14 @@ export default function ResidentJoin({ orgId, building = '' }) {
   const logo = (
     <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'center' }}>
       <OrgLogo logo={brand?.logo} name={brand?.name} height={76} poweredBy centered
-        fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 9 }}><Mark className="mark" /><span style={{ fontWeight: 800, fontSize: 20 }}>Caliper</span></span>} />
+        fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 9 }}><Mark className="mark" /><span style={{ fontWeight: 800, fontSize: 20 }}>Round24</span></span>} />
     </div>
   );
 
   const shell = (inner) => (
     <div className="community-scope" style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: 420, padding: '28px 20px 60px' }}>{logo}{inner}
-        <p className="note" style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: 12, marginTop: 18 }}>Caliper Community · your info is only shared with your building's management office.</p>
+        <p className="note" style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: 12, marginTop: 18 }}>Round24 Community · your info is only shared with your building's management office.</p>
       </div>
     </div>
   );

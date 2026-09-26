@@ -1,7 +1,7 @@
 -- ============================================================
--- Caliper — schema v8: units + Rent Manager sync scaffolding
+-- Round24 — schema v8: units + Rent Manager sync scaffolding
 -- Read-only RM pull lands here. Conflict rule (locked): RM wins on
--- properties/units, Caliper wins on work orders. external_src/external_id
+-- properties/units, Round24 wins on work orders. external_src/external_id
 -- carry provenance so native-mode (non-RM) shops still work.
 -- ============================================================
 

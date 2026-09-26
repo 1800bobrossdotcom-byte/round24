@@ -6,7 +6,7 @@ import { IcReceipt, IcSync, IcBuilding, IcShield, IcWrench } from '../components
 
 const money = (n) => (n == null ? '—' : '$' + Math.round(n).toLocaleString());
 const fmtDate = (iso) => { const d = new Date(`${iso}T00:00:00`); return isNaN(d.getTime()) ? iso : d.toLocaleDateString([], { month: 'short', day: 'numeric', year: '2-digit' }); };
-const CATCOLOR = { painting: '#a855f7', hvac: '#38bdf8', plumbing: '#22d3ee', appliance: '#ff7a18', electrical: '#ffd21a', general: '#8b93a7', other: '#8b93a7' };
+const CATCOLOR = { painting: 'var(--accent-2)', hvac: 'var(--info)', plumbing: '#22d3ee', appliance: 'var(--accent)', electrical: 'var(--warn)', general: 'var(--text-faint)', other: 'var(--text-faint)' };
 
 export default function Forecast({ store, navigate }) {
   const { purchases = [], leasing = [] } = store;
@@ -21,7 +21,7 @@ export default function Forecast({ store, navigate }) {
     return (
       <div>
         <div className="view-head"><h1>Expense forecast</h1><p>What's coming, learned from what you buy.</p></div>
-        <div className="card"><p className="note">No approved receipts yet. As the crew logs purchases — what, where, and what for — Caliper starts projecting spend, spotting recurring buys, and tracking warranties.</p></div>
+        <div className="card"><p className="note">No approved receipts yet. As the crew logs purchases — what, where, and what for — Round24 starts projecting spend, spotting recurring buys, and tracking warranties.</p></div>
       </div>
     );
   }

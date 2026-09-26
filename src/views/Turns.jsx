@@ -22,7 +22,7 @@ const clId = () => 'ci_' + Math.random().toString(36).slice(2, 9);
 
 const inp = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 9,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 3,
 };
 const blankTurn = () => ({ propLabel: '', unit: '', stage: 'notice', moveOut: '', targetReady: '', assigneeLabel: '', marketRent: '', notes: '', checklist: null });
 
@@ -158,7 +158,7 @@ export default function Turns({ store, navigate }) {
         {STAGES.map(([k, label, color]) => (
           <div key={k} style={{ flex: '1 0 260px', minWidth: 260 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 8, background: color }} />
+              <span style={{ width: 8, height: 8, borderRadius: 3, background: color }} />
               <span className="field-label" style={{ margin: 0 }}>{label}</span>
               <span className="chip" style={{ marginLeft: 'auto', color: 'var(--text-faint)' }}>{(byStage[k] || []).length}</span>
             </div>
@@ -171,7 +171,7 @@ export default function Turns({ store, navigate }) {
 
       {unitTurns.length === 0 && (
         <div className="card" style={{ marginTop: 'var(--gap)' }}>
-          <p className="note"><IcBuilding width={13} height={13} style={{ verticalAlign: -2 }} /> No turns yet. Add a unit the moment a tenant gives notice — Caliper tracks it from notice to leased, runs the make-ready checklist, and spins up the crew work order.</p>
+          <p className="note"><IcBuilding width={13} height={13} style={{ verticalAlign: -2 }} /> No turns yet. Add a unit the moment a tenant gives notice — Round24 tracks it from notice to leased, runs the make-ready checklist, and spins up the crew work order.</p>
         </div>
       )}
     </div>
@@ -188,13 +188,13 @@ function TurnChecklist({ checklist, templates = [], onChange }) {
   const applyTemplate = (tmpl) => { if (!tmpl) return; onChange([...items, ...(tmpl.items || []).map((text) => ({ id: clId(), text, done: false }))]); };
   const pct = items.length ? Math.round((items.filter((i) => i.done).length / items.length) * 100) : 0;
   return (
-    <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-2)', borderRadius: 10 }}>
+    <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-2)', borderRadius: 3 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <span className="field-label" style={{ margin: 0 }}>Make-ready checklist</span>
         {items.length > 0 && <span className="mono" style={{ fontSize: 11, color: pct === 100 ? 'var(--money)' : 'var(--text-dim)' }}>{pct}%</span>}
         {relevant.length > 0 && (
           <select onChange={(e) => { const t = relevant.find((x) => x.id === e.target.value); applyTemplate(t); e.target.value = ''; }} defaultValue=""
-            style={{ marginLeft: 'auto', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 12, padding: '5px 7px', borderRadius: 8 }}>
+            style={{ marginLeft: 'auto', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 12, padding: '5px 7px', borderRadius: 3 }}>
             <option value="" disabled>+ Template…</option>
             {relevant.map((t) => <option key={t.id} value={t.id}>{t.name} ({(t.items || []).length})</option>)}
           </select>
@@ -209,7 +209,7 @@ function TurnChecklist({ checklist, templates = [], onChange }) {
       ))}
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         <input value={adding} onChange={(e) => setAdding(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addItem(); }} placeholder="Add a step…"
-          style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, padding: 8, borderRadius: 8 }} />
+          style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, padding: 8, borderRadius: 3 }} />
         <button className="btn ghost sm" onClick={addItem} disabled={!adding.trim()}>Add</button>
       </div>
     </div>
@@ -236,7 +236,7 @@ function TemplateManager({ templates = [], setTemplate, removeTemplate }) {
         {!draft && <button className="btn ghost sm" style={{ marginLeft: 'auto' }} onClick={startNew}>+ New template</button>}
       </div>
       {draft ? (
-        <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: 12 }}>
+        <div style={{ background: 'var(--surface-2)', borderRadius: 3, padding: 12 }}>
           <div className="grid g2" style={{ gap: 10 }}>
             <div><div className="field-label">Name</div><input style={inp} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Standard turn" /></div>
             <div><div className="field-label">Applies to</div>

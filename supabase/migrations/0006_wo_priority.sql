@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v6: work-order priority + live task list
+-- Round24 — schema v6: work-order priority + live task list
 -- Admin reorders the queue by priority; crew task lists sort by it.
 -- Realtime publication lets the crew's open app receive priority
 -- changes and new assignments instantly (RLS still applies — a tech

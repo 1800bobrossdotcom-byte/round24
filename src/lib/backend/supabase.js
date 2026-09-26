@@ -355,7 +355,7 @@ export async function getOrgProperties(orgId) {
   if (error) return [];
   return (data || []).map((r) => r.name).filter(Boolean);
 }
-// ---- Caliper Community · Slice 1: resident accounts + verify queue ----
+// ---- Round24 Community · Slice 1: resident accounts + verify queue ----
 const residentFromDb = (r) => ({
   id: r.id, userId: r.user_id, orgId: r.org_id, propLabel: r.property_label,
   unit: r.unit_label, name: r.display_name, email: r.email, status: r.status,

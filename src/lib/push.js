@@ -1,7 +1,7 @@
 // ============================================================
 // Web Push — the browser side. A device subscribes once (after the person
 // taps Enable), its subscription is saved to push_subscriptions, and the
-// push-send edge function delivers to it even when Caliper isn't open.
+// push-send edge function delivers to it even when Round24 isn't open.
 // Configured by VITE_VAPID_PUBLIC_KEY (see docs/PUSH-SETUP.md); without it the
 // app quietly falls back to in-app + local system notifications.
 // ============================================================

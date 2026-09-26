@@ -1,33 +1,26 @@
-// caliper measurement mark — stylized caliper jaws
+// Round24 mark — a round that never quite closes (the patrol keeps going),
+// a tick at twelve, and the sweep head about to complete it. Drawn in
+// currentColor so it is white on night, black on paper, and any tenant ink.
 export function Mark({ className = 'mark' }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      <defs>
-        <linearGradient id="cg" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#ff3d3d" /><stop offset=".25" stopColor="#ff7a18" />
-          <stop offset=".5" stopColor="#ffd21a" /><stop offset=".7" stopColor="#4ade80" />
-          <stop offset=".85" stopColor="#38bdf8" /><stop offset="1" stopColor="#a855f7" />
-        </linearGradient>
-      </defs>
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square">
       {/* pathLength=1 normalizes each stroke so the draw-in animation
           (see .brand-lockup .mk-seg) is uniform regardless of real length */}
-      <path className="mk-seg" pathLength="1" d="M3 4v13a3 3 0 0 0 3 3h1V4H3Z" stroke="url(#cg)" strokeWidth="1.6" />
-      <path className="mk-seg" pathLength="1" d="M21 4v9a3 3 0 0 1-3 3h-1V4h4Z" stroke="url(#cg)" strokeWidth="1.6" />
-      <path className="mk-seg" pathLength="1" d="M7 9h10" stroke="url(#cg)" strokeWidth="1.6" strokeLinecap="round" />
-      <path className="mk-seg" pathLength="1" d="M12 9v11" stroke="url(#cg)" strokeWidth="1.6" strokeLinecap="round" />
+      <path className="mk-seg" pathLength="1" d="M12 3.5A8.5 8.5 0 1 1 3.8 9.8" />
+      <path className="mk-seg" pathLength="1" d="M12 6.4v3.2" />
+      <circle className="mk-dot" cx="5.3" cy="6.2" r="1.5" fill="currentColor" stroke="none" />
     </svg>
   );
 }
 
-// Animated hero lockup for the login / onboarding screens: the caliper
-// strokes draw in and connect, "Caliper" reveals with a brushed-metal fill,
-// and a glint sweeps across once it forms. Purely CSS (see .brand-lockup in
+// Animated hero lockup for the login / onboarding screens: the ring draws
+// in, then the wordmark reveals. Purely CSS (see .brand-lockup in
 // app.css), so it replays whenever the component mounts (e.g. switching portals).
 export function BrandLockup({ className = '' }) {
   return (
     <div className={`brand-lockup ${className}`.trim()}>
       <Mark className="mark bl-mark" />
-      <span className="bl-word">Caliper</span>
+      <span className="bl-word">Round24</span>
       <span className="bl-glint" aria-hidden="true" />
     </div>
   );
@@ -79,7 +72,7 @@ export const IcMapPin = P(<><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16
 export const IcTable = P(<><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 9h18M3 14.5h18M9 4v16"/></>);
 export const IcTrend = P(<><path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/></>);
 
-const PALS = ['#ff7a18', '#ff3d81', '#4ade80', '#38bdf8', '#a855f7', '#ffd21a', '#ff5a5a', '#22d3ee'];
+const PALS = ['var(--accent)', 'var(--accent-2)', 'var(--money)', 'var(--info)', 'var(--accent-2)', 'var(--warn)', 'var(--danger)', '#22d3ee'];
 export function Avatar({ name, i = 0 }) {
   const init = name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
   return <div className="avatar" style={{ background: PALS[i % PALS.length] }}>{init}</div>;

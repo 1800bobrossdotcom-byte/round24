@@ -15,7 +15,7 @@ const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 // CORS: reflect only the app's own origins (audit S5) — never '*'. Re-bound per
 // request in the handler; a concurrent re-bind can only swap one allowlisted
 // origin for another, so it stays safe.
-const CORS_ORIGINS = ['https://caliper.solutions', 'https://www.caliper.solutions', 'http://localhost:5173', 'http://localhost:4173'];
+const CORS_ORIGINS = ['https://round24.app', 'https://www.round24.app', 'http://localhost:5173', 'http://localhost:4173'];
 const corsFor = (origin: string | null) => ({
   'Access-Control-Allow-Origin': origin && CORS_ORIGINS.includes(origin) ? origin : CORS_ORIGINS[0],
   'Vary': 'Origin',

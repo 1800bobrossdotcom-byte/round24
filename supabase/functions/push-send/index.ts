@@ -11,7 +11,7 @@
 // Secrets: VAPID_KEYS_JSON      the pair printed by scripts/vapid-keys.mjs
 //          VAPID_SUBJECT        mailto:you@yourdomain (push services may contact it)
 //          PUSH_WEBHOOK_SECRET  same value as the push_config 'secret' row
-//          APP_URL              optional, default https://caliper.solutions
+//          APP_URL              optional, default https://round24.app
 // Setup walkthrough: docs/PUSH-SETUP.md
 // ============================================================
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -20,8 +20,8 @@ import { ApplicationServer, importVapidKeys, PushMessageError, Urgency } from 'j
 const SUPA_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const SECRET = Deno.env.get('PUSH_WEBHOOK_SECRET') || '';
-const SUBJECT = Deno.env.get('VAPID_SUBJECT') || 'mailto:hello@caliper.solutions';
-const APP_URL = (Deno.env.get('APP_URL') || 'https://caliper.solutions').replace(/\/+$/, '');
+const SUBJECT = Deno.env.get('VAPID_SUBJECT') || 'mailto:hello@round24.app';
+const APP_URL = (Deno.env.get('APP_URL') || 'https://round24.app').replace(/\/+$/, '');
 const KEYS_JSON = Deno.env.get('VAPID_KEYS_JSON') || '';
 
 type Row = Record<string, unknown>;

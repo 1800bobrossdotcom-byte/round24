@@ -1,9 +1,9 @@
 // ============================================================
-// CAM reconciliation — Caliper Enterprise's moat calc for commercial estates.
+// CAM reconciliation — Round24 Enterprise's moat calc for commercial estates.
 //
 // Common Area Maintenance: a commercial building's operating cost is recovered
 // from its tenants pro-rata. The perennial fight is that the landlord's number
-// is an estimate nobody can audit. Caliper's is MEASURED — the recoverable pool
+// is an estimate nobody can audit. Round24's is MEASURED — the recoverable pool
 // is the same labor (from crew timers) + approved materials the per-door P&L
 // already reconciles. We allocate that measured pool by each suite's share of
 // rentable floor area, then true it up against what the tenant was billed.

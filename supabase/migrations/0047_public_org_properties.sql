@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v47: public property list for the resident request form
+-- Round24 — schema v47: public property list for the resident request form
 -- The resident page (unauthenticated) should offer a dropdown of the org's real
 -- buildings instead of free-typed addresses, so every request lands on a known
 -- property — streamlined, matchable data straight into the office queue. Like

@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v40: preventive / recurring maintenance schedules
+-- Round24 — schema v40: preventive / recurring maintenance schedules
 -- The planned counterpart to work orders: "gutters quarterly at 121 Park",
 -- "HVAC filters every 90 days". A schedule spawns a work order when it comes
 -- due, so recurring upkeep stops living in someone's head. Office manages them;

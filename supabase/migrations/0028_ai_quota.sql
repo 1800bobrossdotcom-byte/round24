@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v28: per-org daily quota for the AI edge functions.
+-- Round24 — schema v28: per-org daily quota for the AI edge functions.
 -- receipt-ocr / chat-summary / stock-check all hit Claude Opus and were callable
 -- without limit by any member → unbounded Anthropic spend (Blue #1 / Red #7).
 -- ai_quota_bump atomically increments today's counter for the caller's org and

@@ -1,6 +1,6 @@
 // ============================================================
-// Caliper document export — timesheets (and any tabular labor view) out to a
-// formula-driven .xlsx and a Caliper-branded print-to-PDF.
+// Round24 document export — timesheets (and any tabular labor view) out to a
+// formula-driven .xlsx and a Round24-branded print-to-PDF.
 //
 // The Excel is "optimized": per-row Pay is a live formula (Hours × Rate), the
 // totals are SUMs, and the Summary tab rolls up by building and operator with
@@ -26,10 +26,10 @@ function todayLabel() {
 // rows: [{ date, operator, building, unit, category, task, hours, rate }]
 // meta: { orgName, rangeLabel }
 export function exportTimesheetXlsx(rows, meta = {}) {
-  const org = meta.orgName || 'Caliper';
+  const org = meta.orgName || 'Round24';
   const HEAD = ['Date', 'Operator', 'Building', 'Unit', 'Category', 'Task', 'Hours', 'Rate', 'Pay'];
   const titleRows = [
-    ['CALIPER'],
+    ['ROUND24'],
     [`${org} · Timesheet`],
     [`${meta.rangeLabel || 'All logged time'} · Generated ${todayLabel()}`],
     [],
@@ -89,7 +89,7 @@ export function exportTimesheetXlsx(rows, meta = {}) {
     });
     const buildings = [...new Set(rows.map((r) => r.building || 'Unassigned'))].sort();
     const operators = [...new Set(rows.map((r) => r.operator || 'Unattributed'))].sort();
-    const sum = [['CALIPER'], [`${org} · Timesheet summary`], [`${meta.rangeLabel || 'All logged time'} · Generated ${todayLabel()}`], [], ['By building', 'Hours', 'Pay']];
+    const sum = [['ROUND24'], [`${org} · Timesheet summary`], [`${meta.rangeLabel || 'All logged time'} · Generated ${todayLabel()}`], [], ['By building', 'Hours', 'Pay']];
     buildings.forEach((b) => sum.push([b, 0, 0]));
     sum.push([], ['By operator', 'Hours', 'Pay']);
     operators.forEach((o) => sum.push([o, 0, 0]));
@@ -107,14 +107,14 @@ export function exportTimesheetXlsx(rows, meta = {}) {
   }
 
   const safe = (meta.rangeLabel || 'all').replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '');
-  XLSX.writeFile(wb, `Caliper-Timesheet-${safe || 'export'}.xlsx`);
+  XLSX.writeFile(wb, `Round24-Timesheet-${safe || 'export'}.xlsx`);
 }
 
-// Branded print-to-PDF: open a new window with a Caliper-styled report and fire
+// Branded print-to-PDF: open a new window with a Round24-styled report and fire
 // the browser's print dialog (Save as PDF). Triggered by a button click so the
 // popup isn't blocked.
 export function exportTimesheetPdf(rows, meta = {}) {
-  const org = meta.orgName || 'Caliper';
+  const org = meta.orgName || 'Round24';
   const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const money0 = (nn) => '$' + (Number(nn) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const hrs0 = (nn) => (Math.round((Number(nn) || 0) * 100) / 100).toLocaleString('en-US');
@@ -123,9 +123,9 @@ export function exportTimesheetPdf(rows, meta = {}) {
     const h = Number(r.hours) || 0, p = h * (Number(r.rate) || 0); totH += h; totP += p;
     return `<tr><td>${esc(r.date)}</td><td>${esc(r.operator)}</td><td>${esc(r.building)}</td><td>${esc(r.unit)}</td><td>${esc(r.category)}</td><td class="tsk">${esc(r.task)}</td><td class="n">${hrs0(h)}</td><td class="n">${money0(r.rate)}</td><td class="n">${money0(p)}</td></tr>`;
   }).join('');
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Caliper Timesheet</title><style>
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Round24 Timesheet</title><style>
     @page{ size:letter; margin:0.55in; }
-    :root{ --ink:#16211E; --muted:#586863; --faint:#8A968F; --line:#D6DBD2; --tick:#C4CABF; --tick-major:#9FA89E; --accent:#0C9C6B; --accent-ink:#0A7A54; --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace; --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; }
+    :root{ --ink:#16211E; --muted:#586863; --faint:#6b6b6b; --line:#D6DBD2; --tick:#C4CABF; --tick-major:#9FA89E; --accent:#0C9C6B; --accent-ink:#0A7A54; --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace; --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; }
     *{ box-sizing:border-box; } body{ margin:0; font-family:var(--sans); color:var(--ink); font-size:9.5pt; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     header{ display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid var(--ink); padding-bottom:8px; }
     .brand{ font-weight:800; font-size:17pt; letter-spacing:-0.03em; } .brand b{ color:var(--accent); }
@@ -140,14 +140,14 @@ export function exportTimesheetPdf(rows, meta = {}) {
     tfoot td{ font-weight:800; border-top:1.5px solid var(--ink); border-bottom:0; padding-top:7px; } tfoot td.n{ color:var(--accent-ink); }
     footer{ margin-top:14px; font-family:var(--mono); font-size:7pt; color:var(--faint); }
   </style></head><body>
-    <header><div><div class="brand">Cali<b>per</b></div><div class="tag">Property maintenance, measured true</div></div>
+    <header><div><div class="brand">Round<b>24</b></div><div class="tag">Property maintenance, around the clock</div></div>
       <div class="meta"><b>${esc(org)} · Timesheet</b><br>${esc(meta.rangeLabel || 'All logged time')}<br>Generated ${todayLabel()}</div></header>
     <div class="rule"></div>
     <table><thead><tr><th>Date</th><th>Operator</th><th>Building</th><th>Unit</th><th>Category</th><th>Task</th><th class="n">Hours</th><th class="n">Rate</th><th class="n">Pay</th></tr></thead>
-      <tbody>${body || '<tr><td colspan="9" style="color:#8A968F">No entries in range.</td></tr>'}</tbody>
+      <tbody>${body || '<tr><td colspan="9" style="color:#6b6b6b">No entries in range.</td></tr>'}</tbody>
       <tfoot><tr><td colspan="6">TOTAL · ${rows.length} entr${rows.length === 1 ? 'y' : 'ies'}</td><td class="n">${hrs0(totH)}</td><td></td><td class="n">${money0(totP)}</td></tr></tfoot>
     </table>
-    <footer>Caliper · caliper.solutions · Confidential</footer>
+    <footer>Round24 · round24.app · Confidential</footer>
   </body></html>`;
   const w = window.open('', '_blank');
   if (!w) return false;                 // popup blocked

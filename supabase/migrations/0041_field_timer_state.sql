@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v41: cross-device field-timer state
+-- Round24 — schema v41: cross-device field-timer state
 -- The running job + parked (paused) jobs + break state used to live only in a
 -- single device's localStorage, so a crew member's phone and desktop didn't
 -- agree and the office couldn't see parked work. This is one authoritative row

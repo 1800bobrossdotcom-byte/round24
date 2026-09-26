@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v22: platform superadmin + workspace requests
+-- Round24 — schema v22: platform superadmin + workspace requests
 -- A superadmin sits ABOVE org roles: they provision workspaces and approve
 -- requests so the beta stays invite/approval-gated. Allowlisted by email so
 -- it works before that account has even signed up. All cross-tenant power is

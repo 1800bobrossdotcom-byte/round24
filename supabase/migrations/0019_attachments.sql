@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v19: photo attachments
+-- Round24 — schema v19: photo attachments
 -- Photos on work orders (crew documents the job) and images in chat.
 -- Both live in one private 'attachments' bucket, object paths
 -- '<org_id>/<file>', readable/writable by any member of that org

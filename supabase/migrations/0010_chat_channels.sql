@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v10: 1:1 DMs + named group chats
+-- Round24 — schema v10: 1:1 DMs + named group chats
 -- Small operations want to message one person or a small group, not just
 -- the whole team. Adds a members directory (so you can pick who to message)
 -- and private channels (members-only). Team ('all') and per-work-order

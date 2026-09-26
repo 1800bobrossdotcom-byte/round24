@@ -247,7 +247,7 @@ export default function Leasing({ store, navigate, focus }) {
           <IcBuilding width={26} height={26} style={{ opacity: .5 }} />
           <p style={{ fontWeight: 700, marginTop: 8 }}>No rent roll yet</p>
           <p className="note" style={{ maxWidth: 380, margin: '4px auto 14px' }}>
-            {isConfigured() ? 'Import your lease worksheet workbook — Caliper reads every building sheet, normalizes it, and turns it into a living rent roll.' : 'Connect to the cloud to import and manage your rent roll.'}
+            {isConfigured() ? 'Import your lease worksheet workbook — Round24 reads every building sheet, normalizes it, and turns it into a living rent roll.' : 'Connect to the cloud to import and manage your rent roll.'}
           </p>
           {canEdit && isConfigured() && (
             <button className="btn grad" onClick={() => fileRef.current?.click()} disabled={busy}>
@@ -259,7 +259,7 @@ export default function Leasing({ store, navigate, focus }) {
 
       {/* renewals pipeline */}
       {renewals.length > 0 && filter !== 'ending' && (
-        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: '#ffb02033' }}>
+        <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'color-mix(in srgb, var(--warn) 20%, transparent)' }}>
           <span className="field-label" style={{ color: 'var(--warn)' }}>Leases ending in 120 days ({renewals.length}) · <a onClick={() => setFilter('ending')} style={{ cursor: 'pointer', color: 'var(--info)' }}>focus</a></span>
           {renewals.slice(0, 6).map((u) => {
             const d = daysTo(u.leaseEnd);

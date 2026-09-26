@@ -8,12 +8,12 @@ import { IcCheck, IcX, IcTrash, IcUsers } from '../components/ui.jsx';
 
 const inp = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 9,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 3,
 };
 const fmtWhen = (iso) => (iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '');
 const STATUS_COLOR = { pending: 'var(--warn)', verified: 'var(--money)', declined: 'var(--text-faint)', moved_out: 'var(--text-dim)' };
 
-// Caliper Community · office side — verify resident claims against the lease,
+// Round24 Community · office side — verify resident claims against the lease,
 // keep the roster, share the join link, and post announcements.
 export default function Residents({ store }) {
   const { orgId, role } = store;
@@ -41,7 +41,7 @@ export default function Residents({ store }) {
   const dlPoster = async () => {
     setPosterBusy(true);
     try {
-      const png = await qrPosterDataUrl(link, { heading: 'Join your building on Caliper' });
+      const png = await qrPosterDataUrl(link, { heading: 'Join your building on Round24' });
       downloadDataUrl(png, 'caliper-community-join-poster.png');
     } finally { setPosterBusy(false); }
   };
@@ -72,7 +72,7 @@ export default function Residents({ store }) {
     <div>
       <div className="view-head">
         <h1>Residents</h1>
-        <p>Caliper Community — verify who lives where, and keep the whole building in the loop.</p>
+        <p>Round24 Community — verify who lives where, and keep the whole building in the loop.</p>
       </div>
 
       {/* join link */}
@@ -81,7 +81,7 @@ export default function Residents({ store }) {
         <p className="note" style={{ margin: '0 0 10px' }}>Residents create a free account, claim their unit, and land in your verify queue. Verification against the lease is the gate — the link only lets them ask.</p>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <input readOnly value={link || 'Available once your workspace is connected'} disabled={!link} onFocus={(e) => e.target.select()} className="mono"
-            style={{ flex: 1, minWidth: 220, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 13, padding: 10, borderRadius: 9 }} />
+            style={{ flex: 1, minWidth: 220, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 13, padding: 10, borderRadius: 3 }} />
           <button className="btn ghost sm" onClick={copyLink} disabled={!link}>{copied ? 'Copied ✓' : 'Copy link'}</button>
           <button className="btn grad sm" onClick={dlPoster} disabled={posterBusy || !link}>{posterBusy ? 'Building…' : 'Download poster'}</button>
         </div>
@@ -123,7 +123,7 @@ export default function Residents({ store }) {
           {!draft && <button className="btn ghost sm" style={{ marginLeft: 'auto' }} onClick={() => setDraft({ title: '', body: '', urgent: false })}>+ New announcement</button>}
         </div>
         {draft && (
-          <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: 12, marginBottom: 10 }}>
+          <div style={{ background: 'var(--surface-2)', borderRadius: 3, padding: 12, marginBottom: 10 }}>
             <div className="field-label">Title</div>
             <input style={inp} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="e.g. Water shut-off Thursday 9–11am" />
             <div className="field-label" style={{ marginTop: 8 }}>Details (optional)</div>

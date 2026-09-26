@@ -1,10 +1,10 @@
 -- ============================================================
--- Caliper — schema v45: per-workspace branding (name + logo)
+-- Round24 — schema v45: per-workspace branding (name + logo)
 -- Branding stops being hardcoded. Each org carries its own logo in
 -- orgs.theme.logo (name is already orgs.name). A public read exposes name+logo
 -- to the unauthenticated resident page; org staff upload a logo to the
 -- public-read brand-logos bucket and point their theme at it. A brand-new
--- workspace has an empty theme, so it shows the Caliper fallback and its own
+-- workspace has an empty theme, so it shows the Round24 fallback and its own
 -- name — nothing from another tenant carries over.
 -- ============================================================
 

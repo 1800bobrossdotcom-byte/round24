@@ -19,7 +19,7 @@ const STATUS_COLORS = { pending: 'var(--warn)', approved: 'var(--money)', reject
 
 const inputStyle = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 11, borderRadius: 10,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 11, borderRadius: 3,
 };
 
 export default function Purchases({ store }) {
@@ -249,7 +249,7 @@ export default function Purchases({ store }) {
           )}
 
           {flags.length > 0 && (
-            <div className="card" style={{ marginTop: 12, borderColor: '#ffb02033', background: 'var(--surface-2)' }}>
+            <div className="card" style={{ marginTop: 12, borderColor: 'color-mix(in srgb, var(--warn) 20%, transparent)', background: 'var(--surface-2)' }}>
               <span className="field-label" style={{ color: 'var(--warn)' }}>Price check — review before approving</span>
               {flags.map((f, i) => (
                 <div className="note" key={i} style={{ margin: '4px 0 0' }}>

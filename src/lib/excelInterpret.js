@@ -1,5 +1,5 @@
 // ============================================================
-// Caliper Excel interpreter — a layout-detecting reader for time/pay logs.
+// Round24 Excel interpreter — a layout-detecting reader for time/pay logs.
 //
 // Real shops keep hours in wildly different spreadsheet shapes. Instead of one
 // hard-coded format, this classifies each sheet and extracts a normalized set

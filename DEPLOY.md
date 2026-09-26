@@ -1,4 +1,4 @@
-# Getting Caliper online — the simple version
+# Getting Round24 online — the simple version
 
 You don't need to understand any of this. Just follow along. If anything goes
 wrong, the helper tells you exactly what to do, and you can always copy the
@@ -8,9 +8,9 @@ error text and send it to Claude.
 
 ## The one command
 
-1. **Unzip** `caliper-app.zip`. You'll get a folder called `caliper`.
+1. **Unzip** `round24-app.zip`. You'll get a folder called `round24`.
 2. **Open a terminal** in that folder:
-   - **Mac:** right-click the `caliper` folder → *New Terminal at Folder*.
+   - **Mac:** right-click the `round24` folder → *New Terminal at Folder*.
    - **Windows:** open the folder, click the address bar, type `cmd`, press Enter.
 3. **Type this and press Enter:**
    ```
@@ -31,7 +31,7 @@ That's the whole thing.
 - Does a test build to confirm the app is healthy.
 - Offers to deploy with Vercel (free), opening a browser to log you in.
 - Deploys a private preview first, then asks before making it public.
-- Finishes with the exact steps to connect **caliper.solutions**.
+- Finishes with the exact steps to connect **round24.app**.
 
 It never deletes anything and asks before each big step.
 
@@ -51,12 +51,12 @@ words. The three usual ones:
 
 ---
 
-## Connecting caliper.solutions (the last 2 minutes)
+## Connecting round24.app (the last 2 minutes)
 
 After the site is live on a `.vercel.app` address:
 
 1. Go to **vercel.com** → your project → **Settings → Domains**.
-2. Add **caliper.solutions**.
+2. Add **round24.app**.
 3. In **Namecheap** → your domain → **Advanced DNS**, add:
 
    | Type | Host | Value |
@@ -68,4 +68,4 @@ After the site is live on a `.vercel.app` address:
 4. Turn **OFF** Namecheap's *Domain Parking* if it's switched on.
 5. Wait a few minutes. The padlock (secure https) turns on automatically.
 
-Done — caliper.solutions is live.
+Done — round24.app is live.

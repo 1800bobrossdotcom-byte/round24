@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v7: cloud-persisted field timers
+-- Round24 — schema v7: cloud-persisted field timers
 -- Crew timer sessions write to the timers table so management sees
 -- hours without touching the crew's device. Property stays a label
 -- until properties are RM-synced; the work-order link is the start

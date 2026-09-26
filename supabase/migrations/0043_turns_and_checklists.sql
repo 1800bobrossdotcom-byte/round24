@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v43: make-ready turn board + work-order checklists
+-- Round24 — schema v43: make-ready turn board + work-order checklists
 -- Two "build our own RM module" surfaces:
 --   1. unit_turns — the make-ready / turnover board. A unit goes vacant, moves
 --      through stages (notice → vacant → make-ready → ready → leased), carries a

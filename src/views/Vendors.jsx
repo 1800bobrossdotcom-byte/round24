@@ -22,19 +22,19 @@ function formatPhone(raw) {
 
 const inputStyle = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 9,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 3,
 };
 
 function Stars({ n }) {
   const c = Math.max(0, Math.min(5, Math.round(Number(n) || 0))); // out-of-range/typed rating must never RangeError on .repeat
   if (!c) return null;
-  return <span style={{ color: '#f5b301', fontSize: 12, letterSpacing: 1 }}>{'★'.repeat(c)}<span style={{ color: 'var(--line)' }}>{'★'.repeat(5 - c)}</span></span>;
+  return <span style={{ color: 'var(--warn)', fontSize: 12, letterSpacing: 1 }}>{'★'.repeat(c)}<span style={{ color: 'var(--line)' }}>{'★'.repeat(5 - c)}</span></span>;
 }
 
 function FavBtn({ on, onClick, label }) {
   return (
     <button onClick={onClick} title={on ? 'Unfavorite' : 'Favorite'} aria-label={label}
-      style={{ background: 'none', border: 'none', cursor: 'pointer', color: on ? '#f5b301' : 'var(--text-faint)', fontSize: 18, lineHeight: 1, padding: 2 }}>
+      style={{ background: 'none', border: 'none', cursor: 'pointer', color: on ? 'var(--warn)' : 'var(--text-faint)', fontSize: 18, lineHeight: 1, padding: 2 }}>
       {on ? '★' : '☆'}
     </button>
   );

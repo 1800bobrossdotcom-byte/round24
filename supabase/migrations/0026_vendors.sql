@@ -1,8 +1,8 @@
 -- ============================================================
--- Caliper — schema v26: approved vendor / contractor list + favorite products
+-- Round24 — schema v26: approved vendor / contractor list + favorite products
 -- Every workspace keeps its own trusted rolodex: approved contractors (by
 -- trade), specialty suppliers, and the go-to products it reorders. Used by
--- both Caliper Pro (companies) and Caliper Portfolio (owners). Any member can
+-- both Round24 Pro (companies) and Round24 Portfolio (owners). Any member can
 -- read it (crew needs to know who's approved); staff (admin/manager, incl.
 -- owner-admins) maintain it.
 -- ============================================================

@@ -74,7 +74,7 @@ const PORTFOLIO = [
     ],
   },
   {
-    // a small mixed-commercial building — the Caliper Enterprise / CAM demo.
+    // a small mixed-commercial building — the Round24 Enterprise / CAM demo.
     // Commercial suites carry rentable SF (12th tuple slot) + a monthly CAM fee;
     // the reconciliation allocates the building's MEASURED operating cost
     // (see DEMO_PORTFOLIO_LABOR below) pro-rata by SF against what each was billed.

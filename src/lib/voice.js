@@ -1,6 +1,6 @@
 // ============================================================
 // Web Speech engine for hands-free field commands. Continuous listening for
-// the "Caliper …" wake word, in-browser (no audio ever leaves the device on
+// the "Round24 …" wake word, in-browser (no audio ever leaves the device on
 // supporting browsers). Feature-detected — degrades to a no-op where the
 // SpeechRecognition API isn't available (e.g. Firefox, most iOS Safari).
 // ============================================================

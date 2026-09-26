@@ -39,7 +39,7 @@ export default function Documents({ store }) {
       {isConfigured() && docBackend === 'none' && (
         <div className="offline">◐ Storage not provisioned yet — uploads activate once the documents migration is applied.</div>
       )}
-      {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: '#ff5a5a33', background: '#ff5a5a12' }}>{err}</div>}
+      {err && <div className="offline" style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 20%, transparent)', background: 'color-mix(in srgb, var(--danger) 7%, transparent)' }}>{err}</div>}
 
       {isStaff && (
         <div className="card" style={{ marginBottom: 'var(--gap)' }}>

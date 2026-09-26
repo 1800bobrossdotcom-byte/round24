@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v13: live presence for running timers
+-- Round24 — schema v13: live presence for running timers
 -- When a crew member starts their Field timer, a row here says "on the clock",
 -- so the office Day board can show each person's stopwatch ticking in real
 -- time. One row per user per org (upsert on start, delete on stop).

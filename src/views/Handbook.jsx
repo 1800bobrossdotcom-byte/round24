@@ -6,7 +6,7 @@ import { Mark, IcBuilding } from '../components/ui.jsx';
 
 const isLand = (u) => u.type === 'land' || u.status === 'held';
 let _newId = 0; // draft-only section ids (React keys); real ids assigned on save/normalize
-const inp = { width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 9 };
+const inp = { width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 3 };
 
 // Building Handbook — a branded, per-building digital manual. Staff author it in
 // Edit; the Reader is what a resident/tenant sees. (Residents also get a
@@ -72,7 +72,7 @@ export default function Handbook({ store }) {
         <div style={{ flex: '1 1 240px' }}>
           <div className="field-label">Building</div>
           <select value={active} onChange={(e) => setBuilding(e.target.value)}
-            style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 15, padding: 10, borderRadius: 10 }}>
+            style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 15, padding: 10, borderRadius: 3 }}>
             {buildings.map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
         </div>
@@ -119,7 +119,7 @@ export default function Handbook({ store }) {
           <div className="print-title" style={{ display: 'none' }}>{active} — Building Handbook</div>
           <div className="hb-cover">
             <OrgLogo logo={theme?.logo} name={orgName} height={38}
-              fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Mark style={{ width: 30, height: 30 }} /><span style={{ fontWeight: 800, fontSize: 18 }}>Caliper</span></span>} />
+              fallback={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Mark style={{ width: 30, height: 30 }} /><span style={{ fontWeight: 800, fontSize: 18 }}>Round24</span></span>} />
             <div className="hb-cover-t"><IcBuilding width={15} height={15} style={{ verticalAlign: -2, marginRight: 6 }} />{active}</div>
             <div className="hb-cover-s">Building Handbook</div>
           </div>

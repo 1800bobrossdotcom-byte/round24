@@ -14,7 +14,7 @@ function daysBetween(a, b) { return Math.round((new Date(`${b}T00:00:00`) - new 
 
 const inputStyle = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--line)',
-  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 9,
+  color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, padding: 9, borderRadius: 3,
 };
 const blank = () => ({ task: '', propLabel: '', unit: '', category: 'general', intervalDays: '30', nextDue: todayISO(), assigneeLabel: '', priority: 3, active: true });
 
@@ -80,7 +80,7 @@ export default function Maintenance({ store }) {
     <div>
       <div className="view-head">
         <h1>Maintenance schedule</h1>
-        <p>Recurring preventive maintenance — set a cadence and Caliper spawns the work order when it comes due.</p>
+        <p>Recurring preventive maintenance — set a cadence and Round24 spawns the work order when it comes due.</p>
       </div>
 
       {flash && <div className="card" style={{ marginBottom: 'var(--gap)', borderColor: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 8 }}><IcCheck width={15} height={15} style={{ color: 'var(--accent)' }} /><span>{flash}</span></div>}
@@ -148,7 +148,7 @@ export default function Maintenance({ store }) {
       <div className="card">
         <span className="field-label" style={{ display: 'block', marginBottom: 4 }}>{upcoming.length ? `Upcoming (${upcoming.length})` : 'Recurring tasks'}</span>
         {upcoming.length === 0 && due.length === 0
-          ? <p className="note">No recurring maintenance yet. Add turns, filter changes, gutter cleaning, fire-safety checks — anything that repeats — and Caliper will surface it and spin up the work order when it’s due.</p>
+          ? <p className="note">No recurring maintenance yet. Add turns, filter changes, gutter cleaning, fire-safety checks — anything that repeats — and Round24 will surface it and spin up the work order when it’s due.</p>
           : upcoming.map((s) => scheduleRow(s, false))}
       </div>
 

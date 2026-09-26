@@ -41,7 +41,7 @@ export default function Users() {
               </div>
             </div>
             {u.is_admin && (
-              <span className="mono" style={{ fontSize: 10, color: 'var(--warn)', border: '1px solid var(--line)', borderRadius: 999, padding: '2px 8px' }}>
+              <span className="mono" style={{ fontSize: 10, color: 'var(--warn)', border: '1px solid var(--line)', borderRadius: 2, padding: '2px 8px' }}>
                 DEVELOPER
               </span>
             )}

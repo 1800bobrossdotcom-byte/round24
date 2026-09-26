@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v46: guardrails on the public intake endpoints (audit S4)
+-- Round24 — schema v46: guardrails on the public intake endpoints (audit S4)
 -- maintenance_requests and workspace_requests accept unauthenticated inserts by
 -- design (resident repair form, beta-request funnel). Unbounded, that's a DB-
 -- bloat / queue-spam vector: rows carry base64 photos, and nothing throttled a

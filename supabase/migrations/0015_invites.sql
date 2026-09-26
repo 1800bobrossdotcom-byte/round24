@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v15: invite-based onboarding
+-- Round24 — schema v15: invite-based onboarding
 -- An org admin/manager generates a role-scoped invite; the invitee signs up
 -- through it and is placed into the org with that role (office vs contractor).
 -- Whitelabel: invite links use the client's own domain.

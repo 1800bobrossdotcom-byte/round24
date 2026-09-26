@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v32: tenant billing on work orders.
+-- Round24 — schema v32: tenant billing on work orders.
 -- Replaces the spreadsheet "Service Log" columns: what we charge (service fee),
 -- what the repair cost, and whether the tenant was billed. The app degrades
 -- gracefully when these are absent, so applying this migration is what turns

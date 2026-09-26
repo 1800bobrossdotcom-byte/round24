@@ -1,7 +1,7 @@
 # Rent Manager API — integration notes (Evolution account)
 
 Distilled from "API Getting Started" (July 2026). RM is the accounting
-system of record; Caliper pulls read-only (properties/units) first —
+system of record; Round24 pulls read-only (properties/units) first —
 push of completed WOs + costs is post-launch (see build brief §6).
 
 ## Connection
@@ -39,12 +39,12 @@ push of completed WOs + costs is post-launch (see build brief §6).
   `Message` fields carry the real reason)
 - Gateway timeout is 5 min
 
-## Caliper integration sketch (when creds arrive)
+## Round24 integration sketch (when creds arrive)
 1. Edge function `rm-sync` (server-side; RM creds live in Supabase
    secrets, never the browser — same pattern as getdek)
 2. Pull `/Properties` + `/Units` for the location → upsert into
-   Caliper `properties` with `external_src='rm'`, `external_id`
-3. Conflict rule (locked): **RM wins on properties/units; Caliper wins
+   Round24 `properties` with `external_src='rm'`, `external_id`
+3. Conflict rule (locked): **RM wins on properties/units; Round24 wins
    on work orders**
 4. Store RM credentials encrypted in `rm_connections` (already in
    schema, staff-only RLS)

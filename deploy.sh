@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#  Caliper — one-command deploy helper
+#  Round24 — one-command deploy helper
 #  Just run:  bash deploy.sh
 #  It checks everything, explains any problem in plain English,
 #  and walks you all the way to a live site.
@@ -33,15 +33,15 @@ pause
 
 # ---- 0. make sure we're in the right folder ----
 step "Checking we're in the project folder"
-if [ ! -f package.json ] || ! grep -q '"name": "caliper"' package.json 2>/dev/null; then
-  err "This doesn't look like the Caliper folder."
+if [ ! -f package.json ] || ! grep -q '"name": "round24"' package.json 2>/dev/null; then
+  err "This doesn't look like the Round24 folder."
   say ""
-  say "Fix: unzip caliper-app.zip, then in your terminal type:"
-  say "     ${BOLD}cd caliper${RST}   (the folder that has package.json inside)"
+  say "Fix: unzip round24-app.zip, then in your terminal type:"
+  say "     ${BOLD}cd round24${RST}   (the folder that has package.json inside)"
   say "and run ${BOLD}bash deploy.sh${RST} again from there."
   exit 1
 fi
-ok "Found the Caliper project."
+ok "Found the Round24 project."
 
 # ---- 1. Node.js ----
 step "Checking for Node.js (the engine that runs the app)"
@@ -139,9 +139,9 @@ case "$CHOICE" in
       ok "Left it as a preview. Run ${BOLD}vercel --prod${RST} anytime to go live."
     fi
 
-    step "Last step: your custom domain caliper.solutions"
+    step "Last step: your custom domain round24.app"
     say "  1. Open ${BOLD}vercel.com${RST} → your project → ${BOLD}Settings → Domains${RST}"
-    say "  2. Type ${BOLD}caliper.solutions${RST} and click Add"
+    say "  2. Type ${BOLD}round24.app${RST} and click Add"
     say "  3. In ${BOLD}Namecheap → Advanced DNS${RST}, set these two records:"
     say "        A record   Host ${BOLD}@${RST}     Value ${BOLD}76.76.21.21${RST}"
     say "        CNAME      Host ${BOLD}www${RST}   Value ${BOLD}cname.vercel-dns.com.${RST}"

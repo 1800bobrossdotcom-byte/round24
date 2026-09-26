@@ -1,5 +1,5 @@
 -- ============================================================
--- Caliper — schema v31: salaried operators.
+-- Round24 — schema v31: salaried operators.
 -- A fixed salary per operator, dispersed across doors by logged-hours share.
 -- Stored on the per-org labor_state document as an encrypted blob (it carries
 -- pay), alongside the imported spine. The app degrades gracefully when this

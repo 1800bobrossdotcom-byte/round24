@@ -1,7 +1,7 @@
-# Caliper — Web Push setup (one-time, ~10 minutes)
+# Round24 — Web Push setup (one-time, ~10 minutes)
 
 What this gives you: real system notifications on phones and desktops **even
-when Caliper is closed** — new and urgent work orders, assignments, receipts to
+when Round24 is closed** — new and urgent work orders, assignments, receipts to
 review, resident requests, chat. The bell, the in-app feed and toasts already
 work without any of this; push is the layer on top for lock screens.
 
@@ -52,7 +52,7 @@ supabase secrets set \
 
 - `VAPID_SUBJECT` is a contact address the push services may use if something misbehaves.
 - `PUSH_WEBHOOK_SECRET` is any long random string. Keep it — step 6 uses the same value.
-- Optional: `APP_URL` (default `https://caliper.solutions`) — where a tapped notification opens.
+- Optional: `APP_URL` (default `https://round24.app`) — where a tapped notification opens.
 
 ## Step 4 — Deploy the function
 
@@ -94,7 +94,7 @@ Each phone or computer is its own subscription; a person can turn one off from
 the same spot without affecting the others.
 
 - **iPhone / iPad**: push only works for web apps on the Home Screen (iOS 16.4+).
-  Share → *Add to Home Screen*, open Caliper from that icon, then Enable. In a
+  Share → *Add to Home Screen*, open Round24 from that icon, then Enable. In a
   plain Safari tab the control explains this instead of failing.
 - **Android** (Chrome, Edge, Firefox, Samsung Internet) and **desktop** browsers: works as-is.
 
@@ -123,7 +123,7 @@ the same spot without affecting the others.
 
 The person who made the change is never pinged about it. Settings → *Work-order
 alerts* and *Chat notifications* mute those kinds per person. Urgent jobs stay on
-screen until acted on; everything else is a normal banner. When Caliper is
+screen until acted on; everything else is a normal banner. When Round24 is
 already open and in front, only urgent pushes show a banner — the in-app toast
 and feed cover the rest.
 
